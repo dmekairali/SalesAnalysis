@@ -714,12 +714,12 @@ const fulfillmentData = useMemo(() => [
         setFilters={setFilters}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'overview' && <OverviewTab />} {/* OverviewTab is a component instance here */}
+        {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
       </div>
     </div>
   );
-};
+}; // This should be the closing brace for AyurvedicDashboard
 
-export default AyurvedicDashboard;
+export default AyurvedicDashboard; // This should be the correct export line
