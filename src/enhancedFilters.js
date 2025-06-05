@@ -118,21 +118,21 @@ const SearchableDropdown = ({
   );
 };
 
-// Date Range Picker Component
-const DateRangePicker = ({ value, onChange, label }) => {
+// Date Range Picker Component with memo to prevent unnecessary re-renders
+const DateRangePicker = React.memo(({ value, onChange, label }) => {
   const [startDate, endDate] = value;
 
-  const handleStartDateChange = (date) => {
+  const handleStartDateChange = React.useCallback((date) => {
     onChange([date, endDate]);
-  };
+  }, [endDate, onChange]);
 
-  const handleEndDateChange = (date) => {
+  const handleEndDateChange = React.useCallback((date) => {
     onChange([startDate, date]);
-  };
+  }, [startDate, onChange]);
 
-  const clearDates = () => {
+  const clearDates = React.useCallback(() => {
     onChange(['', '']);
-  };
+  }, [onChange]);
 
   return (
     <div>
@@ -141,21 +141,31 @@ const DateRangePicker = ({ value, onChange, label }) => {
       </label>
       <div className="grid grid-cols-2 gap-2">
         <div className="relative">
-          <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
           <input
             type="date"
-            value={startDate}
-            onChange={(e) => handleStartDateChange(e.target.value)}
+            value={startDate || ''}
+            onChange={(e) => {
+              e.persist();
+              handleStartDateChange(e.target.value);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             placeholder="Start Date"
           />
         </div>
         <div className="relative">
-          <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
           <input
             type="date"
-            value={endDate}
-            onChange={(e) => handleEndDateChange(e.target.value)}
+            value={endDate || ''}
+            onChange={(e) => {
+              e.persist();
+              handleEndDateChange(e.target.value);
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             placeholder="End Date"
           />
@@ -164,7 +174,12 @@ const DateRangePicker = ({ value, onChange, label }) => {
       {(startDate || endDate) && (
         <button
           type="button"
-          onClick={clearDates}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            clearDates();
+          }}
           className="mt-1 text-xs text-red-600 hover:text-red-800"
         >
           Clear dates
@@ -172,7 +187,7 @@ const DateRangePicker = ({ value, onChange, label }) => {
       )}
     </div>
   );
-};
+});
 
 // Main Enhanced Filters Component
 const EnhancedOverviewFilters = ({ 
