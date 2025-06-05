@@ -19,7 +19,7 @@ import {
   CustomerTimelineChart,
   MLInsightCard
 } from './components.js';
-import { EnhancedOverviewFilters } from './enhancedFilters.js';
+import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
 
 const AyurvedicDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -37,9 +37,11 @@ const AyurvedicDashboard = () => {
     selectedMR: null,
     selectedFulfillmentCenter: null,
     selectedState: null,
-    tableSearchTerm: ''
+    tableSearchTerm: '',
+    tableSearchInput: '' // Separate input state for search
   });
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
+  const [pendingFilters, setPendingFilters] = useState(filters); // For Apply button functionality
 
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
@@ -140,6 +142,18 @@ const AyurvedicDashboard = () => {
       (order.products && order.products.some(p => p.toLowerCase().includes(searchTerm)))
     );
   }, [filteredData, filters.tableSearchTerm]);
+
+  // Handle table search
+  const handleTableSearch = () => {
+    setFilters(prev => ({ ...prev, tableSearchTerm: prev.tableSearchInput }));
+  };
+
+  // Handle Enter key in search input
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleTableSearch();
+    }
+  };
 
   // Enhanced export with ML insights
   const exportWithMLInsights = () => {
@@ -286,6 +300,8 @@ const AyurvedicDashboard = () => {
           sampleOrderData={sampleOrderData}
           isFiltersVisible={isFiltersVisible}
           setIsFiltersVisible={setIsFiltersVisible}
+          pendingFilters={pendingFilters}
+          setPendingFilters={setPendingFilters}
         />
 
         {/* Clear Chart Filters Button */}
@@ -316,17 +332,22 @@ const AyurvedicDashboard = () => {
             </div>
             {filteredData.length < sampleOrderData.length && (
               <button
-                onClick={() => setFilters(prev => ({
-                  dateRange: ['', ''],
-                  searchTerm: '',
-                  selectedFulfillment: null,
-                  selectedCategory: null,
-                  selectedTopProduct: null,
-                  selectedMR: null,
-                  selectedFulfillmentCenter: null,
-                  selectedState: null,
-                  tableSearchTerm: ''
-                }))}
+                onClick={() => {
+                  const resetFilters = {
+                    dateRange: ['', ''],
+                    searchTerm: '',
+                    selectedFulfillment: null,
+                    selectedCategory: null,
+                    selectedTopProduct: null,
+                    selectedMR: null,
+                    selectedFulfillmentCenter: null,
+                    selectedState: null,
+                    tableSearchTerm: '',
+                    tableSearchInput: ''
+                  };
+                  setFilters(resetFilters);
+                  setPendingFilters(resetFilters);
+                }}
                 className="text-sm text-blue-600 hover:text-blue-800 underline"
               >
                 Reset all filters
@@ -431,36 +452,45 @@ const AyurvedicDashboard = () => {
               </div>
               
               {/* Search Orders - Table Specific */}
-              <div className="w-full max-w-md">
+              <div className="w-full max-w-lg">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Search Orders
                 </label>
-                <div className="relative">
-                  <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={filters.tableSearchTerm || ''}
-                    onChange={(e) => {
-                      e.preventDefault();
-                      setFilters(prev => ({ ...prev, tableSearchTerm: e.target.value }));
-                    }}
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Search by Order ID, Customer, MR, Product..."
-                    autoComplete="off"
-                  />
+                <div className="flex space-x-2">
+                  <div className="relative flex-1">
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={filters.tableSearchInput || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, tableSearchInput: e.target.value }))}
+                      onKeyPress={handleSearchKeyPress}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Search by Order ID, Customer, MR, Product..."
+                      autoComplete="off"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTableSearch}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 transition-colors"
+                  >
+                    Search
+                  </button>
                   {filters.tableSearchTerm && (
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setFilters(prev => ({ ...prev, tableSearchTerm: '' }));
-                      }}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setFilters(prev => ({ ...prev, tableSearchTerm: '', tableSearchInput: '' }))}
+                      className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-colors"
                     >
-                      <X className="h-4 w-4" />
+                      Clear
                     </button>
                   )}
                 </div>
+                {filters.tableSearchTerm && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Searching for: "{filters.tableSearchTerm}" - {tableFilteredData.length} results found
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -546,15 +576,18 @@ const AyurvedicDashboard = () => {
             <Brain className="h-5 w-5 mr-2 text-purple-600" />
             Product Sales Prediction Engine
           </h3>
-          <select
-            value={selectedProduct}
-            onChange={(e) => setSelectedProduct(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500"
-          >
-            {uniqueProducts.map(product => (
-              <option key={product.id} value={product.id}>{product.name}</option>
-            ))}
-          </select>
+          <div className="w-80">
+            <SearchableDropdown
+              options={uniqueProducts.map(p => p.name)}
+              value={uniqueProducts.find(p => p.id === selectedProduct)?.name || ''}
+              onChange={(value) => {
+                const product = uniqueProducts.find(p => p.name === value);
+                if (product) setSelectedProduct(product.id);
+              }}
+              placeholder="Select Product..."
+              label="Product"
+            />
+          </div>
         </div>
 
         {/* Product Info */}
@@ -650,15 +683,18 @@ const AyurvedicDashboard = () => {
             <Brain className="h-5 w-5 mr-2 text-purple-600" />
             Customer Intelligence Engine
           </h3>
-          <select
-            value={selectedCustomer}
-            onChange={(e) => setSelectedCustomer(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500"
-          >
-            {uniqueCustomers.map(customer => (
-              <option key={customer.id} value={customer.id}>{customer.name}</option>
-            ))}
-          </select>
+          <div className="w-80">
+            <SearchableDropdown
+              options={uniqueCustomers.map(c => c.name)}
+              value={uniqueCustomers.find(c => c.id === selectedCustomer)?.name || ''}
+              onChange={(value) => {
+                const customer = uniqueCustomers.find(c => c.name === value);
+                if (customer) setSelectedCustomer(customer.id);
+              }}
+              placeholder="Select Customer..."
+              label="Customer"
+            />
+          </div>
         </div>
 
         {/* Customer Info */}
@@ -839,6 +875,8 @@ const AyurvedicDashboard = () => {
         setFilters={setFilters}
         isFiltersVisible={isFiltersVisible}
         setIsFiltersVisible={setIsFiltersVisible}
+        pendingFilters={pendingFilters}
+        setPendingFilters={setPendingFilters}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
