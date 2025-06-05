@@ -41,12 +41,12 @@ export const KPICard = ({ title, value, icon: Icon, format = 'number', color = C
 export const Navigation = ({ activeTab, setActiveTab, notifications, showNotifications, setShowNotifications, exportWithMLInsights, showMLAnalytics, setShowMLAnalytics, filters, setFilters }) => (
   <nav className="bg-white shadow-sm border-b">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex justify-between items-center py-4">
-        <div className="flex items-center space-x-8">
+      <div className="flex flex-col md:flex-row justify-between items-center py-4 md:space-y-0 space-y-4">
+        <div className="flex flex-col md:flex-row items-center md:space-x-8 md:space-y-0 space-y-4">
           <h1 className="text-2xl font-bold" style={{ color: COLORS.primary }}>
             AyurML Analytics
           </h1>
-          <div className="flex space-x-1">
+          <div className="flex flex-wrap space-x-1">
             {[
               { id: 'overview', label: 'Overview', icon: Home },
               { id: 'products', label: 'Product Predictions', icon: Box },
@@ -68,24 +68,24 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
           </div>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col md:flex-row items-center w-full md:w-auto md:space-x-4 md:space-y-0 space-y-4">
           {/* Search */}
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search..."
               value={filters.searchTerm}
               onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
           </div>
 
           {/* Notifications */}
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
             <button 
               onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 text-gray-400 hover:text-gray-600 relative"
+              className="w-full md:w-auto p-2 text-gray-400 hover:text-gray-600 relative flex items-center justify-center"
             >
               <Bell className="h-6 w-6" />
               {notifications.length > 0 && (
@@ -119,7 +119,7 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
           {/* ML Analytics Toggle */}
           <button 
             onClick={() => setShowMLAnalytics(!showMLAnalytics)}
-            className={`flex items-center px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`flex items-center justify-center w-full md:w-auto px-3 py-2 rounded-lg text-sm transition-colors ${
               showMLAnalytics 
                 ? 'bg-purple-100 text-purple-700' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -132,7 +132,7 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
           {/* Export */}
           <button 
             onClick={exportWithMLInsights}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -235,71 +235,148 @@ export const SalesTrendChart = ({ data }) => (
   </div>
 );
 
-export const FulfillmentChart = ({ data, onChartClick }) => (
+export const FulfillmentChart = ({ data, filters, setFilters }) => {
+  const selectedFulfillment = filters?.selectedFulfillment;
+
+  const handleSegmentClick = (dataPoint) => {
+    if (!dataPoint || !dataPoint.name) return; // dataPoint is the payload object from recharts
+
+    const clickedSegmentName = dataPoint.name;
+
+    setFilters(prev => ({
+      ...prev,
+      selectedFulfillment: selectedFulfillment === clickedSegmentName ? null : clickedSegmentName
+    }));
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h3 className="text-lg font-semibold mb-4">Order Fulfillment {selectedFulfillment ? `(${selectedFulfillment})` : ''}</h3>
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            outerRadius={100} // Increased outerRadius for better visual
+            innerRadius={50}  // Added innerRadius to make it a Donut chart, looks nicer
+            dataKey="value"
+            onClick={handleSegmentClick} // dataPoint payload is passed here
+            className="cursor-pointer"
+          >
+            {data.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={index === 0 ? COLORS.primary : COLORS.secondary}
+                // Apply visual indication for selection
+                fillOpacity={selectedFulfillment && entry.name !== selectedFulfillment ? 0.5 : 1}
+                stroke={selectedFulfillment === entry.name ? (index === 0 ? '#357ABD' : '#40BFA0') : '#fff'} // Hardcoded darker shades
+                strokeWidth={selectedFulfillment === entry.name ? 3 : 1}
+              />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+export const CategoryChart = ({ data, filters, setFilters }) => {
+  const selectedCategory = filters?.selectedCategory;
+
+  const handleSegmentClick = (dataPoint) => {
+    // dataPoint is the payload object from recharts, containing the original data entry
+    if (!dataPoint || !dataPoint.name) return;
+
+    const clickedCategoryName = dataPoint.name;
+
+    setFilters(prev => ({
+      ...prev,
+      selectedCategory: selectedCategory === clickedCategoryName ? null : clickedCategoryName
+    }));
+  };
+
+  const categoryColors = [COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.purple, COLORS.teal, COLORS.warning, COLORS.success, COLORS.error];
+
+  return (
   <div className="bg-white p-6 rounded-lg shadow-md">
-    <h3 className="text-lg font-semibold mb-4">Order Fulfillment</h3>
+    <h3 className="text-lg font-semibold mb-4">Sales by Category {selectedCategory ? `(${selectedCategory})` : ''}</h3>
     <ResponsiveContainer width="100%" height={300}>
       <PieChart>
         <Pie
           data={data}
           cx="50%"
           cy="50%"
-          outerRadius={80}
+          outerRadius={90}
+          innerRadius={45}  // Make it a Donut chart
           dataKey="value"
-          onClick={onChartClick}
+          onClick={handleSegmentClick} // Attach click handler
           className="cursor-pointer"
         >
           {data.map((entry, index) => (
             <Cell 
               key={`cell-${index}`} 
-              fill={index === 0 ? COLORS.primary : COLORS.secondary}
+              fill={categoryColors[index % categoryColors.length]}
+              // Apply visual indication for selection
+              fillOpacity={selectedCategory && entry.name !== selectedCategory ? 0.5 : 1}
+              stroke={selectedCategory === entry.name ? '#333333' : '#FFFFFF'} // Dark stroke for selected, white for others
+              strokeWidth={selectedCategory === entry.name ? 3 : 1}
             />
           ))}
         </Pie>
-        <Tooltip />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  </div>
-);
-
-export const CategoryChart = ({ data }) => (
-  <div className="bg-white p-6 rounded-lg shadow-md">
-    <h3 className="text-lg font-semibold mb-4">Sales by Category</h3>
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          outerRadius={80}
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={[COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.purple, COLORS.teal, COLORS.warning, COLORS.success, COLORS.error][index % 8]} />
-          ))}
-        </Pie>
         <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
         <Legend />
       </PieChart>
     </ResponsiveContainer>
   </div>
-);
+  );
+};
 
-export const TopProductsChart = ({ data }) => (
-  <div className="bg-white p-6 rounded-lg shadow-md">
-    <h3 className="text-lg font-semibold mb-4">Top Products</h3>
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-        <YAxis />
-        <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
-        <Bar dataKey="value" fill={COLORS.primary} />
-      </BarChart>
-    </ResponsiveContainer>
-  </div>
-);
+export const TopProductsChart = ({ data, filters, setFilters }) => {
+  const selectedTopProduct = filters?.selectedTopProduct;
+
+  const handleBarClick = (dataPoint) => {
+    // dataPoint is the payload object from recharts, containing the original data entry for the bar
+    if (!dataPoint || !dataPoint.name) return;
+
+    const clickedProductName = dataPoint.name;
+
+    setFilters(prev => ({
+      ...prev,
+      selectedTopProduct: selectedTopProduct === clickedProductName ? null : clickedProductName
+    }));
+  };
+
+  // A slightly darker version of COLORS.primary for selection stroke, or a fallback
+  const selectedStrokeColor = COLORS.primaryDark || '#2c5282'; // Example: darker blue
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h3 className="text-lg font-semibold mb-4">Top Products {selectedTopProduct ? `(${selectedTopProduct})` : ''}</h3>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+          <YAxis />
+          <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+          <Bar dataKey="value" onClick={handleBarClick} cursor="pointer">
+            {data.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={COLORS.primary}
+                fillOpacity={selectedTopProduct && entry.name !== selectedTopProduct ? 0.6 : 1}
+                stroke={selectedTopProduct === entry.name ? selectedStrokeColor : 'none'}
+                strokeWidth={selectedTopProduct === entry.name ? 3 : 0}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
 
 // Geographic Heat Map Component
 export const GeoHeatMap = ({ data }) => (
