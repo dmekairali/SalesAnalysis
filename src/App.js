@@ -63,7 +63,7 @@ const AyurvedicDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Create filteredData based on filters
+  // Create filteredData based on filters (memoized for performance)
   const filteredData = useMemo(() => {
     let data = sampleOrderData;
 
@@ -125,7 +125,21 @@ const AyurvedicDashboard = () => {
     }
 
     return data;
-  }, [filters, sampleOrderData]);
+  }, [filters]);
+
+  // Separate table filtered data to prevent page jumping
+  const tableFilteredData = useMemo(() => {
+    if (!filters.tableSearchTerm) return filteredData;
+    
+    const searchTerm = filters.tableSearchTerm.toLowerCase();
+    return filteredData.filter(order => 
+      order.orderId.toLowerCase().includes(searchTerm) ||
+      order.customerName.toLowerCase().includes(searchTerm) ||
+      (order.medicalRepresentative || order.salesRepresentative || 'N/A').toLowerCase().includes(searchTerm) ||
+      order.productName.toLowerCase().includes(searchTerm) ||
+      (order.products && order.products.some(p => p.toLowerCase().includes(searchTerm)))
+    );
+  }, [filteredData, filters.tableSearchTerm]);
 
   // Enhanced export with ML insights
   const exportWithMLInsights = () => {
@@ -412,7 +426,7 @@ const AyurvedicDashboard = () => {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Recent Orders with ML Insights</h3>
                 <span className="text-sm text-gray-600">
-                  Showing latest {Math.min(10, filteredData.length)} orders (of {filteredData.length} total)
+                  Showing latest {Math.min(10, tableFilteredData.length)} orders (of {filteredData.length} total)
                 </span>
               </div>
               
@@ -426,15 +440,25 @@ const AyurvedicDashboard = () => {
                   <input
                     type="text"
                     value={filters.tableSearchTerm || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, tableSearchTerm: e.target.value }))}
+                    onChange={(e) => {
+                      e.preventDefault();
+                      setFilters(prev => ({ ...prev, tableSearchTerm: e.target.value }));
+                    }}
                     className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="Search by Order ID, Customer, MR, Product..."
+                    autoComplete="off"
                   />
                   {filters.tableSearchTerm && (
-                    <X 
-                      className="h-4 w-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" 
-                      onClick={() => setFilters(prev => ({ ...prev, tableSearchTerm: '' }))}
-                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setFilters(prev => ({ ...prev, tableSearchTerm: '' }));
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   )}
                 </div>
               </div>
@@ -455,17 +479,7 @@ const AyurvedicDashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredData.filter(order => {
-                  if (!filters.tableSearchTerm) return true;
-                  const searchTerm = filters.tableSearchTerm.toLowerCase();
-                  return (
-                    order.orderId.toLowerCase().includes(searchTerm) ||
-                    order.customerName.toLowerCase().includes(searchTerm) ||
-                    (order.medicalRepresentative || order.salesRepresentative || 'N/A').toLowerCase().includes(searchTerm) ||
-                    order.productName.toLowerCase().includes(searchTerm) ||
-                    (order.products && order.products.some(p => p.toLowerCase().includes(searchTerm)))
-                  );
-                }).slice(-10).reverse().map((order, index) => (
+                {tableFilteredData.slice(-10).reverse().map((order, index) => (
                   <tr key={order.orderId} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderId}
