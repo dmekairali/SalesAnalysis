@@ -1,5 +1,4 @@
 
-// components.js - Reusable UI components
 
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, Area, AreaChart, ComposedChart, ReferenceLine } from 'recharts';
