@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon } from 'lucide-react'; // Added XOctagon
 
 // Import modules - Updated paths for Create React App
 import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from './data.js';
@@ -29,7 +29,10 @@ const AyurvedicDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [filters, setFilters] = useState({
     dateRange: ['2024-01-01', '2024-06-05'],
-    searchTerm: ''
+    searchTerm: '',
+    selectedFulfillment: null,
+    selectedCategory: null,
+    selectedTopProduct: null
   });
 
   // Initialize ML Models
@@ -54,9 +57,46 @@ const AyurvedicDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Create filteredData based on filters
+  const filteredData = useMemo(() => {
+    let data = sampleOrderData;
+
+    // Apply search term filter
+    if (filters.searchTerm) {
+      const lowerSearchTerm = filters.searchTerm.toLowerCase();
+      data = data.filter(order =>
+        order.orderId.toLowerCase().includes(lowerSearchTerm) ||
+        order.customerName.toLowerCase().includes(lowerSearchTerm) ||
+        order.productName.toLowerCase().includes(lowerSearchTerm) ||
+        order.category.toLowerCase().includes(lowerSearchTerm) ||
+        order.city.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+
+    // Apply fulfillment filter
+    if (filters.selectedFulfillment) {
+      data = data.filter(order => order.deliveredFrom === filters.selectedFulfillment);
+    }
+
+    // Apply category filter
+    if (filters.selectedCategory) {
+      data = data.filter(order => order.category === filters.selectedCategory);
+    }
+
+    // Apply top product filter
+    if (filters.selectedTopProduct) {
+      data = data.filter(order => order.productName === filters.selectedTopProduct);
+    }
+
+    // TODO: Apply date range filter if necessary, sampleOrderData doesn't seem to be pre-filtered by dateRange for charts.
+    // For now, assuming dateRange is handled elsewhere or implicitly by sampleOrderData's scope.
+
+    return data;
+  }, [filters, sampleOrderData]);
+
   // Enhanced export with ML insights
   const exportWithMLInsights = () => {
-    const kpis = calculateKPIs(sampleOrderData);
+    const kpis = calculateKPIs(filteredData); // Use filteredData
     const exportData = [
       ['=== AYURVEDIC SALES REPORT WITH ML INSIGHTS ==='],
       [''],
@@ -71,11 +111,11 @@ const AyurvedicDashboard = () => {
       ['Growth Rate: +12.5% vs last month'],
       ['Top Opportunity: Chyawanprash in winter season'],
       [''],
-      ['Detailed Orders:'],
-      ['Order ID', 'Date', 'Customer', 'Product', 'Amount', 'Status'],
-      ...sampleOrderData.map(order => [
+      ['Detailed Orders (Reflecting Current Filters):'],
+      ['Order ID', 'Date', 'Customer', 'Product', 'Amount', 'Status', 'Delivered From'],
+      ...filteredData.map(order => [ // Use filteredData
         order.orderId, order.date, order.customerName, 
-        order.productName, order.netAmount, order.deliveryStatus
+        order.productName, order.netAmount, order.deliveryStatus, order.deliveredFrom
       ])
     ];
 
@@ -90,25 +130,31 @@ const AyurvedicDashboard = () => {
 
   // Product predictions
   const productPredictions = useMemo(() => {
+    // Product predictions should ideally use globally filtered data or a specific subset
+    // For now, keeping it on sampleOrderData as it's product-specific exploration
     return productML.predictProductSales(selectedProduct, sampleOrderData, 6);
   }, [selectedProduct, productML]);
 
   // Customer predictions  
   const customerPredictions = useMemo(() => {
+    // Customer predictions should ideally use globally filtered data or a specific subset
+    // For now, keeping it on sampleOrderData as it's customer-specific exploration
     return customerML.predictCustomerBehavior(selectedCustomer, sampleOrderData, 6);
   }, [selectedCustomer, customerML]);
 
-  // Get unique values for dropdowns
+  // Get unique values for dropdowns - should these be from filteredData or sampleOrderData?
+  // For stable dropdowns, using sampleOrderData. If they should reflect filterable options, use filteredData.
+  // Sticking to sampleOrderData for now to keep product/customer selection independent of current table filters.
   const uniqueProducts = [...new Set(sampleOrderData.map(order => ({ id: order.productId, name: order.productName })))];
   const uniqueCustomers = [...new Set(sampleOrderData.map(order => ({ id: order.customerId, name: order.customerName })))];
 
-  // Calculate data for charts
-  const kpis = calculateKPIs(sampleOrderData);
+  // Calculate data for charts using filteredData
+  const kpis = calculateKPIs(filteredData);
   
   // Enhanced chart data with predictions
   const chartDataWithPredictions = useMemo(() => {
     const monthlyData = {};
-    sampleOrderData.forEach(order => {
+    filteredData.forEach(order => { // Use filteredData
       const month = new Date(order.date).toISOString().slice(0, 7);
       if (!monthlyData[month]) monthlyData[month] = { month, actual: 0, orders: 0 };
       monthlyData[month].actual += order.netAmount;
@@ -123,22 +169,24 @@ const AyurvedicDashboard = () => {
     for (let i = 1; i <= 3; i++) {
       const futureDate = new Date(currentDate);
       futureDate.setMonth(futureDate.getMonth() + i);
-      const avgRevenue = historicalData.reduce((sum, d) => sum + d.actual, 0) / historicalData.length;
+    const avgRevenue = historicalData.length > 0 ? historicalData.reduce((sum, d) => sum + d.actual, 0) / historicalData.length : 0;
+    const avgOrdersBase = kpis.avgOrderValue > 0 ? avgRevenue / kpis.avgOrderValue : 0;
+
       predictedData.push({
         month: futureDate.toISOString().slice(0, 7),
         actual: null,
         predicted: avgRevenue * (1 + 0.1 * i), // 10% growth per month
-        orders: Math.round(avgRevenue / kpis.avgOrderValue)
+      orders: Math.round(avgOrdersBase)
       });
     }
 
     return [...historicalData, ...predictedData];
-  }, [kpis.avgOrderValue]);
+}, [filteredData, kpis.avgOrderValue]); // Depend on filteredData
 
   // Geographic data
   const geoData = useMemo(() => {
     const locationData = {};
-    sampleOrderData.forEach(order => {
+  filteredData.forEach(order => { // Use filteredData
       const key = order.city;
       if (!locationData[key]) {
         locationData[key] = {
@@ -152,31 +200,57 @@ const AyurvedicDashboard = () => {
       locationData[key].orders += 1;
     });
     return Object.values(locationData);
-  }, []);
+}, [filteredData]); // Depend on filteredData
 
   // Chart data preparations
-  const categoryData = Object.entries(
-    sampleOrderData.reduce((acc, order) => {
+const categoryData = useMemo(() => Object.entries(
+  filteredData.reduce((acc, order) => { // Use filteredData
       acc[order.category] = (acc[order.category] || 0) + order.netAmount;
       return acc;
     }, {})
-  ).map(([name, value]) => ({ name, value }));
+).map(([name, value]) => ({ name, value })), [filteredData]);
 
-  const topProductsData = Object.entries(
-    sampleOrderData.reduce((acc, order) => {
+const topProductsData = useMemo(() => Object.entries(
+  filteredData.reduce((acc, order) => { // Use filteredData
       acc[order.productName] = (acc[order.productName] || 0) + order.netAmount;
       return acc;
     }, {})
-  ).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name: name.substring(0, 15), value }));
+).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name: name.substring(0, 15), value })), [filteredData]);
 
-  const fulfillmentData = [
-    { name: 'Factory', value: sampleOrderData.filter(o => o.deliveredFrom === 'Factory').length },
-    { name: 'Distributor', value: sampleOrderData.filter(o => o.deliveredFrom === 'Distributor').length }
-  ];
+const fulfillmentData = useMemo(() => [
+  { name: 'Factory', value: filteredData.filter(o => o.deliveredFrom === 'Factory').length },
+  { name: 'Distributor', value: filteredData.filter(o => o.deliveredFrom === 'Distributor').length }
+], [filteredData]); // Depend on filteredData
 
   // Overview Tab Component
-  const OverviewTab = () => (
+  const OverviewTab = () => {
+    const { selectedFulfillment, selectedCategory, selectedTopProduct } = filters;
+    const areChartFiltersActive = !!(selectedFulfillment || selectedCategory || selectedTopProduct);
+
+    const clearChartFilters = () => {
+      setFilters(prev => ({
+        ...prev,
+        selectedFulfillment: null,
+        selectedCategory: null,
+        selectedTopProduct: null,
+      }));
+    };
+
+    return (
     <div className="space-y-6">
+      {/* Clear Filters Button */}
+      {areChartFiltersActive && (
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={clearChartFilters}
+            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm flex items-center shadow-md"
+          >
+            <XOctagon className="h-4 w-4 mr-2" />
+            Clear Chart Filters
+          </button>
+        </div>
+      )}
+
       {/* Enhanced KPI Cards with ML Predictions */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <KPICard 
@@ -245,14 +319,23 @@ const AyurvedicDashboard = () => {
         {/* Order Fulfillment */}
         <FulfillmentChart 
           data={fulfillmentData}
-          onChartClick={(data) => console.log(`Filter by: ${data.name}`)}
+          filters={filters} // Pass full filters object
+          setFilters={setFilters} // Pass setFilters
         />
       </div>
 
       {/* Bottom Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CategoryChart data={categoryData} />
-        <TopProductsChart data={topProductsData} />
+        <CategoryChart
+          data={categoryData}
+          filters={filters}
+          setFilters={setFilters}
+        />
+        <TopProductsChart
+          data={topProductsData}
+          filters={filters}
+          setFilters={setFilters}
+        />
       </div>
 
       {/* Enhanced Data Table */}
@@ -261,7 +344,7 @@ const AyurvedicDashboard = () => {
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Recent Orders with ML Insights</h3>
             <span className="text-sm text-gray-600">
-              Showing latest {Math.min(10, sampleOrderData.length)} orders
+              Showing latest {Math.min(10, filteredData.length)} orders (of {filteredData.length} total)
             </span>
           </div>
         </div>
@@ -274,11 +357,12 @@ const AyurvedicDashboard = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivered From</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ML Score</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sampleOrderData.slice(-10).reverse().map((order, index) => (
+              {filteredData.slice(-10).reverse().map((order, index) => ( // Use filteredData
                 <tr key={order.orderId} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {order.orderId}
@@ -306,6 +390,9 @@ const AyurvedicDashboard = () => {
                     }`}>
                       {order.deliveryStatus}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {order.deliveredFrom}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
@@ -627,7 +714,7 @@ const AyurvedicDashboard = () => {
         setFilters={setFilters}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'overview' && <OverviewTab />}
+        {activeTab === 'overview' && <OverviewTab />} {/* OverviewTab is a component instance here */}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
       </div>
