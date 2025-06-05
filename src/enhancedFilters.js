@@ -179,25 +179,34 @@ const EnhancedOverviewFilters = ({
   setFilters, 
   sampleOrderData,
   isFiltersVisible,
-  setIsFiltersVisible 
+  setIsFiltersVisible,
+  pendingFilters,
+  setPendingFilters 
 }) => {
   // Get unique values for dropdowns
   const uniqueMRs = [...new Set(sampleOrderData.map(order => order.medicalRepresentative || order.salesRepresentative || 'N/A'))].filter(Boolean).sort();
   const uniqueFulfillmentCenters = [...new Set(sampleOrderData.map(order => order.deliveredFrom))].filter(Boolean).sort();
   const uniqueStates = [...new Set(sampleOrderData.map(order => order.state))].filter(Boolean).sort();
 
-  // Handle filter changes
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
+  // Handle pending filter changes (for Apply button)
+  const handlePendingFilterChange = (key, value) => {
+    setPendingFilters(prev => ({
       ...prev,
       [key]: value
     }));
   };
 
-  // Clear all filters (excluding table search)
-  const clearAllFilters = () => {
+  // Apply filters
+  const applyFilters = () => {
     setFilters(prev => ({
       ...prev,
+      ...pendingFilters
+    }));
+  };
+
+  // Clear all filters (excluding table search)
+  const clearAllFilters = () => {
+    const clearedFilters = {
       dateRange: ['', ''],
       selectedMR: null,
       selectedFulfillmentCenter: null,
@@ -205,8 +214,23 @@ const EnhancedOverviewFilters = ({
       selectedFulfillment: null,
       selectedCategory: null,
       selectedTopProduct: null
-    }));
+    };
+    setPendingFilters(prev => ({ ...prev, ...clearedFilters }));
+    setFilters(prev => ({ ...prev, ...clearedFilters }));
   };
+
+  // Check if there are pending changes
+  const hasPendingChanges = JSON.stringify({
+    dateRange: filters.dateRange,
+    selectedMR: filters.selectedMR,
+    selectedFulfillmentCenter: filters.selectedFulfillmentCenter,
+    selectedState: filters.selectedState
+  }) !== JSON.stringify({
+    dateRange: pendingFilters.dateRange,
+    selectedMR: pendingFilters.selectedMR,
+    selectedFulfillmentCenter: pendingFilters.selectedFulfillmentCenter,
+    selectedState: pendingFilters.selectedState
+  });
 
   // Count active filters (excluding table search and general search)
   const activeFiltersCount = [
@@ -265,16 +289,16 @@ const EnhancedOverviewFilters = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Date Range Filter */}
             <DateRangePicker
-              value={filters.dateRange || ['', '']}
-              onChange={(value) => handleFilterChange('dateRange', value)}
+              value={pendingFilters.dateRange || ['', '']}
+              onChange={(value) => handlePendingFilterChange('dateRange', value)}
               label="Date Range"
             />
 
             {/* Medical Representative Filter */}
             <SearchableDropdown
               options={uniqueMRs}
-              value={filters.selectedMR}
-              onChange={(value) => handleFilterChange('selectedMR', value)}
+              value={pendingFilters.selectedMR}
+              onChange={(value) => handlePendingFilterChange('selectedMR', value)}
               placeholder="Select Medical Rep..."
               label="Medical Representative"
             />
@@ -282,8 +306,8 @@ const EnhancedOverviewFilters = ({
             {/* Order Fulfillment Filter */}
             <SearchableDropdown
               options={uniqueFulfillmentCenters}
-              value={filters.selectedFulfillmentCenter}
-              onChange={(value) => handleFilterChange('selectedFulfillmentCenter', value)}
+              value={pendingFilters.selectedFulfillmentCenter}
+              onChange={(value) => handlePendingFilterChange('selectedFulfillmentCenter', value)}
               placeholder="Select Fulfillment..."
               label="Order Fulfillment"
             />
@@ -291,11 +315,41 @@ const EnhancedOverviewFilters = ({
             {/* State Filter */}
             <SearchableDropdown
               options={uniqueStates}
-              value={filters.selectedState}
-              onChange={(value) => handleFilterChange('selectedState', value)}
+              value={pendingFilters.selectedState}
+              onChange={(value) => handlePendingFilterChange('selectedState', value)}
               placeholder="Select State..."
               label="State"
             />
+          </div>
+
+          {/* Apply and Clear Buttons */}
+          <div className="mt-4 flex justify-between items-center">
+            <div className="flex space-x-2">
+              <button
+                onClick={applyFilters}
+                disabled={!hasPendingChanges}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  hasPendingChanges
+                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Apply Filters
+              </button>
+              {hasPendingChanges && (
+                <button
+                  onClick={() => setPendingFilters(filters)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 text-sm transition-colors"
+                >
+                  Reset Changes
+                </button>
+              )}
+            </div>
+            {hasPendingChanges && (
+              <span className="text-sm text-orange-600 font-medium">
+                ⚠️ You have unsaved filter changes
+              </span>
+            )}
           </div>
 
           {/* Filter Summary */}
