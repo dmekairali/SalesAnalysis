@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star } from 'lucide-react';
 
-// Import modules - Updated paths for Next.js
-import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from '../data.js';
-import { ProductForecastingML, CustomerForecastingML } from '../mlModels.js';
+// Import modules - Updated paths for Create React App
+import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from './data.js';
+import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
   KPICard, 
@@ -18,7 +18,7 @@ import {
   ProductForecastChart,
   CustomerTimelineChart,
   MLInsightCard
-} from '../components.js';
+} from './components.js';
 
 const AyurvedicDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
