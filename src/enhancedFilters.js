@@ -163,6 +163,7 @@ const DateRangePicker = ({ value, onChange, label }) => {
       </div>
       {(startDate || endDate) && (
         <button
+          type="button"
           onClick={clearDates}
           className="mt-1 text-xs text-red-600 hover:text-red-800"
         >
