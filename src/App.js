@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon } from 'lucide-react'; // Added XOctagon
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
 import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from './data.js';
@@ -88,15 +88,12 @@ const AyurvedicDashboard = () => {
       data = data.filter(order => order.productName === filters.selectedTopProduct);
     }
 
-    // TODO: Apply date range filter if necessary, sampleOrderData doesn't seem to be pre-filtered by dateRange for charts.
-    // For now, assuming dateRange is handled elsewhere or implicitly by sampleOrderData's scope.
-
     return data;
   }, [filters, sampleOrderData]);
 
   // Enhanced export with ML insights
   const exportWithMLInsights = () => {
-    const kpis = calculateKPIs(filteredData); // Use filteredData
+    const kpis = calculateKPIs(filteredData);
     const exportData = [
       ['=== AYURVEDIC SALES REPORT WITH ML INSIGHTS ==='],
       [''],
@@ -113,7 +110,7 @@ const AyurvedicDashboard = () => {
       [''],
       ['Detailed Orders (Reflecting Current Filters):'],
       ['Order ID', 'Date', 'Customer', 'Product', 'Amount', 'Status', 'Delivered From'],
-      ...filteredData.map(order => [ // Use filteredData
+      ...filteredData.map(order => [
         order.orderId, order.date, order.customerName, 
         order.productName, order.netAmount, order.deliveryStatus, order.deliveredFrom
       ])
@@ -130,21 +127,15 @@ const AyurvedicDashboard = () => {
 
   // Product predictions
   const productPredictions = useMemo(() => {
-    // Product predictions should ideally use globally filtered data or a specific subset
-    // For now, keeping it on sampleOrderData as it's product-specific exploration
     return productML.predictProductSales(selectedProduct, sampleOrderData, 6);
   }, [selectedProduct, productML]);
 
   // Customer predictions  
   const customerPredictions = useMemo(() => {
-    // Customer predictions should ideally use globally filtered data or a specific subset
-    // For now, keeping it on sampleOrderData as it's customer-specific exploration
     return customerML.predictCustomerBehavior(selectedCustomer, sampleOrderData, 6);
   }, [selectedCustomer, customerML]);
 
-  // Get unique values for dropdowns - should these be from filteredData or sampleOrderData?
-  // For stable dropdowns, using sampleOrderData. If they should reflect filterable options, use filteredData.
-  // Sticking to sampleOrderData for now to keep product/customer selection independent of current table filters.
+  // Get unique values for dropdowns
   const uniqueProducts = [...new Set(sampleOrderData.map(order => ({ id: order.productId, name: order.productName })))];
   const uniqueCustomers = [...new Set(sampleOrderData.map(order => ({ id: order.customerId, name: order.customerName })))];
 
@@ -154,7 +145,7 @@ const AyurvedicDashboard = () => {
   // Enhanced chart data with predictions
   const chartDataWithPredictions = useMemo(() => {
     const monthlyData = {};
-    filteredData.forEach(order => { // Use filteredData
+    filteredData.forEach(order => {
       const month = new Date(order.date).toISOString().slice(0, 7);
       if (!monthlyData[month]) monthlyData[month] = { month, actual: 0, orders: 0 };
       monthlyData[month].actual += order.netAmount;
@@ -169,24 +160,24 @@ const AyurvedicDashboard = () => {
     for (let i = 1; i <= 3; i++) {
       const futureDate = new Date(currentDate);
       futureDate.setMonth(futureDate.getMonth() + i);
-    const avgRevenue = historicalData.length > 0 ? historicalData.reduce((sum, d) => sum + d.actual, 0) / historicalData.length : 0;
-    const avgOrdersBase = kpis.avgOrderValue > 0 ? avgRevenue / kpis.avgOrderValue : 0;
+      const avgRevenue = historicalData.length > 0 ? historicalData.reduce((sum, d) => sum + d.actual, 0) / historicalData.length : 0;
+      const avgOrdersBase = kpis.avgOrderValue > 0 ? avgRevenue / kpis.avgOrderValue : 0;
 
       predictedData.push({
         month: futureDate.toISOString().slice(0, 7),
         actual: null,
         predicted: avgRevenue * (1 + 0.1 * i), // 10% growth per month
-      orders: Math.round(avgOrdersBase)
+        orders: Math.round(avgOrdersBase)
       });
     }
 
     return [...historicalData, ...predictedData];
-}, [filteredData, kpis.avgOrderValue]); // Depend on filteredData
+  }, [filteredData, kpis.avgOrderValue]);
 
   // Geographic data
   const geoData = useMemo(() => {
     const locationData = {};
-  filteredData.forEach(order => { // Use filteredData
+    filteredData.forEach(order => {
       const key = order.city;
       if (!locationData[key]) {
         locationData[key] = {
@@ -200,27 +191,27 @@ const AyurvedicDashboard = () => {
       locationData[key].orders += 1;
     });
     return Object.values(locationData);
-}, [filteredData]); // Depend on filteredData
+  }, [filteredData]);
 
   // Chart data preparations
-const categoryData = useMemo(() => Object.entries(
-  filteredData.reduce((acc, order) => { // Use filteredData
+  const categoryData = useMemo(() => Object.entries(
+    filteredData.reduce((acc, order) => {
       acc[order.category] = (acc[order.category] || 0) + order.netAmount;
       return acc;
     }, {})
-).map(([name, value]) => ({ name, value })), [filteredData]);
+  ).map(([name, value]) => ({ name, value })), [filteredData]);
 
-const topProductsData = useMemo(() => Object.entries(
-  filteredData.reduce((acc, order) => { // Use filteredData
+  const topProductsData = useMemo(() => Object.entries(
+    filteredData.reduce((acc, order) => {
       acc[order.productName] = (acc[order.productName] || 0) + order.netAmount;
       return acc;
     }, {})
-).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name: name.substring(0, 15), value })), [filteredData]);
+  ).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name: name.substring(0, 15), value })), [filteredData]);
 
-const fulfillmentData = useMemo(() => [
-  { name: 'Factory', value: filteredData.filter(o => o.deliveredFrom === 'Factory').length },
-  { name: 'Distributor', value: filteredData.filter(o => o.deliveredFrom === 'Distributor').length }
-], [filteredData]); // Depend on filteredData
+  const fulfillmentData = useMemo(() => [
+    { name: 'Factory', value: filteredData.filter(o => o.deliveredFrom === 'Factory').length },
+    { name: 'Distributor', value: filteredData.filter(o => o.deliveredFrom === 'Distributor').length }
+  ], [filteredData]);
 
   // Overview Tab Component
   const OverviewTab = () => {
@@ -237,179 +228,180 @@ const fulfillmentData = useMemo(() => [
     };
 
     return (
-    <div className="space-y-6">
-      {/* Clear Filters Button */}
-      {areChartFiltersActive && (
-        <div className="mb-4 flex justify-end">
-          <button
-            onClick={clearChartFilters}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm flex items-center shadow-md"
-          >
-            <XOctagon className="h-4 w-4 mr-2" />
-            Clear Chart Filters
-          </button>
+      <div className="space-y-6">
+        {/* Clear Filters Button */}
+        {areChartFiltersActive && (
+          <div className="mb-4 flex justify-end">
+            <button
+              onClick={clearChartFilters}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm flex items-center shadow-md"
+            >
+              <XOctagon className="h-4 w-4 mr-2" />
+              Clear Chart Filters
+            </button>
+          </div>
+        )}
+
+        {/* Enhanced KPI Cards with ML Predictions */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <KPICard 
+            title="Total Revenue" 
+            value={kpis.totalRevenue} 
+            icon={TrendingUp} 
+            format="currency"
+            color={COLORS.success}
+            trend={12.5}
+            mlPrediction="₹45.2K next month"
+          />
+          <KPICard 
+            title="Total Orders" 
+            value={kpis.totalOrders} 
+            icon={ShoppingCart}
+            color={COLORS.primary}
+            trend={8.2}
+            mlPrediction="18 orders expected"
+          />
+          <KPICard 
+            title="Avg Order Value" 
+            value={kpis.avgOrderValue} 
+            icon={Package}
+            format="currency"
+            color={COLORS.secondary}
+            trend={3.7}
+            mlPrediction="₹2.8K"
+          />
+          <KPICard 
+            title="Active Customers" 
+            value={kpis.activeCustomers} 
+            icon={Users}
+            color={COLORS.accent}
+            trend={15.3}
+            mlPrediction="+3 new"
+          />
+          <KPICard 
+            title="Delivery Rate" 
+            value={kpis.deliveryRate} 
+            icon={MapPin}
+            format="percentage"
+            color={COLORS.success}
+            trend={-2.1}
+            mlPrediction="94.2%"
+          />
         </div>
-      )}
 
-      {/* Enhanced KPI Cards with ML Predictions */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <KPICard 
-          title="Total Revenue" 
-          value={kpis.totalRevenue} 
-          icon={TrendingUp} 
-          format="currency"
-          color={COLORS.success}
-          trend={12.5}
-          mlPrediction="₹45.2K next month"
-        />
-        <KPICard 
-          title="Total Orders" 
-          value={kpis.totalOrders} 
-          icon={ShoppingCart}
-          color={COLORS.primary}
-          trend={8.2}
-          mlPrediction="18 orders expected"
-        />
-        <KPICard 
-          title="Avg Order Value" 
-          value={kpis.avgOrderValue} 
-          icon={Package}
-          format="currency"
-          color={COLORS.secondary}
-          trend={3.7}
-          mlPrediction="₹2.8K"
-        />
-        <KPICard 
-          title="Active Customers" 
-          value={kpis.activeCustomers} 
-          icon={Users}
-          color={COLORS.accent}
-          trend={15.3}
-          mlPrediction="+3 new"
-        />
-        <KPICard 
-          title="Delivery Rate" 
-          value={kpis.deliveryRate} 
-          icon={MapPin}
-          format="percentage"
-          color={COLORS.success}
-          trend={-2.1}
-          mlPrediction="94.2%"
-        />
-      </div>
+        {/* ML Analytics Section */}
+        {showMLAnalytics && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <MLInsightsCompact />
+            <SalesDriversCompact />
+          </div>
+        )}
 
-      {/* ML Analytics Section */}
-      {showMLAnalytics && (
+        {/* Geographic Heat Map */}
+        <GeoHeatMap data={geoData} />
+
+        {/* Main Charts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Sales Trend with ML Forecasting */}
+          <div className="lg:col-span-2">
+            <SalesTrendChart data={chartDataWithPredictions} />
+          </div>
+
+          {/* Order Fulfillment */}
+          <FulfillmentChart 
+            data={fulfillmentData}
+            filters={filters}
+            setFilters={setFilters}
+          />
+        </div>
+
+        {/* Bottom Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MLInsightsCompact />
-          <SalesDriversCompact />
-        </div>
-      )}
-
-      {/* Geographic Heat Map */}
-      <GeoHeatMap data={geoData} />
-
-      {/* Main Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales Trend with ML Forecasting */}
-        <div className="lg:col-span-2">
-          <SalesTrendChart data={chartDataWithPredictions} />
+          <CategoryChart
+            data={categoryData}
+            filters={filters}
+            setFilters={setFilters}
+          />
+          <TopProductsChart
+            data={topProductsData}
+            filters={filters}
+            setFilters={setFilters}
+          />
         </div>
 
-        {/* Order Fulfillment */}
-        <FulfillmentChart 
-          data={fulfillmentData}
-          filters={filters} // Pass full filters object
-          setFilters={setFilters} // Pass setFilters
-        />
-      </div>
-
-      {/* Bottom Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CategoryChart
-          data={categoryData}
-          filters={filters}
-          setFilters={setFilters}
-        />
-        <TopProductsChart
-          data={topProductsData}
-          filters={filters}
-          setFilters={setFilters}
-        />
-      </div>
-
-      {/* Enhanced Data Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Recent Orders with ML Insights</h3>
-            <span className="text-sm text-gray-600">
-              Showing latest {Math.min(10, filteredData.length)} orders (of {filteredData.length} total)
-            </span>
+        {/* Enhanced Data Table */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Recent Orders with ML Insights</h3>
+              <span className="text-sm text-gray-600">
+                Showing latest {Math.min(10, filteredData.length)} orders (of {filteredData.length} total)
+              </span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivered From</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ML Score</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredData.slice(-10).reverse().map((order, index) => (
+                  <tr key={order.orderId} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {order.orderId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
+                        <div className="text-sm text-gray-500">{order.customerType}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{order.productName}</div>
+                        <div className="text-sm text-gray-500">{order.category}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ₹{order.netAmount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        order.deliveryStatus === 'Delivered' ? 'bg-green-100 text-green-800' :
+                        order.deliveryStatus === 'In Transit' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {order.deliveryStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {order.deliveredFrom}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        <Brain className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-600">
+                          {(85 + Math.random() * 10).toFixed(1)}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivered From</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ML Score</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredData.slice(-10).reverse().map((order, index) => ( // Use filteredData
-                <tr key={order.orderId} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {order.orderId}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
-                      <div className="text-sm text-gray-500">{order.customerType}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{order.productName}</div>
-                      <div className="text-sm text-gray-500">{order.category}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    ₹{order.netAmount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      order.deliveryStatus === 'Delivered' ? 'bg-green-100 text-green-800' :
-                      order.deliveryStatus === 'In Transit' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {order.deliveryStatus}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {order.deliveredFrom}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      <Brain className="h-4 w-4 text-purple-600" />
-                      <span className="text-sm font-medium text-purple-600">
-                        {(85 + Math.random() * 10).toFixed(1)}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Products Tab Component
   const ProductsTab = () => (
@@ -720,6 +712,6 @@ const fulfillmentData = useMemo(() => [
       </div>
     </div>
   );
-}; // This should be the closing brace for AyurvedicDashboard
+};
 
-export default AyurvedicDashboard; // This should be the correct export line
+export default AyurvedicDashboard;
