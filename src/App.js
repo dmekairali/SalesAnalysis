@@ -36,7 +36,8 @@ const AyurvedicDashboard = () => {
     selectedTopProduct: null,
     selectedMR: null,
     selectedFulfillmentCenter: null,
-    selectedState: null
+    selectedState: null,
+    tableSearchTerm: ''
   });
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
 
@@ -309,7 +310,8 @@ const AyurvedicDashboard = () => {
                   selectedTopProduct: null,
                   selectedMR: null,
                   selectedFulfillmentCenter: null,
-                  selectedState: null
+                  selectedState: null,
+                  tableSearchTerm: ''
                 }))}
                 className="text-sm text-blue-600 hover:text-blue-800 underline"
               >
@@ -406,14 +408,39 @@ const AyurvedicDashboard = () => {
           />
         </div>
 
-        {/* Enhanced Data Table */}
+        {/* Enhanced Data Table with Search */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Recent Orders with ML Insights</h3>
-              <span className="text-sm text-gray-600">
-                Showing latest {Math.min(10, filteredData.length)} orders (of {filteredData.length} total)
-              </span>
+            <div className="flex flex-col space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Recent Orders with ML Insights</h3>
+                <span className="text-sm text-gray-600">
+                  Showing latest {Math.min(10, filteredData.length)} orders (of {filteredData.length} total)
+                </span>
+              </div>
+              
+              {/* Search Orders - Table Specific */}
+              <div className="w-full max-w-md">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Orders
+                </label>
+                <div className="relative">
+                  <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={filters.tableSearchTerm || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, tableSearchTerm: e.target.value }))}
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Search by Order ID, Customer, MR, Product..."
+                  />
+                  {filters.tableSearchTerm && (
+                    <X 
+                      className="h-4 w-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer" 
+                      onClick={() => setFilters(prev => ({ ...prev, tableSearchTerm: '' }))}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -422,15 +449,26 @@ const AyurvedicDashboard = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Medical Rep</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivered From</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ML Score</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Products</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredData.slice(-10).reverse().map((order, index) => (
+                {filteredData.filter(order => {
+                  if (!filters.tableSearchTerm) return true;
+                  const searchTerm = filters.tableSearchTerm.toLowerCase();
+                  return (
+                    order.orderId.toLowerCase().includes(searchTerm) ||
+                    order.customerName.toLowerCase().includes(searchTerm) ||
+                    (order.medicalRepresentative || order.salesRepresentative || 'N/A').toLowerCase().includes(searchTerm) ||
+                    order.productName.toLowerCase().includes(searchTerm) ||
+                    (order.products && order.products.some(p => p.toLowerCase().includes(searchTerm)))
+                  );
+                }).slice(-10).reverse().map((order, index) => (
                   <tr key={order.orderId} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderId}
@@ -442,9 +480,8 @@ const AyurvedicDashboard = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{order.productName}</div>
-                        <div className="text-sm text-gray-500">{order.category}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {order.medicalRepresentative || order.salesRepresentative || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -468,6 +505,14 @@ const AyurvedicDashboard = () => {
                         <span className="text-sm font-medium text-purple-600">
                           {(85 + Math.random() * 10).toFixed(1)}%
                         </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-gray-700 max-w-xs">
+                        {order.products ? 
+                          order.products.join(', ') : 
+                          order.productName
+                        }
                       </div>
                     </td>
                   </tr>
