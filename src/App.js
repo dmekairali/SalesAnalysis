@@ -19,6 +19,7 @@ import {
   CustomerTimelineChart,
   MLInsightCard
 } from './components.js';
+import { EnhancedOverviewFilters } from './enhancedFilters.js';
 
 const AyurvedicDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -28,12 +29,16 @@ const AyurvedicDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [filters, setFilters] = useState({
-    dateRange: ['2024-01-01', '2024-06-05'],
+    dateRange: ['', ''],
     searchTerm: '',
     selectedFulfillment: null,
     selectedCategory: null,
-    selectedTopProduct: null
+    selectedTopProduct: null,
+    selectedMR: null,
+    selectedFulfillmentCenter: null,
+    selectedState: null
   });
+  const [isFiltersVisible, setIsFiltersVisible] = useState(true);
 
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
@@ -61,6 +66,19 @@ const AyurvedicDashboard = () => {
   const filteredData = useMemo(() => {
     let data = sampleOrderData;
 
+    // Apply date range filter
+    if (filters.dateRange?.[0] || filters.dateRange?.[1]) {
+      const startDate = filters.dateRange[0] ? new Date(filters.dateRange[0]) : null;
+      const endDate = filters.dateRange[1] ? new Date(filters.dateRange[1]) : null;
+      
+      data = data.filter(order => {
+        const orderDate = new Date(order.date);
+        if (startDate && orderDate < startDate) return false;
+        if (endDate && orderDate > endDate) return false;
+        return true;
+      });
+    }
+
     // Apply search term filter
     if (filters.searchTerm) {
       const lowerSearchTerm = filters.searchTerm.toLowerCase();
@@ -73,17 +91,34 @@ const AyurvedicDashboard = () => {
       );
     }
 
-    // Apply fulfillment filter
+    // Apply MR filter
+    if (filters.selectedMR) {
+      data = data.filter(order => 
+        (order.medicalRepresentative || order.salesRepresentative || 'N/A') === filters.selectedMR
+      );
+    }
+
+    // Apply fulfillment center filter
+    if (filters.selectedFulfillmentCenter) {
+      data = data.filter(order => order.deliveredFrom === filters.selectedFulfillmentCenter);
+    }
+
+    // Apply state filter
+    if (filters.selectedState) {
+      data = data.filter(order => order.state === filters.selectedState);
+    }
+
+    // Apply fulfillment filter (existing chart filter)
     if (filters.selectedFulfillment) {
       data = data.filter(order => order.deliveredFrom === filters.selectedFulfillment);
     }
 
-    // Apply category filter
+    // Apply category filter (existing chart filter)
     if (filters.selectedCategory) {
       data = data.filter(order => order.category === filters.selectedCategory);
     }
 
-    // Apply top product filter
+    // Apply top product filter (existing chart filter)
     if (filters.selectedTopProduct) {
       data = data.filter(order => order.productName === filters.selectedTopProduct);
     }
@@ -229,7 +264,16 @@ const AyurvedicDashboard = () => {
 
     return (
       <div className="space-y-6">
-        {/* Clear Filters Button */}
+        {/* Enhanced Filters */}
+        <EnhancedOverviewFilters
+          filters={filters}
+          setFilters={setFilters}
+          sampleOrderData={sampleOrderData}
+          isFiltersVisible={isFiltersVisible}
+          setIsFiltersVisible={setIsFiltersVisible}
+        />
+
+        {/* Clear Chart Filters Button */}
         {areChartFiltersActive && (
           <div className="mb-4 flex justify-end">
             <button
@@ -241,6 +285,39 @@ const AyurvedicDashboard = () => {
             </button>
           </div>
         )}
+
+        {/* Results Summary */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="text-lg font-semibold text-blue-900">
+                Showing {filteredData.length} of {sampleOrderData.length} orders
+              </div>
+              {filteredData.length !== sampleOrderData.length && (
+                <span className="text-sm text-blue-600">
+                  ({sampleOrderData.length - filteredData.length} orders filtered out)
+                </span>
+              )}
+            </div>
+            {filteredData.length < sampleOrderData.length && (
+              <button
+                onClick={() => setFilters(prev => ({
+                  dateRange: ['', ''],
+                  searchTerm: '',
+                  selectedFulfillment: null,
+                  selectedCategory: null,
+                  selectedTopProduct: null,
+                  selectedMR: null,
+                  selectedFulfillmentCenter: null,
+                  selectedState: null
+                }))}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Reset all filters
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Enhanced KPI Cards with ML Predictions */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
@@ -704,6 +781,8 @@ const AyurvedicDashboard = () => {
         setShowMLAnalytics={setShowMLAnalytics}
         filters={filters}
         setFilters={setFilters}
+        isFiltersVisible={isFiltersVisible}
+        setIsFiltersVisible={setIsFiltersVisible}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
