@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
 import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from './data.js';
@@ -375,9 +375,6 @@ const AyurvedicDashboard = () => {
             <SalesDriversCompact />
           </div>
         )}
-
-        {/* Geographic Heat Map */}
-        <GeoHeatMap data={geoData} />
 
         {/* Main Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
