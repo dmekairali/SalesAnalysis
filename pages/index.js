@@ -3,7 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star } from 'lucide-react';
 
 // Import modules
-import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from './data.js';
+import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from '../data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
