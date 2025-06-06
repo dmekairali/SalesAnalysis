@@ -118,19 +118,34 @@ const SearchableDropdown = ({
   );
 };
 
-// Date Range Picker Component with memo to prevent unnecessary re-renders
+// Date Range Picker Component with onBlur updates
 const DateRangePicker = React.memo(({ value, onChange, label }) => {
-  const [startDate, endDate] = value;
+  const [localStartDate, setLocalStartDate] = useState(value[0] || '');
+  const [localEndDate, setLocalEndDate] = useState(value[1] || '');
 
-  const handleStartDateChange = React.useCallback((date) => {
-    onChange([date, endDate]);
-  }, [endDate, onChange]);
+  // Update local state when prop value changes (from Apply button or external changes)
+  useEffect(() => {
+    setLocalStartDate(value[0] || '');
+    setLocalEndDate(value[1] || '');
+  }, [value]);
 
-  const handleEndDateChange = React.useCallback((date) => {
-    onChange([startDate, date]);
-  }, [startDate, onChange]);
+  const handleStartDateBlur = React.useCallback(() => {
+    // Only update parent when user finishes selecting
+    if (localStartDate !== value[0]) {
+      onChange([localStartDate, localEndDate]);
+    }
+  }, [localStartDate, localEndDate, value, onChange]);
+
+  const handleEndDateBlur = React.useCallback(() => {
+    // Only update parent when user finishes selecting
+    if (localEndDate !== value[1]) {
+      onChange([localStartDate, localEndDate]);
+    }
+  }, [localStartDate, localEndDate, value, onChange]);
 
   const clearDates = React.useCallback(() => {
+    setLocalStartDate('');
+    setLocalEndDate('');
     onChange(['', '']);
   }, [onChange]);
 
@@ -144,13 +159,14 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
           <input
             type="date"
-            value={startDate || ''}
-            onChange={(e) => {
-              e.persist();
-              handleStartDateChange(e.target.value);
+            value={localStartDate}
+            onChange={(e) => setLocalStartDate(e.target.value)}
+            onBlur={handleStartDateBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                handleStartDateBlur();
+              }
             }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             placeholder="Start Date"
           />
@@ -159,22 +175,22 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
           <input
             type="date"
-            value={endDate || ''}
-            onChange={(e) => {
-              e.persist();
-              handleEndDateChange(e.target.value);
+            value={localEndDate}
+            onChange={(e) => setLocalEndDate(e.target.value)}
+            onBlur={handleEndDateBlur}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                handleEndDateBlur();
+              }
             }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             placeholder="End Date"
           />
         </div>
       </div>
-      {(startDate || endDate) && (
+      {(localStartDate || localEndDate) && (
         <button
           type="button"
-          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
