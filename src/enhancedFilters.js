@@ -118,36 +118,17 @@ const SearchableDropdown = ({
   );
 };
 
-// Date Range Picker Component with onBlur updates
+// Date Range Picker Component - Only for UI, no onChange events
 const DateRangePicker = React.memo(({ value, onChange, label }) => {
-  const [localStartDate, setLocalStartDate] = useState(value[0] || '');
-  const [localEndDate, setLocalEndDate] = useState(value[1] || '');
+  const [startDate, endDate] = value;
 
-  // Update local state when prop value changes (from Apply button or external changes)
-  useEffect(() => {
-    setLocalStartDate(value[0] || '');
-    setLocalEndDate(value[1] || '');
-  }, [value]);
+  const handleStartDateChange = (date) => {
+    onChange([date, endDate]);
+  };
 
-  const handleStartDateBlur = React.useCallback(() => {
-    // Only update parent when user finishes selecting
-    if (localStartDate !== value[0]) {
-      onChange([localStartDate, localEndDate]);
-    }
-  }, [localStartDate, localEndDate, value, onChange]);
-
-  const handleEndDateBlur = React.useCallback(() => {
-    // Only update parent when user finishes selecting
-    if (localEndDate !== value[1]) {
-      onChange([localStartDate, localEndDate]);
-    }
-  }, [localStartDate, localEndDate, value, onChange]);
-
-  const clearDates = React.useCallback(() => {
-    setLocalStartDate('');
-    setLocalEndDate('');
-    onChange(['', '']);
-  }, [onChange]);
+  const handleEndDateChange = (date) => {
+    onChange([startDate, date]);
+  };
 
   return (
     <div>
@@ -159,14 +140,8 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
           <input
             type="date"
-            value={localStartDate}
-            onChange={(e) => setLocalStartDate(e.target.value)}
-            onBlur={handleStartDateBlur}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === 'Tab') {
-                handleStartDateBlur();
-              }
-            }}
+            value={startDate || ''}
+            onChange={(e) => handleStartDateChange(e.target.value)}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             placeholder="Start Date"
           />
@@ -175,32 +150,13 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
           <input
             type="date"
-            value={localEndDate}
-            onChange={(e) => setLocalEndDate(e.target.value)}
-            onBlur={handleEndDateBlur}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === 'Tab') {
-                handleEndDateBlur();
-              }
-            }}
+            value={endDate || ''}
+            onChange={(e) => handleEndDateChange(e.target.value)}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             placeholder="End Date"
           />
         </div>
       </div>
-      {(localStartDate || localEndDate) && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            clearDates();
-          }}
-          className="mt-1 text-xs text-red-600 hover:text-red-800"
-        >
-          Clear dates
-        </button>
-      )}
     </div>
   );
 });
@@ -236,19 +192,26 @@ const EnhancedOverviewFilters = ({
     }));
   };
 
-  // Clear all filters (excluding table search)
-  const clearAllFilters = () => {
-    const clearedFilters = {
+  // Clear all pending filters (not applied filters)
+  const clearAllPendingFilters = () => {
+    setPendingFilters(prev => ({
+      ...prev,
       dateRange: ['', ''],
       selectedMR: null,
       selectedFulfillmentCenter: null,
-      selectedState: null,
-      selectedFulfillment: null,
-      selectedCategory: null,
-      selectedTopProduct: null
-    };
-    setPendingFilters(prev => ({ ...prev, ...clearedFilters }));
-    setFilters(prev => ({ ...prev, ...clearedFilters }));
+      selectedState: null
+    }));
+  };
+
+  // Reset pending filters to match current applied filters
+  const resetPendingToApplied = () => {
+    setPendingFilters(prev => ({
+      ...prev,
+      dateRange: filters.dateRange,
+      selectedMR: filters.selectedMR,
+      selectedFulfillmentCenter: filters.selectedFulfillmentCenter,
+      selectedState: filters.selectedState
+    }));
   };
 
   // Check if there are pending changes
@@ -292,14 +255,12 @@ const EnhancedOverviewFilters = ({
             )}
           </div>
           <div className="flex items-center space-x-2">
-            {activeFiltersCount > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="text-sm text-red-600 hover:text-red-800 px-3 py-1 rounded-md hover:bg-red-50"
-              >
-                Clear All
-              </button>
-            )}
+            <button
+              onClick={clearAllPendingFilters}
+              className="text-sm text-red-600 hover:text-red-800 px-3 py-1 rounded-md hover:bg-red-50"
+            >
+              Clear Filters
+            </button>
             <button
               onClick={() => setIsFiltersVisible(!isFiltersVisible)}
               className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-md hover:bg-gray-50"
