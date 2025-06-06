@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
@@ -143,10 +143,21 @@ const AyurvedicDashboard = () => {
     );
   }, [filteredData, filters.tableSearchTerm]);
 
+  // Handle table search input with useCallback to prevent re-renders
+  const handleTableInputChange = useCallback((e) => {
+    const value = e.target.value;
+    setFilters(prev => ({ ...prev, tableSearchInput: value }));
+  }, [setFilters]);
+
   // Handle table search (only on button click)
-  const handleTableSearch = () => {
+  const handleTableSearch = useCallback(() => {
     setFilters(prev => ({ ...prev, tableSearchTerm: prev.tableSearchInput }));
-  };
+  }, [setFilters]);
+
+  // Handle clear search
+  const handleClearSearch = useCallback(() => {
+    setFilters(prev => ({ ...prev, tableSearchTerm: '', tableSearchInput: '' }));
+  }, [setFilters]);
 
   // Enhanced export with ML insights
   const exportWithMLInsights = () => {
@@ -453,12 +464,14 @@ const AyurvedicDashboard = () => {
                   <div className="relative flex-1">
                     <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
+                      key="table-search-input"
                       type="text"
                       value={filters.tableSearchInput || ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, tableSearchInput: e.target.value }))}
+                      onChange={handleTableInputChange}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Search by Order ID, Customer, MR, Product..."
                       autoComplete="off"
+                      autoFocus={false}
                     />
                   </div>
                   <button
@@ -471,7 +484,7 @@ const AyurvedicDashboard = () => {
                   {filters.tableSearchTerm && (
                     <button
                       type="button"
-                      onClick={() => setFilters(prev => ({ ...prev, tableSearchTerm: '', tableSearchInput: '' }))}
+                      onClick={handleClearSearch}
                       className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-colors"
                     >
                       Clear
