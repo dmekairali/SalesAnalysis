@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
-import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues } from './data.js';
+import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics } from './data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
@@ -20,11 +20,14 @@ import {
   MLInsightCard
 } from './components.js';
 import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
+import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
 
 const AyurvedicDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedProduct, setSelectedProduct] = useState('PROD001');
+  const [selectedProduct, setSelectedProduct] = useState('CGMMG0100NP2201');
   const [selectedCustomer, setSelectedCustomer] = useState('CUST001');
+  const [selectedPackSize, setSelectedPackSize] = useState('100Pills');
+  const [viewMode, setViewMode] = useState('medicine'); // 'medicine' or 'pack'
   const [showMLAnalytics, setShowMLAnalytics] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -143,21 +146,17 @@ const AyurvedicDashboard = () => {
     );
   }, [filteredData, filters.tableSearchTerm]);
 
-  // Handle table search input with useCallback to prevent re-renders
-  const handleTableInputChange = useCallback((e) => {
-    const value = e.target.value;
-    setFilters(prev => ({ ...prev, tableSearchInput: value }));
-  }, [setFilters]);
-
-  // Handle table search (only on button click)
-  const handleTableSearch = useCallback(() => {
+  // Handle table search
+  const handleTableSearch = () => {
     setFilters(prev => ({ ...prev, tableSearchTerm: prev.tableSearchInput }));
-  }, [setFilters]);
+  };
 
-  // Handle clear search
-  const handleClearSearch = useCallback(() => {
-    setFilters(prev => ({ ...prev, tableSearchTerm: '', tableSearchInput: '' }));
-  }, [setFilters]);
+  // Handle Enter key in search input
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleTableSearch();
+    }
+  };
 
   // Enhanced export with ML insights
   const exportWithMLInsights = () => {
@@ -203,9 +202,25 @@ const AyurvedicDashboard = () => {
     return customerML.predictCustomerBehavior(selectedCustomer, sampleOrderData, 6);
   }, [selectedCustomer, customerML]);
 
+  // Transform product data for both views
+  const { individualProducts, groupedByMedicine } = useMemo(() => 
+    transformProductData(productMasterData), [productMasterData]
+  );
+
+  // Get analytics for both medicine-wise and pack-wise views
+  const { packSizePerformance, medicinePerformance } = useMemo(() => 
+    getPackSizeAnalytics(filteredData), [filteredData]
+  );
+
   // Get unique values for dropdowns
-  const uniqueProducts = [...new Set(sampleOrderData.map(order => ({ id: order.productId, name: order.productName })))];
+  const uniqueProducts = individualProducts;
+  const uniqueMedicines = [...new Set(individualProducts.map(p => p.medicineName))];
   const uniqueCustomers = [...new Set(sampleOrderData.map(order => ({ id: order.customerId, name: order.customerName })))];
+
+  // Current product data based on selection
+  const currentProduct = individualProducts.find(p => p.sku === selectedProduct);
+  const currentMedicine = currentProduct?.medicineName;
+  const availablePackSizes = individualProducts.filter(p => p.medicineName === currentMedicine);
 
   // Calculate data for charts using filteredData
   const kpis = calculateKPIs(filteredData);
@@ -464,14 +479,13 @@ const AyurvedicDashboard = () => {
                   <div className="relative flex-1">
                     <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
-                      key="table-search-input"
                       type="text"
                       value={filters.tableSearchInput || ''}
-                      onChange={handleTableInputChange}
+                      onChange={(e) => setFilters(prev => ({ ...prev, tableSearchInput: e.target.value }))}
+                      onKeyPress={handleSearchKeyPress}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Search by Order ID, Customer, MR, Product..."
                       autoComplete="off"
-                      autoFocus={false}
                     />
                   </div>
                   <button
@@ -484,7 +498,7 @@ const AyurvedicDashboard = () => {
                   {filters.tableSearchTerm && (
                     <button
                       type="button"
-                      onClick={handleClearSearch}
+                      onClick={() => setFilters(prev => ({ ...prev, tableSearchTerm: '', tableSearchInput: '' }))}
                       className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-colors"
                     >
                       Clear
@@ -555,9 +569,24 @@ const AyurvedicDashboard = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-xs text-gray-700 max-w-xs">
-                        {order.products ? 
-                          order.products.join(', ') : 
-                          order.productName
+                        {/* Enhanced product display with pack sizes */}
+                        {order.orderItems ? 
+                          order.orderItems.map((item, idx) => (
+                            <div key={idx} className="mb-1 last:mb-0 p-2 bg-gray-50 rounded border-l-2 border-green-500">
+                              <div className="font-medium text-gray-900">{item.medicineName}</div>
+                              <div className="text-gray-500 text-xs flex justify-between">
+                                <span>{item.packSize}</span>
+                                <span>Qty: {item.quantity}</span>
+                              </div>
+                              <div className="text-green-600 text-xs font-medium">₹{item.unitPrice} each</div>
+                            </div>
+                          )) :
+                          <div className="p-2 bg-gray-50 rounded">
+                            <div className="font-medium text-gray-900">{order.productName}</div>
+                            {order.packSize && (
+                              <div className="text-gray-500 text-xs">Pack: {order.packSize}</div>
+                            )}
+                          </div>
                         }
                       </div>
                     </td>
@@ -571,52 +600,189 @@ const AyurvedicDashboard = () => {
     );
   };
 
-  // Products Tab Component
+  // Products Tab Component with Pack Size Support
   const ProductsTab = () => (
     <div className="space-y-6">
-      {/* Product Selector */}
+      {/* View Mode Toggle */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center">
             <Brain className="h-5 w-5 mr-2 text-purple-600" />
-            Product Sales Prediction Engine
+            Product Sales Analytics Engine
           </h3>
-          <div className="w-80">
-            <SearchableDropdown
-              options={uniqueProducts.map(p => p.name)}
-              value={uniqueProducts.find(p => p.id === selectedProduct)?.name || ''}
-              onChange={(value) => {
-                const product = uniqueProducts.find(p => p.name === value);
-                if (product) setSelectedProduct(product.id);
-              }}
-              placeholder="Select Product..."
-              label="Product"
-            />
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">View:</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('medicine')}
+                className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                  viewMode === 'medicine'
+                    ? 'bg-green-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Medicine-wise
+              </button>
+              <button
+                onClick={() => setViewMode('pack')}
+                className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                  viewMode === 'pack'
+                    ? 'bg-green-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Pack-wise
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Product Info */}
-        {productPredictions.product && (
+        {/* Product Selection */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Medicine Selector */}
+          <div>
+            <SearchableDropdown
+              options={uniqueMedicines}
+              value={currentMedicine}
+              onChange={(medicineName) => {
+                const firstProduct = individualProducts.find(p => p.medicineName === medicineName);
+                if (firstProduct) {
+                  setSelectedProduct(firstProduct.sku);
+                  setSelectedPackSize(firstProduct.packSize);
+                }
+              }}
+              placeholder="Select Medicine..."
+              label="Medicine Name"
+            />
+          </div>
+
+          {/* Pack Size Selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Pack Size & Price
+            </label>
+            <select
+              value={selectedPackSize || ''}
+              onChange={(e) => {
+                const packSize = e.target.value;
+                const product = availablePackSizes.find(p => p.packSize === packSize);
+                if (product) {
+                  setSelectedProduct(product.sku);
+                  setSelectedPackSize(packSize);
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              disabled={!currentMedicine}
+            >
+              <option value="">Select Pack Size...</option>
+              {availablePackSizes.map((product, index) => (
+                <option key={index} value={product.packSize}>
+                  {product.packSize} - ₹{product.mrp} (SKU: {product.sku})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Product Info Cards */}
+        {currentProduct && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-600">Category</p>
-              <p className="font-semibold">{productPredictions.product.category}</p>
+              <p className="text-sm text-blue-600">Medicine</p>
+              <p className="font-semibold">{currentProduct.medicineName}</p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-600">Unit Price</p>
-              <p className="font-semibold">₹{productPredictions.product.unitPrice}</p>
+              <p className="text-sm text-green-600">Pack Size</p>
+              <p className="font-semibold">{currentProduct.packSize}</p>
             </div>
             <div className="bg-purple-50 p-4 rounded-lg">
-              <p className="text-sm text-purple-600">Market Share</p>
-              <p className="font-semibold">{productPredictions.product.marketShare}%</p>
+              <p className="text-sm text-purple-600">MRP</p>
+              <p className="font-semibold">₹{currentProduct.mrp}</p>
             </div>
             <div className="bg-orange-50 p-4 rounded-lg">
-              <p className="text-sm text-orange-600">Seasonality</p>
-              <p className="font-semibold">{productPredictions.product.seasonality}</p>
+              <p className="text-sm text-orange-600">Available Variants</p>
+              <p className="font-semibold">{availablePackSizes.length} pack sizes</p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Analytics View Based on Mode */}
+      {viewMode === 'medicine' ? (
+        <MedicineWiseAnalytics 
+          medicinePerformance={medicinePerformance}
+          selectedMedicine={currentMedicine}
+          availablePackSizes={availablePackSizes}
+        />
+      ) : (
+        <PackWiseAnalytics 
+          packSizePerformance={packSizePerformance}
+          selectedProduct={currentProduct}
+        />
+      )}
+
+      {/* Pack Size Comparison */}
+      {currentMedicine && availablePackSizes.length > 1 && (
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h4 className="font-medium mb-4">Pack Size Comparison for {currentMedicine}</h4>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pack Size</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">MRP</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Units</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price per Unit</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {availablePackSizes.map((product, index) => {
+                  const unitCount = parseInt(product.packSize.replace(/\D/g, '')) || 1;
+                  const pricePerUnit = (product.mrp / unitCount).toFixed(2);
+                  const isSelected = product.sku === selectedProduct;
+                  const isValuePack = pricePerUnit === Math.min(...availablePackSizes.map(p => 
+                    (p.mrp / (parseInt(p.packSize.replace(/\D/g, '')) || 1))
+                  ));
+                  
+                  return (
+                    <tr key={index} className={isSelected ? 'bg-green-50' : 'hover:bg-gray-50'}>
+                      <td className="px-4 py-2 text-sm font-medium">{product.packSize}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{product.sku}</td>
+                      <td className="px-4 py-2 text-sm font-semibold">₹{product.mrp}</td>
+                      <td className="px-4 py-2 text-sm">{unitCount}</td>
+                      <td className="px-4 py-2 text-sm">₹{pricePerUnit}</td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center space-x-2">
+                          {isValuePack && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              Best Value
+                            </span>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedProduct(product.sku);
+                              setSelectedPackSize(product.packSize);
+                            }}
+                            className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                              isSelected
+                                ? 'bg-green-600 text-white'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                          >
+                            {isSelected ? 'Selected' : 'Analyze'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ML Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -634,47 +800,6 @@ const AyurvedicDashboard = () => {
           confidence: forecast.confidence * 100
         }))}
       />
-
-      {/* Forecast Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b">
-          <h3 className="text-lg font-semibold">Detailed Forecast</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Month</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Confidence</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Seasonal Factor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {productPredictions.forecasts.map((forecast, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {new Date(forecast.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">₹{forecast.revenue.toFixed(0)}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">{forecast.quantity} units</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      forecast.confidence > 0.8 ? 'bg-green-100 text-green-800' :
-                      forecast.confidence > 0.6 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {(forecast.confidence * 100).toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">{forecast.seasonalFactor.toFixed(2)}x</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 
