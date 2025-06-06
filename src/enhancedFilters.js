@@ -123,11 +123,11 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
   const [startDate, endDate] = value;
 
   const handleStartDateChange = (date) => {
-    onChange([date, endDate]);
+  //  onChange([date, endDate]);
   };
 
   const handleEndDateChange = (date) => {
-    onChange([startDate, date]);
+  //  onChange([startDate, date]);
   };
 
   return (
