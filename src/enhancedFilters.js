@@ -1,7 +1,9 @@
 // enhancedFilters.js - Enhanced Filter Components for Overview Page
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Calendar, Search, X, Filter, ChevronDown } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 // Searchable Dropdown Component
 const SearchableDropdown = ({ 
@@ -118,16 +120,25 @@ const SearchableDropdown = ({
   );
 };
 
-// Date Range Picker Component - Only for UI, no onChange events
+// Enhanced Date Range Picker using react-datepicker
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
 const DateRangePicker = React.memo(({ value, onChange, label }) => {
   const [startDate, endDate] = value;
 
   const handleStartDateChange = (date) => {
-  //  onChange([date, endDate]);
+    const dateString = date ? date.toISOString().split('T')[0] : '';
+    onChange([dateString, endDate]);
   };
 
   const handleEndDateChange = (date) => {
-  //  onChange([startDate, date]);
+    const dateString = date ? date.toISOString().split('T')[0] : '';
+    onChange([startDate, dateString]);
+  };
+
+  const parseDate = (dateString) => {
+    return dateString ? new Date(dateString) : null;
   };
 
   return (
@@ -138,24 +149,50 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
       <div className="grid grid-cols-2 gap-2">
         <div className="relative">
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-          <input
-            type="date"
-            value={startDate || ''}
-            onChange={(e) => handleStartDateChange(e.target.value)}
+          <DatePicker
+            selected={parseDate(startDate)}
+            onChange={handleStartDateChange}
+            selectsStart
+            startDate={parseDate(startDate)}
+            endDate={parseDate(endDate)}
+            placeholderText="Start Date"
+            dateFormat="yyyy-MM-dd"
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            placeholder="Start Date"
+            wrapperClassName="w-full"
+            popperClassName="react-datepicker-popper"
+            calendarClassName="react-datepicker-calendar"
+            showMonthDropdown
+            showYearDropdown
+            dropdownMode="select"
+            isClearable={true}
+            autoComplete="off"
           />
         </div>
         <div className="relative">
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-          <input
-            type="date"
-            value={endDate || ''}
-            onChange={(e) => handleEndDateChange(e.target.value)}
+          <DatePicker
+            selected={parseDate(endDate)}
+            onChange={handleEndDateChange}
+            selectsEnd
+            startDate={parseDate(startDate)}
+            endDate={parseDate(endDate)}
+            minDate={parseDate(startDate)}
+            placeholderText="End Date"
+            dateFormat="yyyy-MM-dd"
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            placeholder="End Date"
+            wrapperClassName="w-full"
+            popperClassName="react-datepicker-popper"
+            calendarClassName="react-datepicker-calendar"
+            showMonthDropdown
+            showYearDropdown
+            dropdownMode="select"
+            isClearable={true}
+            autoComplete="off"
           />
         </div>
+      </div>
+      <div className="text-xs text-gray-500 mt-1">
+        Click calendar icon or type date. Navigate months/years with dropdowns.
       </div>
     </div>
   );
