@@ -143,16 +143,9 @@ const AyurvedicDashboard = () => {
     );
   }, [filteredData, filters.tableSearchTerm]);
 
-  // Handle table search
+  // Handle table search (only on button click)
   const handleTableSearch = () => {
     setFilters(prev => ({ ...prev, tableSearchTerm: prev.tableSearchInput }));
-  };
-
-  // Handle Enter key in search input
-  const handleSearchKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleTableSearch();
-    }
   };
 
   // Enhanced export with ML insights
@@ -463,7 +456,6 @@ const AyurvedicDashboard = () => {
                       type="text"
                       value={filters.tableSearchInput || ''}
                       onChange={(e) => setFilters(prev => ({ ...prev, tableSearchInput: e.target.value }))}
-                      onKeyPress={handleSearchKeyPress}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                       placeholder="Search by Order ID, Customer, MR, Product..."
                       autoComplete="off"
