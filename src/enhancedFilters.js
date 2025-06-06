@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Calendar, Search, X, Filter, ChevronDown } from 'lucide-react';
-import DatePicker from 'react-datepicker';
+import ReactDatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
 // Searchable Dropdown Component
@@ -121,9 +121,6 @@ const SearchableDropdown = ({
 };
 
 // Enhanced Date Range Picker using react-datepicker
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-
 const DateRangePicker = React.memo(({ value, onChange, label }) => {
   const [startDate, endDate] = value;
 
@@ -149,7 +146,7 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
       <div className="grid grid-cols-2 gap-2">
         <div className="relative">
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-          <DatePicker
+          <ReactDatePicker
             selected={parseDate(startDate)}
             onChange={handleStartDateChange}
             selectsStart
@@ -170,7 +167,7 @@ const DateRangePicker = React.memo(({ value, onChange, label }) => {
         </div>
         <div className="relative">
           <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
-          <DatePicker
+          <ReactDatePicker
             selected={parseDate(endDate)}
             onChange={handleEndDateChange}
             selectsEnd
