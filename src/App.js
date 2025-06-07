@@ -169,26 +169,25 @@ const AyurvedicDashboard = () => {
 
   // Create filteredDashboardData based on filters (memoized for performance)
   const filteredDashboardData = useMemo(() => {
-    let data = dashboardOrderData.map(order => ({
-      // Mapping from fetchDashboardOrders (which uses snake_case from DB view)
-      orderId: order.order_id,
-      date: order.order_date,
-      customerId: order.customerId, // Already added in a previous step in data.js
-      customerName: order.customer_name,
-      customerType: order.customer_type,
-      city: order.city,
-      state: order.state,
-      territory: order.territory,
-      medicalRepresentative: order.mr_name,
-      netAmount: order.net_amount,
-      deliveredFrom: order.delivered_from,
-      discountTier: order.discount_tier,
-      deliveryStatus: order.delivery_status,
-      products: order.products || [], // Ensure it's an array
-      categories: order.categories || [], // Ensure it's an array
-      totalQuantity: order.total_quantity,
-      lineItemsCount: order.line_items_count
-      // Note: productName and category as single strings are removed as they are arrays now
+    // dashboardOrderData is expected to have camelCase keys from fetchDashboardOrders
+    let data = dashboardOrderData.map(o => ({
+      orderId: o.orderId,
+      date: o.date,
+      customerName: o.customerName,
+      customerId: o.customerId,
+      customerType: o.customerType,
+      city: o.city,
+      state: o.state,
+      territory: o.territory,
+      medicalRepresentative: o.medicalRepresentative,
+      netAmount: o.netAmount, // Already defaults to 0 from fetchDashboardOrders
+      deliveredFrom: o.deliveredFrom,
+      discountTier: o.discountTier,
+      deliveryStatus: o.deliveryStatus,
+      products: o.products || [], // Already defaults to [] from fetchDashboardOrders
+      categories: o.categories || [], // Already defaults to [] from fetchDashboardOrders
+      totalQuantity: o.totalQuantity || 0, // Add fallback for numeric
+      lineItemsCount: o.lineItemsCount || 0 // Add fallback for numeric
     }));
 
     // Apply date range filter

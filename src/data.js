@@ -166,7 +166,7 @@ export const fetchDashboardOrders = async () => {
       state: order.state,
       territory: order.territory,
       medicalRepresentative: order.mr_name,
-      netAmount: parseFloat(order.net_amount),
+      netAmount: parseFloat(order.net_amount) || 0,
       deliveredFrom: order.delivered_from,
       discountTier: order.discount_tier,
       deliveryStatus: order.delivery_status,
