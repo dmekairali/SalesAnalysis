@@ -209,6 +209,25 @@ export const fetchCustomerAnalytics = async () => {
   }
 };
 
+export const fetchCustomerAnalyticsTableData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('customer_analytics') // Table name as specified
+      .select('*')
+      .order('customer_name', { ascending: true }); // Optional ordering
+
+    if (error) {
+      console.error('Error fetching customer analytics table data:', error);
+      throw error; // Re-throw to be caught by the outer catch if needed, or handle here
+    }
+    return data;
+  } catch (error) {
+    // Error already logged if it came from the supabase client, or log it here if thrown above
+    // console.error('Supabase query failed for customer_analytics:', error); // Avoid double logging if already logged
+    return []; // Return empty array in case of any error
+  }
+};
+
 // Keep your existing utility functions and constants
 export const COLORS = {
   primary: '#2E7D32',
