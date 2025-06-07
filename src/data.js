@@ -6,7 +6,6 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-
 // Fetch functions to replace your mock data
 export const fetchOrderData = async () => {
   try {
@@ -209,12 +208,7 @@ export const fetchCustomerAnalytics = async () => {
   }
 };
 
-// Keep for backward compatibility with existing components
-export const sampleOrderData = []; // Will be populated by fetchOrderData()
-export const productMasterData = []; // Will be populated by fetchProductData()
-
-// Legacy export for components that still expect this
-export { fetchProductData as productMasterData };
+// Keep your existing utility functions and constants
 export const COLORS = {
   primary: '#2E7D32',
   secondary: '#FF8F00', 
