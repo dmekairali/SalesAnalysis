@@ -214,7 +214,6 @@ export const sampleOrderData = []; // Will be populated by fetchOrderData()
 export const productMasterData = []; // Will be populated by fetchProductData()
 
 // Legacy export for components that still expect this
-export { fetchProductData as productMasterData };
 export const COLORS = {
   primary: '#2E7D32',
   secondary: '#FF8F00', 
