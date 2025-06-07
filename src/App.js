@@ -1,20 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, RefreshCw, AlertCircle } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
-// Import modules - Updated for Supabase integration
-import { 
-  initializeData, 
-  fetchDashboardOrders,
-  fetchProductSalesSummary,
-  fetchCustomerAnalytics,
-  refreshDashboardData,
-  COLORS, 
-  calculateKPIs, 
-  getUniqueValues, 
-  transformProductData, 
-  getPackSizeAnalytics 
-} from './data.js';
+// Import modules - Updated paths for Create React App
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics } from './data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
@@ -34,25 +23,19 @@ import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.j
 import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
 
 const AyurvedicDashboard = () => {
-  // State management
-  const [activeTab, setActiveTab] = useState('overview');
-  const [selectedProduct, setSelectedProduct] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [selectedPackSize, setSelectedPackSize] = useState('');
-  const [viewMode, setViewMode] = useState('medicine');
-  const [showMLAnalytics, setShowMLAnalytics] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  
-  // Data states for Supabase
   const [orderData, setOrderData] = useState([]);
   const [productData, setProductData] = useState([]);
   const [customerData, setCustomerData] = useState([]);
-  const [mrData, setMRData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dataError, setDataError] = useState(null);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  
+  const [mrData, setMrData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedProduct, setSelectedProduct] = useState('CGMMG0100NP2201');
+  const [selectedCustomer, setSelectedCustomer] = useState('CUST001');
+  const [selectedPackSize, setSelectedPackSize] = useState('100Pills');
+  const [viewMode, setViewMode] = useState('medicine'); // 'medicine' or 'pack'
+  const [showMLAnalytics, setShowMLAnalytics] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [filters, setFilters] = useState({
     dateRange: ['', ''],
     searchTerm: '',
@@ -63,58 +46,43 @@ const AyurvedicDashboard = () => {
     selectedFulfillmentCenter: null,
     selectedState: null,
     tableSearchTerm: '',
-    tableSearchInput: ''
+    tableSearchInput: '' // Separate input state for search
   });
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
-  const [pendingFilters, setPendingFilters] = useState(filters);
+  const [pendingFilters, setPendingFilters] = useState(filters); // For Apply button functionality
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const { sampleOrderData: fetchedOrders, productMasterData: fetchedProducts, customerData: fetchedCustomers, mrData: fetchedMrs } = await initializeData();
+        setOrderData(fetchedOrders || []);
+        setProductData(fetchedProducts || []);
+        setCustomerData(fetchedCustomers || []);
+        setMrData(fetchedMrs || []);
+      } catch (error) {
+        console.error("Error initializing data:", error);
+        // Optionally, set an error state here to display to the user
+        setOrderData([]); // Ensure data arrays are empty on error
+        setProductData([]);
+        setCustomerData([]);
+        setMrData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []); // Empty dependency array to run only on mount
 
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
   const customerML = useMemo(() => new CustomerForecastingML(), []);
 
-  // Load data from Supabase on component mount
+  // Real-time notifications
   useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
-    setIsLoading(true);
-    setDataError(null);
-    
-    try {
-      const data = await initializeData();
-      setOrderData(data.sampleOrderData || []);
-      setProductData(data.productMasterData || []);
-      setCustomerData(data.customerData || []);
-      setMRData(data.mrData || []);
-      setLastRefresh(new Date());
-      
-      // Set default selections if available
-      if (data.productMasterData && data.productMasterData.length > 0) {
-        setSelectedProduct(data.productMasterData[0].productId);
-        setSelectedPackSize(data.productMasterData[0].Pack || data.productMasterData[0].packSize);
-      }
-      if (data.customerData && data.customerData.length > 0) {
-        setSelectedCustomer(data.customerData[0].customer_code);
-      }
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-      setDataError('Failed to load dashboard data. Please check your connection and try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Refresh data function
-  const handleRefreshData = async () => {
-    await loadDashboardData();
-  };
-
-  // Real-time notifications - updated to use actual order data
-  useEffect(() => {
-    if (!orderData || orderData.length === 0) return;
-
     const interval = setInterval(() => {
+      // Ensure orderData is not empty before trying to access it
+      if (orderData.length === 0) return;
       const newOrder = orderData[Math.floor(Math.random() * orderData.length)];
       const notification = {
         id: Date.now(),
@@ -130,7 +98,7 @@ const AyurvedicDashboard = () => {
     return () => clearInterval(interval);
   }, [orderData]);
 
-  // Create filteredData based on filters
+  // Create filteredData based on filters (memoized for performance)
   const filteredData = useMemo(() => {
     let data = orderData;
 
@@ -192,7 +160,7 @@ const AyurvedicDashboard = () => {
     }
 
     return data;
-  }, [orderData, filters]);
+  }, [filters, orderData]);
 
   // Separate table filtered data to prevent page jumping
   const tableFilteredData = useMemo(() => {
@@ -256,15 +224,15 @@ const AyurvedicDashboard = () => {
 
   // Product predictions
   const productPredictions = useMemo(() => {
-    if (!selectedProduct || !orderData.length) return { forecasts: [], insights: [] };
-    return productML.predictProductSales(selectedProduct, orderData, 6);
-  }, [selectedProduct, orderData, productML]);
+    if (!productData || productData.length === 0) return { forecasts: [], insights: [], product: null }; // Ensure productData is loaded
+    return productML.predictProductSales(selectedProduct, orderData, productData, 6);
+  }, [selectedProduct, productML, orderData, productData]);
 
   // Customer predictions  
   const customerPredictions = useMemo(() => {
-    if (!selectedCustomer || !orderData.length) return { forecasts: [], insights: [], recommendations: [] };
-    return customerML.predictCustomerBehavior(selectedCustomer, orderData, 6);
-  }, [selectedCustomer, orderData, customerML]);
+    if (!productData || productData.length === 0) return { forecasts: [], insights: [], recommendations: [], patterns: null }; // Ensure productData is loaded
+    return customerML.predictCustomerBehavior(selectedCustomer, orderData, productData, 6);
+  }, [selectedCustomer, customerML, orderData, productData]);
 
   // Transform product data for both views
   const { individualProducts, groupedByMedicine } = useMemo(() => 
@@ -277,20 +245,30 @@ const AyurvedicDashboard = () => {
   );
 
   // Get unique values for dropdowns
-  const uniqueProducts = individualProducts;
-  const uniqueMedicines = [...new Set(individualProducts.map(p => p.medicineName))];
-  const uniqueCustomers = customerData.map(c => ({ 
-    id: c.customer_code, 
-    name: c.customer_name 
-  }));
+  const uniqueProducts = individualProducts; // This seems fine as individualProducts is derived from productData
+  const uniqueMedicines = useMemo(() => {
+    if (!individualProducts || individualProducts.length === 0) return [];
+    return [...new Set(individualProducts.map(p => p.medicineName))];
+  }, [individualProducts]);
+
+  const uniqueCustomers = useMemo(() => {
+    if (!orderData || orderData.length === 0) return []; // Handle empty or undefined orderData
+    return [...new Set(orderData.map(order => ({ id: order.customerId, name: order.customerName })))];
+  }, [orderData]);
 
   // Current product data based on selection
-  const currentProduct = individualProducts.find(p => p.sku === selectedProduct);
+  const currentProduct = useMemo(() => individualProducts.find(p => p.sku === selectedProduct), [individualProducts, selectedProduct]);
   const currentMedicine = currentProduct?.medicineName;
-  const availablePackSizes = individualProducts.filter(p => p.medicineName === currentMedicine);
+  const availablePackSizes = useMemo(() => individualProducts.filter(p => p.medicineName === currentMedicine), [individualProducts, currentMedicine]);
 
   // Calculate data for charts using filteredData
-  const kpis = calculateKPIs(filteredData);
+  const kpis = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) {
+      // Return a default KPI structure if filteredData is empty
+      return { totalRevenue: 0, totalOrders: 0, activeCustomers: 0, deliveryRate: 0, avgOrderValue: 0 };
+    }
+    return calculateKPIs(filteredData);
+  }, [filteredData]);
   
   // Enhanced chart data with predictions
   const chartDataWithPredictions = useMemo(() => {
@@ -363,34 +341,6 @@ const AyurvedicDashboard = () => {
     { name: 'Distributor', value: filteredData.filter(o => o.deliveredFrom === 'Distributor').length }
   ], [filteredData]);
 
-  // Loading Component
-  const LoadingScreen = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mx-auto mb-4"></div>
-        <p className="text-gray-600 text-lg">Loading dashboard data from Supabase...</p>
-      </div>
-    </div>
-  );
-
-  // Error Component
-  const ErrorScreen = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center max-w-md">
-        <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Unable to Load Dashboard</h2>
-        <p className="text-gray-600 mb-4">{dataError || 'An unexpected error occurred.'}</p>
-        <button
-          onClick={handleRefreshData}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center mx-auto"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Retry Loading
-        </button>
-      </div>
-    </div>
-  );
-
   // Overview Tab Component
   const OverviewTab = () => {
     const { selectedFulfillment, selectedCategory, selectedTopProduct } = filters;
@@ -407,27 +357,11 @@ const AyurvedicDashboard = () => {
 
     return (
       <div className="space-y-6">
-        {/* Data Refresh Indicator */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <RefreshCw className="h-4 w-4 text-blue-600" />
-            <span className="text-sm text-blue-700">
-              Last updated: {lastRefresh.toLocaleTimeString()}
-            </span>
-          </div>
-          <button
-            onClick={handleRefreshData}
-            className="text-sm text-blue-600 hover:text-blue-800 underline"
-          >
-            Refresh Data
-          </button>
-        </div>
-
         {/* Enhanced Filters */}
         <EnhancedOverviewFilters
           filters={filters}
           setFilters={setFilters}
-          sampleOrderData={orderData}
+          sampleOrderData={orderData} // Use orderData instead of sampleOrderData
           isFiltersVisible={isFiltersVisible}
           setIsFiltersVisible={setIsFiltersVisible}
           pendingFilters={pendingFilters}
@@ -650,6 +584,57 @@ const AyurvedicDashboard = () => {
                         <div className="text-sm text-gray-500">{order.customerType}</div>
                       </div>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {order.medicalRepresentative || order.salesRepresentative || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ₹{order.netAmount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        order.deliveryStatus === 'Delivered' ? 'bg-green-100 text-green-800' :
+                        order.deliveryStatus === 'In Transit' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {order.deliveryStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {order.deliveredFrom}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        <Brain className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-600">
+                          {(85 + Math.random() * 10).toFixed(1)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-gray-700 max-w-xs">
+                        {/* Enhanced product display with pack sizes */}
+                        {order.orderItems ? 
+                          order.orderItems.map((item, idx) => (
+                            <div key={idx} className="mb-1 last:mb-0 p-2 bg-gray-50 rounded border-l-2 border-green-500">
+                              <div className="font-medium text-gray-900">{item.medicineName}</div>
+                              <div className="text-gray-500 text-xs flex justify-between">
+                                <span>{item.packSize}</span>
+                                <span>Qty: {item.quantity}</span>
+                              </div>
+                              <div className="text-green-600 text-xs font-medium">₹{item.unitPrice} each</div>
+                            </div>
+                          )) :
+                          <div className="p-2 bg-gray-50 rounded">
+                            <div className="font-medium text-gray-900">{order.productName}</div>
+                            {order.packSize && (
+                              <div className="text-gray-500 text-xs">Pack: {order.packSize}</div>
+                            )}
+                          </div>
+                        }
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -802,10 +787,9 @@ const AyurvedicDashboard = () => {
                   const unitCount = parseInt(product.packSize.replace(/\D/g, '')) || 1;
                   const pricePerUnit = (product.mrp / unitCount).toFixed(2);
                   const isSelected = product.sku === selectedProduct;
-                  const minPrice = Math.min(...availablePackSizes.map(p => 
+                  const isValuePack = pricePerUnit === Math.min(...availablePackSizes.map(p => 
                     (p.mrp / (parseInt(p.packSize.replace(/\D/g, '')) || 1))
                   ));
-                  const isValuePack = parseFloat(pricePerUnit) === minPrice;
                   
                   return (
                     <tr key={index} className={isSelected ? 'bg-green-50' : 'hover:bg-gray-50'}>
@@ -847,22 +831,20 @@ const AyurvedicDashboard = () => {
 
       {/* ML Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {productPredictions.insights.map((insight, index) => (
+        {productPredictions.insights && productPredictions.insights.map((insight, index) => (
           <MLInsightCard key={index} insight={insight} />
         ))}
       </div>
 
       {/* Sales Forecast Chart */}
-      {productPredictions.forecasts.length > 0 && (
-        <ProductForecastChart 
-          data={productPredictions.forecasts.map((forecast, index) => ({
-            month: new Date(forecast.month).toLocaleDateString('en-US', { month: 'short' }),
-            revenue: forecast.revenue,
-            quantity: forecast.quantity,
-            confidence: forecast.confidence * 100
-          }))}
-        />
-      )}
+      <ProductForecastChart 
+        data={productPredictions.forecasts && productPredictions.forecasts.map((forecast, index) => ({
+          month: new Date(forecast.month).toLocaleDateString('en-US', { month: 'short' }),
+          revenue: forecast.revenue,
+          quantity: forecast.quantity,
+          confidence: forecast.confidence * 100
+        }))}
+      />
     </div>
   );
 
@@ -895,19 +877,19 @@ const AyurvedicDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-600">Customer Type</p>
-              <p className="font-semibold">{customerPredictions.patterns.customerInfo.customerType}</p>
+              <p className="font-semibold">{customerPredictions.patterns?.customerInfo?.customerType}</p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-green-600">Territory</p>
-              <p className="font-semibold">{customerPredictions.patterns.customerInfo.territory}</p>
+              <p className="font-semibold">{customerPredictions.patterns?.customerInfo?.territory}</p>
             </div>
             <div className="bg-purple-50 p-4 rounded-lg">
               <p className="text-sm text-purple-600">Total Orders</p>
-              <p className="font-semibold">{customerPredictions.patterns.totalOrders}</p>
+              <p className="font-semibold">{customerPredictions.patterns?.totalOrders}</p>
             </div>
             <div className="bg-orange-50 p-4 rounded-lg">
               <p className="text-sm text-orange-600">Avg Order Value</p>
-              <p className="font-semibold">₹{customerPredictions.patterns.avgOrderValue.toFixed(0)}</p>
+              <p className="font-semibold">₹{customerPredictions.patterns?.avgOrderValue?.toFixed(0)}</p>
             </div>
           </div>
         )}
@@ -915,7 +897,7 @@ const AyurvedicDashboard = () => {
 
       {/* Customer Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {customerPredictions.insights.map((insight, index) => (
+        {customerPredictions.insights && customerPredictions.insights.map((insight, index) => (
           <div key={index} className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-semibold text-gray-800">{insight.title}</h4>
@@ -930,80 +912,76 @@ const AyurvedicDashboard = () => {
       </div>
 
       {/* Next Order Predictions */}
-      {customerPredictions.forecasts.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Star className="h-5 w-5 mr-2" />
-            Next Order Predictions
-          </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Timeline Chart */}
-            <CustomerTimelineChart 
-              data={customerPredictions.forecasts.map((forecast, index) => ({
-                period: `Month ${index + 1}`,
-                value: forecast.expectedValue,
-                probability: forecast.orderProbability * 100
-              }))}
-            />
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <Star className="h-5 w-5 mr-2" />
+          Next Order Predictions
+        </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Timeline Chart */}
+          <CustomerTimelineChart 
+            data={customerPredictions.forecasts && customerPredictions.forecasts.map((forecast, index) => ({
+              period: `Month ${index + 1}`,
+              value: forecast.expectedValue,
+              probability: forecast.orderProbability * 100
+            }))}
+          />
 
-            {/* Prediction Details */}
-            <div>
-              <h4 className="font-medium mb-3">Next 3 Order Predictions</h4>
-              <div className="space-y-3">
-                {customerPredictions.forecasts.slice(0, 3).map((forecast, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium">Order #{index + 1}</span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        forecast.confidence > 0.8 ? 'bg-green-100 text-green-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {(forecast.confidence * 100).toFixed(1)}% confident
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      <strong>Expected Date:</strong> {new Date(forecast.expectedDate).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <strong>Expected Value:</strong> ₹{forecast.expectedValue.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <strong>Likely Products:</strong> {forecast.likelyProducts.map(p => p.productName).join(', ')}
-                    </p>
+          {/* Prediction Details */}
+          <div>
+            <h4 className="font-medium mb-3">Next 3 Order Predictions</h4>
+            <div className="space-y-3">
+              {customerPredictions.forecasts && customerPredictions.forecasts.slice(0, 3).map((forecast, index) => (
+                <div key={index} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-medium">Order #{index + 1}</span>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      forecast.confidence > 0.8 ? 'bg-green-100 text-green-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {(forecast.confidence * 100).toFixed(1)}% confident
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <p className="text-sm text-gray-600">
+                    <strong>Expected Date:</strong> {new Date(forecast.expectedDate).toLocaleDateString()}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Expected Value:</strong> ₹{forecast.expectedValue.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Likely Products:</strong> {forecast.likelyProducts.map(p => p.productName).join(', ')}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Product Recommendations */}
-      {customerPredictions.recommendations.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Star className="h-5 w-5 mr-2" />
-            AI Product Recommendations
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {customerPredictions.recommendations.slice(0, 6).map((rec, index) => (
-              <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium">{rec.productName}</h4>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                    Score: {rec.score.toFixed(1)}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mb-2">{rec.category}</p>
-                <p className="text-sm text-gray-500 mb-2">{rec.reason}</p>
-                <p className="text-sm font-medium text-green-600">
-                  Expected Value: ₹{rec.expectedValue.toFixed(0)}
-                </p>
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <Star className="h-5 w-5 mr-2" />
+          AI Product Recommendations
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {customerPredictions.recommendations && customerPredictions.recommendations.slice(0, 6).map((rec, index) => (
+            <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-medium">{rec.productName}</h4>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  Score: {rec.score.toFixed(1)}
+                </span>
               </div>
-            ))}
-          </div>
+              <p className="text-sm text-gray-600 mb-2">{rec.category}</p>
+              <p className="text-sm text-gray-500 mb-2">{rec.reason}</p>
+              <p className="text-sm font-medium text-green-600">
+                Expected Value: ₹{rec.expectedValue.toFixed(0)}
+              </p>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Customer Behavior Analysis */}
       {customerPredictions.patterns && (
@@ -1017,10 +995,10 @@ const AyurvedicDashboard = () => {
             <div>
               <h4 className="font-medium mb-3">Purchase Patterns</h4>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={Object.entries(customerPredictions.patterns.monthlyPattern).map(([month, orders]) => ({
+                <BarChart data={customerPredictions.patterns?.monthlyPattern ? Object.entries(customerPredictions.patterns.monthlyPattern).map(([month, orders]) => ({
                   month: `Month ${month}`,
                   orders
-                }))}>
+                })) : []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -1034,14 +1012,14 @@ const AyurvedicDashboard = () => {
             <div>
               <h4 className="font-medium mb-3">Product Preferences</h4>
               <div className="space-y-2">
-                {customerPredictions.patterns.preferredProducts.map(([product, count], index) => (
+                {customerPredictions.patterns?.preferredProducts && customerPredictions.patterns.preferredProducts.map(([product, count], index) => (
                   <div key={index} className="flex justify-between items-center">
                     <span className="text-sm">{product}</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 h-2 bg-gray-200 rounded-full">
                         <div 
                           className="h-full bg-green-500 rounded-full"
-                          style={{ width: `${(count / customerPredictions.patterns.totalOrders) * 100}%` }}
+                          style={{ width: `${(count / (customerPredictions.patterns?.totalOrders || 1)) * 100}%` }} // Added guard for totalOrders
                         ></div>
                       </div>
                       <span className="text-xs text-gray-500">{count}</span>
@@ -1056,17 +1034,15 @@ const AyurvedicDashboard = () => {
     </div>
   );
 
-  // Show loading screen while data loads
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
-  // Show error screen if data fails to load
-  if (dataError) {
-    return <ErrorScreen />;
-  }
-
   // Main render
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-xl font-semibold">Loading Dashboard Data...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation 
@@ -1095,4 +1071,3 @@ const AyurvedicDashboard = () => {
 };
 
 export default AyurvedicDashboard;
-                  
