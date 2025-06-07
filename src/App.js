@@ -1,277 +1,140 @@
-// App.js - Complete Supabase Integration (Error-Free)
+// App.js - Fresh Implementation with Supabase Integration
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, RefreshCw, Database } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration - UPDATE THESE VALUES
-const supabaseUrl = 'https://your-project.supabase.co';
-const supabaseKey = 'your-anon-key-here';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Import data functions
+import { 
+  initializeData, 
+  refreshDashboardData,
+  COLORS, 
+  calculateKPIs, 
+  getUniqueValues, 
+  transformProductData, 
+  getPackSizeAnalytics 
+} from './data.js';
 
-// Import your existing ML models and components
+// Import ML models
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
-// Assuming you have these components - if not, you can create simple placeholder components
- import { 
-   Navigation, 
-   KPICard, 
-   MLInsightsCompact, 
-   SalesDriversCompact,
-   SalesTrendChart,
-   FulfillmentChart,
-   CategoryChart,
-   TopProductsChart,
-   ProductForecastChart,
-   CustomerTimelineChart,
-   MLInsightCard
- } from './components.js';
- import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
- import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
 
-// Constants
-const COLORS = {
-  primary: '#2E7D32',
-  secondary: '#FF8F00', 
-  accent: '#1976D2',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  light: '#F8F9FA',
-  dark: '#424242',
-  purple: '#9C27B0',
-  teal: '#009688'
-};
+// Import components
+import { 
+  Navigation, 
+  KPICard, 
+  MLInsightsCompact, 
+  SalesDriversCompact,
+  SalesTrendChart,
+  FulfillmentChart,
+  CategoryChart,
+  TopProductsChart,
+  GeoHeatMap,
+  ProductForecastChart,
+  CustomerTimelineChart,
+  MLInsightCard
+} from './components.js';
 
-// Utility functions
-const calculateKPIs = (data) => {
-  if (!data || data.length === 0) {
-    return { totalRevenue: 0, totalOrders: 0, activeCustomers: 0, deliveryRate: 0, avgOrderValue: 0 };
-  }
+// Import filters
+import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
 
-  const totalRevenue = data.reduce((sum, order) => sum + (parseFloat(order.netAmount) || 0), 0);
-  const totalOrders = data.length;
-  const activeCustomers = new Set(data.map(order => order.customerId || order.customer_code)).size;
-  const deliveredOrders = data.filter(order => order.deliveryStatus === 'Delivered').length;
-  const deliveryRate = totalOrders > 0 ? (deliveredOrders / totalOrders * 100) : 0;
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+// Import analytics
+import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
 
-  return { totalRevenue, totalOrders, activeCustomers, deliveryRate, avgOrderValue };
-};
-
-// Simple KPI Card Component
-const KPICard = ({ title, value, icon: Icon, format, color, trend, mlPrediction }) => (
-  <div className="bg-white p-6 rounded-lg shadow-md border-l-4" style={{ borderColor: color }}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">
-          {format === 'currency' ? `₹${value.toLocaleString()}` : 
-           format === 'percentage' ? `${value.toFixed(1)}%` : 
-           value.toLocaleString()}
-        </p>
-        {trend && (
-          <p className={`text-sm ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {trend > 0 ? '+' : ''}{trend}% vs last period
-          </p>
-        )}
-        {mlPrediction && (
-          <p className="text-xs text-purple-600 mt-1">🤖 {mlPrediction}</p>
-        )}
-      </div>
-      <Icon className="h-8 w-8" style={{ color }} />
-    </div>
-  </div>
-);
-
-// Simple Navigation Component
-const Navigation = ({ activeTab, setActiveTab, onRefresh, connectionStatus, lastRefresh }) => (
-  <nav className="bg-white shadow-lg">
-    <div className="max-w-7xl mx-auto px-4">
-      <div className="flex justify-between items-center py-4">
-        <div className="flex items-center space-x-8">
-          <h1 className="text-xl font-bold text-gray-900">Ayurvedic Sales Dashboard</h1>
-          <div className="flex space-x-4">
-            {['overview', 'products', 'customers'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-lg font-medium capitalize ${
-                  activeTab === tab
-                    ? 'bg-green-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 text-sm">
-            <div className={`h-2 w-2 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green-500' : 
-              connectionStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500'
-            }`}></div>
-            <span className="text-gray-600">
-              {connectionStatus === 'connected' ? 'Connected' : 
-               connectionStatus === 'error' ? 'Error' : 'Connecting'}
-            </span>
-          </div>
-          <button
-            onClick={onRefresh}
-            className="flex items-center space-x-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${connectionStatus === 'refreshing' ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </nav>
-);
-
-// Main Dashboard Component
 const AyurvedicDashboard = () => {
-  // State management
+  // Core state
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+
   // Data state
   const [orderData, setOrderData] = useState([]);
   const [productData, setProductData] = useState([]);
   const [customerData, setCustomerData] = useState([]);
   const [mrData, setMrData] = useState([]);
-  
+
+  // Product/Customer selection state
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [selectedPackSize, setSelectedPackSize] = useState('');
+  const [viewMode, setViewMode] = useState('medicine');
+
+  // UI state
+  const [showMLAnalytics, setShowMLAnalytics] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [isFiltersVisible, setIsFiltersVisible] = useState(true);
+
   // Filter state
   const [filters, setFilters] = useState({
-    searchTerm: '',
     dateRange: ['', ''],
+    searchTerm: '',
+    selectedFulfillment: null,
+    selectedCategory: null,
+    selectedTopProduct: null,
+    selectedMR: null,
+    selectedFulfillmentCenter: null,
+    selectedState: null,
+    tableSearchTerm: '',
+    tableSearchInput: '',
     customerType: null,
     territory: null,
     deliveryStatus: null
   });
+  const [pendingFilters, setPendingFilters] = useState(filters);
 
-  // Data fetching functions
-  const fetchOrderData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('order_items')
-        .select('*')
-        .order('order_date', { ascending: false });
-      
-      if (error) throw error;
-      
-      // Transform to consistent format
-      return data.map(item => ({
-        orderId: item.order_id,
-        date: item.order_date,
-        customerId: item.customer_code,
-        customerName: item.customer_name,
-        customerType: item.customer_type,
-        territory: item.territory,
-        city: item.city,
-        state: item.state,
-        netAmount: parseFloat(item.order_net_amount || item.line_total || 0),
-        deliveredFrom: item.delivered_from,
-        discountTier: item.discount_tier,
-        deliveryStatus: item.delivery_status,
-        productName: item.product_description,
-        category: item.category,
-        quantity: item.quantity,
-        medicalRepresentative: item.mr_name,
-        trackingNumber: item.tracking_number,
-        masterCode: item.master_code,
-        variantCode: item.variant_code,
-        sku: item.sku
-      }));
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      throw error;
-    }
-  };
+  // Initialize ML Models
+  const productML = useMemo(() => new ProductForecastingML(), []);
+  const customerML = useMemo(() => new CustomerForecastingML(), []);
 
-  const fetchProductData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      
-      return data.map(product => ({
-        sku: product.sku,
-        masterCode: product.master_code,
-        variantCode: product.variant_code,
-        productName: `${product.description} (${product.size_display})`,
-        description: product.description,
-        brand: product.brand,
-        category: product.category,
-        subCategory: product.sub_category,
-        sizeDisplay: product.size_display,
-        mrp: parseFloat(product.mrp),
-        status: product.status,
-        focusStatus: product.focus_status
-      }));
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      throw error;
-    }
-  };
+  // Load initial data
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const fetchCustomerData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      throw error;
-    }
-  };
+  // Setup notifications
+  useEffect(() => {
+    if (orderData.length === 0) return;
+    
+    const interval = setInterval(() => {
+      const randomOrder = orderData[Math.floor(Math.random() * orderData.length)];
+      const notification = {
+        id: Date.now(),
+        message: `🔔 New order ${randomOrder.orderId} from ${randomOrder.customerName}`,
+        amount: randomOrder.netAmount,
+        timestamp: new Date().toLocaleTimeString(),
+        type: 'new_order',
+        ml_prediction: `Predicted next order: ₹${(randomOrder.netAmount * 1.15).toFixed(0)}`
+      };
+      setNotifications(prev => [notification, ...prev.slice(0, 4)]);
+    }, 30000);
 
-  const fetchMRData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('medical_representatives')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error fetching MRs:', error);
-      throw error;
-    }
-  };
+    return () => clearInterval(interval);
+  }, [orderData]);
 
-  // Load all data
   const loadData = async () => {
     setIsLoading(true);
     setDataError(null);
     setConnectionStatus('connecting');
     
     try {
-      const [orders, products, customers, mrs] = await Promise.all([
-        fetchOrderData(),
-        fetchProductData(),
-        fetchCustomerData(),
-        fetchMRData()
-      ]);
+      const data = await initializeData();
       
-      setOrderData(orders);
-      setProductData(products);
-      setCustomerData(customers);
-      setMrData(mrs);
+      setOrderData(data.sampleOrderData || []);
+      setProductData(data.productMasterData || []);
+      setCustomerData(data.customerData || []);
+      setMrData(data.mrData || []);
+      
       setLastRefresh(new Date());
       setConnectionStatus('connected');
+      
+      // Set default selections
+      if (data.productMasterData && data.productMasterData.length > 0) {
+        setSelectedProduct(data.productMasterData[0].Sku || data.productMasterData[0].productId);
+      }
+      if (data.customerData && data.customerData.length > 0) {
+        setSelectedCustomer(data.customerData[0].customer_code || data.customerData[0].id);
+      }
       
     } catch (error) {
       console.error('Error loading data:', error);
@@ -282,80 +145,224 @@ const AyurvedicDashboard = () => {
     }
   };
 
-  // Refresh data
   const refreshData = async () => {
     setConnectionStatus('refreshing');
     try {
-      await loadData();
+      const data = await refreshDashboardData();
+      setOrderData(data.sampleOrderData || []);
+      setProductData(data.productMasterData || []);
+      setCustomerData(data.customerData || []);
+      setMrData(data.mrData || []);
+      setLastRefresh(new Date());
+      setConnectionStatus('connected');
     } catch (error) {
+      console.error('Error refreshing data:', error);
       setConnectionStatus('error');
     }
   };
 
-  // Load data on mount
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Filter data based on current filters
+  // Apply filters to order data
   const filteredData = useMemo(() => {
-    let data = orderData;
+    let data = [...orderData];
 
+    // Date range filter
+    if (filters.dateRange?.[0] || filters.dateRange?.[1]) {
+      const startDate = filters.dateRange[0] ? new Date(filters.dateRange[0]) : null;
+      const endDate = filters.dateRange[1] ? new Date(filters.dateRange[1]) : null;
+      
+      data = data.filter(order => {
+        const orderDate = new Date(order.date);
+        if (startDate && orderDate < startDate) return false;
+        if (endDate && orderDate > endDate) return false;
+        return true;
+      });
+    }
+
+    // Search term filter
     if (filters.searchTerm) {
-      const term = filters.searchTerm.toLowerCase();
+      const searchTerm = filters.searchTerm.toLowerCase();
       data = data.filter(order =>
-        order.orderId.toLowerCase().includes(term) ||
-        order.customerName.toLowerCase().includes(term) ||
-        order.productName.toLowerCase().includes(term) ||
-        order.city.toLowerCase().includes(term)
+        order.orderId?.toLowerCase().includes(searchTerm) ||
+        order.customerName?.toLowerCase().includes(searchTerm) ||
+        order.productName?.toLowerCase().includes(searchTerm) ||
+        order.category?.toLowerCase().includes(searchTerm) ||
+        order.city?.toLowerCase().includes(searchTerm)
       );
     }
 
-    if (filters.customerType) {
-      data = data.filter(order => order.customerType === filters.customerType);
+    // Other filters
+    if (filters.selectedMR) {
+      data = data.filter(order => 
+        order.medicalRepresentative === filters.selectedMR ||
+        order.salesRepresentative === filters.selectedMR
+      );
     }
 
-    if (filters.territory) {
-      data = data.filter(order => order.territory === filters.territory);
+    if (filters.selectedFulfillmentCenter) {
+      data = data.filter(order => order.deliveredFrom === filters.selectedFulfillmentCenter);
     }
 
-    if (filters.deliveryStatus) {
-      data = data.filter(order => order.deliveryStatus === filters.deliveryStatus);
+    if (filters.selectedState) {
+      data = data.filter(order => order.state === filters.selectedState);
     }
 
-    if (filters.dateRange[0]) {
-      data = data.filter(order => new Date(order.date) >= new Date(filters.dateRange[0]));
+    if (filters.selectedFulfillment) {
+      data = data.filter(order => order.deliveredFrom === filters.selectedFulfillment);
     }
 
-    if (filters.dateRange[1]) {
-      data = data.filter(order => new Date(order.date) <= new Date(filters.dateRange[1]));
+    if (filters.selectedCategory) {
+      data = data.filter(order => order.category === filters.selectedCategory);
+    }
+
+    if (filters.selectedTopProduct) {
+      data = data.filter(order => order.productName === filters.selectedTopProduct);
     }
 
     return data;
   }, [orderData, filters]);
 
+  // Table filtered data
+  const tableFilteredData = useMemo(() => {
+    if (!filters.tableSearchTerm) return filteredData;
+    
+    const searchTerm = filters.tableSearchTerm.toLowerCase();
+    return filteredData.filter(order => 
+      order.orderId?.toLowerCase().includes(searchTerm) ||
+      order.customerName?.toLowerCase().includes(searchTerm) ||
+      order.medicalRepresentative?.toLowerCase().includes(searchTerm) ||
+      order.productName?.toLowerCase().includes(searchTerm)
+    );
+  }, [filteredData, filters.tableSearchTerm]);
+
+  // Handle table search
+  const handleTableSearch = () => {
+    setFilters(prev => ({ ...prev, tableSearchTerm: prev.tableSearchInput }));
+  };
+
+  const handleSearchKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleTableSearch();
+    }
+  };
+
+  // Export function
+  const exportWithMLInsights = () => {
+    const kpis = calculateKPIs(filteredData);
+    const exportData = [
+      ['=== AYURVEDIC SALES REPORT WITH ML INSIGHTS ==='],
+      [''],
+      ['Executive Summary:'],
+      [`Total Revenue: ₹${kpis.totalRevenue.toLocaleString()}`],
+      [`Total Orders: ${kpis.totalOrders}`],
+      [`Average Order Value: ₹${kpis.avgOrderValue.toFixed(0)}`],
+      [`Delivery Rate: ${kpis.deliveryRate.toFixed(1)}%`],
+      [`Data Last Updated: ${lastRefresh.toLocaleString()}`],
+      [''],
+      ['Detailed Orders:'],
+      ['Order ID', 'Date', 'Customer', 'Product', 'Amount', 'Status', 'MR'],
+      ...filteredData.map(order => [
+        order.orderId, order.date, order.customerName, 
+        order.productName, order.netAmount, order.deliveryStatus, 
+        order.medicalRepresentative
+      ])
+    ];
+
+    const csvContent = exportData.map(row => Array.isArray(row) ? row.join(',') : row).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ayurvedic_sales_report_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  };
+
+  // ML Predictions
+  const productPredictions = useMemo(() => {
+    if (!orderData.length || !selectedProduct) return { forecasts: [], insights: [] };
+    return productML.predictProductSales(selectedProduct, orderData, 6);
+  }, [selectedProduct, productML, orderData]);
+
+  const customerPredictions = useMemo(() => {
+    if (!orderData.length || !selectedCustomer) return { forecasts: [], insights: [], recommendations: [] };
+    return customerML.predictCustomerBehavior(selectedCustomer, orderData, 6);
+  }, [selectedCustomer, customerML, orderData]);
+
+  // Transform product data
+  const { individualProducts, groupedByMedicine } = useMemo(() => 
+    transformProductData(productData), [productData]
+  );
+
+  // Analytics data
+  const { packSizePerformance, medicinePerformance } = useMemo(() => 
+    getPackSizeAnalytics(filteredData), [filteredData]
+  );
+
+  // Dropdown data
+  const uniqueProducts = individualProducts;
+  const uniqueMedicines = [...new Set(individualProducts.map(p => p.medicineName))];
+  const uniqueCustomers = [...new Set(orderData.map(order => ({ 
+    id: order.customerId || order.customer_code, 
+    name: order.customerName 
+  })))];
+
+  // Current product data
+  const currentProduct = individualProducts.find(p => p.sku === selectedProduct);
+  const currentMedicine = currentProduct?.medicineName;
+  const availablePackSizes = individualProducts.filter(p => p.medicineName === currentMedicine);
+
   // Calculate KPIs
-  const kpis = useMemo(() => calculateKPIs(filteredData), [filteredData]);
+  const kpis = calculateKPIs(filteredData);
 
-  // Prepare chart data
-  const categoryData = useMemo(() => {
-    const categories = {};
-    filteredData.forEach(order => {
-      categories[order.category] = (categories[order.category] || 0) + order.netAmount;
-    });
-    return Object.entries(categories).map(([name, value]) => ({ name, value }));
-  }, [filteredData]);
-
-  const monthlyData = useMemo(() => {
-    const months = {};
+  // Chart data
+  const chartDataWithPredictions = useMemo(() => {
+    const monthlyData = {};
     filteredData.forEach(order => {
       const month = new Date(order.date).toISOString().slice(0, 7);
-      months[month] = (months[month] || 0) + order.netAmount;
+      if (!monthlyData[month]) monthlyData[month] = { month, actual: 0, orders: 0 };
+      monthlyData[month].actual += order.netAmount;
+      monthlyData[month].orders += 1;
     });
-    return Object.entries(months)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, revenue]) => ({ month, revenue }));
-  }, [filteredData]);
+
+    const historicalData = Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
+    
+    // Add predictions
+    const currentDate = new Date();
+    const predictedData = [];
+    for (let i = 1; i <= 3; i++) {
+      const futureDate = new Date(currentDate);
+      futureDate.setMonth(futureDate.getMonth() + i);
+      const avgRevenue = historicalData.length > 0 ? historicalData.reduce((sum, d) => sum + d.actual, 0) / historicalData.length : 0;
+
+      predictedData.push({
+        month: futureDate.toISOString().slice(0, 7),
+        actual: null,
+        predicted: avgRevenue * (1 + 0.1 * i),
+        orders: Math.round(avgRevenue / (kpis.avgOrderValue || 1000))
+      });
+    }
+
+    return [...historicalData, ...predictedData];
+  }, [filteredData, kpis.avgOrderValue]);
+
+  // More chart data
+  const categoryData = useMemo(() => Object.entries(
+    filteredData.reduce((acc, order) => {
+      acc[order.category] = (acc[order.category] || 0) + order.netAmount;
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value })), [filteredData]);
+
+  const topProductsData = useMemo(() => Object.entries(
+    filteredData.reduce((acc, order) => {
+      acc[order.productName] = (acc[order.productName] || 0) + order.netAmount;
+      return acc;
+    }, {})
+  ).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name: name.substring(0, 15), value })), [filteredData]);
+
+  const fulfillmentData = useMemo(() => [
+    { name: 'Factory', value: filteredData.filter(o => o.deliveredFrom === 'Factory').length },
+    { name: 'Distributor', value: filteredData.filter(o => o.deliveredFrom === 'Distributor').length }
+  ], [filteredData]);
 
   // Loading state
   if (isLoading) {
@@ -365,6 +372,10 @@ const AyurvedicDashboard = () => {
           <RefreshCw className="h-12 w-12 animate-spin text-green-600 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Dashboard</h2>
           <p className="text-gray-600">Connecting to Supabase database...</p>
+          <div className="mt-4 flex items-center justify-center space-x-2">
+            <Database className="h-4 w-4 text-gray-400" />
+            <span className="text-sm text-gray-500">Fetching real-time data</span>
+          </div>
         </div>
       </div>
     );
@@ -378,247 +389,319 @@ const AyurvedicDashboard = () => {
           <XOctagon className="h-12 w-12 text-red-600 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Database Connection Error</h2>
           <p className="text-gray-600 mb-4">Failed to connect to Supabase: {dataError}</p>
-          <button 
-            onClick={refreshData}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Retry Connection
-          </button>
-          <p className="text-xs text-gray-500 mt-2">
-            Make sure your Supabase credentials are correct in App.js
-          </p>
+          <div className="space-y-2">
+            <button 
+              onClick={refreshData}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Retry Connection
+            </button>
+            <p className="text-xs text-gray-500">
+              Make sure your Supabase credentials are correct in data.js
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Overview Tab Component
-  const OverviewTab = () => (
-    <div className="space-y-6">
-      {/* Connection Status */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className={`h-3 w-3 rounded-full ${
-              connectionStatus === 'connected' ? 'bg-green-500' : 
-              connectionStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500'
-            }`}></div>
-            <div>
-              <span className="font-medium text-gray-900">
-                {connectionStatus === 'connected' ? '🟢 Live Data Connected' : 
-                 connectionStatus === 'error' ? '🔴 Connection Error' : '🟡 Connecting...'}
-              </span>
-              <div className="text-sm text-gray-600">
-                Last updated: {lastRefresh.toLocaleTimeString()} | 
-                Showing {filteredData.length} orders from Supabase
+  // Overview Tab
+  const OverviewTab = () => {
+    const { selectedFulfillment, selectedCategory, selectedTopProduct } = filters;
+    const areChartFiltersActive = !!(selectedFulfillment || selectedCategory || selectedTopProduct);
+
+    const clearChartFilters = () => {
+      setFilters(prev => ({
+        ...prev,
+        selectedFulfillment: null,
+        selectedCategory: null,
+        selectedTopProduct: null,
+      }));
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Connection Status */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className={`h-3 w-3 rounded-full ${
+                connectionStatus === 'connected' ? 'bg-green-500' : 
+                connectionStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500'
+              }`}></div>
+              <div>
+                <span className="font-medium text-gray-900">
+                  {connectionStatus === 'connected' ? '🟢 Live Data Connected' : 
+                   connectionStatus === 'error' ? '🔴 Connection Error' : '🟡 Connecting...'}
+                </span>
+                <div className="text-sm text-gray-600">
+                  Last updated: {lastRefresh.toLocaleTimeString()} | 
+                  Showing {filteredData.length} orders from Supabase
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <input
-              type="text"
-              value={filters.searchTerm}
-              onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-              placeholder="Search orders..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Type</label>
-            <select
-              value={filters.customerType || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, customerType: e.target.value || null }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+            <button 
+              onClick={refreshData}
+              disabled={connectionStatus === 'refreshing'}
+              className="flex items-center space-x-2 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm disabled:opacity-50"
             >
-              <option value="">All Types</option>
-              <option value="Doctor">Doctor</option>
-              <option value="Retailer">Retailer</option>
-              <option value="Wholesaler">Wholesaler</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Status</label>
-            <select
-              value={filters.deliveryStatus || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, deliveryStatus: e.target.value || null }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-            >
-              <option value="">All Status</option>
-              <option value="Delivered">Delivered</option>
-              <option value="In Transit">In Transit</option>
-              <option value="Processing">Processing</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Actions</label>
-            <button
-              onClick={() => setFilters({
-                searchTerm: '',
-                dateRange: ['', ''],
-                customerType: null,
-                territory: null,
-                deliveryStatus: null
-              })}
-              className="w-full px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-            >
-              Clear Filters
+              <RefreshCw className={`h-4 w-4 ${connectionStatus === 'refreshing' ? 'animate-spin' : ''}`} />
+              <span>{connectionStatus === 'refreshing' ? 'Refreshing...' : 'Refresh'}</span>
             </button>
           </div>
         </div>
-      </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-        <KPICard 
-          title="Total Revenue" 
-          value={kpis.totalRevenue} 
-          icon={TrendingUp} 
-          format="currency"
-          color={COLORS.success}
-          trend={12.5}
-          mlPrediction="₹45.2K next month"
+        {/* Filters */}
+        <EnhancedOverviewFilters
+          filters={filters}
+          setFilters={setFilters}
+          sampleOrderData={orderData}
+          customerData={customerData}
+          mrData={mrData}
+          isFiltersVisible={isFiltersVisible}
+          setIsFiltersVisible={setIsFiltersVisible}
+          pendingFilters={pendingFilters}
+          setPendingFilters={setPendingFilters}
         />
-        <KPICard 
-          title="Total Orders" 
-          value={kpis.totalOrders} 
-          icon={ShoppingCart}
-          color={COLORS.primary}
-          trend={8.2}
-          mlPrediction="18 orders expected"
-        />
-        <KPICard 
-          title="Avg Order Value" 
-          value={kpis.avgOrderValue} 
-          icon={Package}
-          format="currency"
-          color={COLORS.secondary}
-          trend={3.7}
-          mlPrediction="₹2.8K"
-        />
-        <KPICard 
-          title="Active Customers" 
-          value={kpis.activeCustomers} 
-          icon={Users}
-          color={COLORS.accent}
-          trend={15.3}
-          mlPrediction="+3 new"
-        />
-        <KPICard 
-          title="Delivery Rate" 
-          value={kpis.deliveryRate} 
-          icon={MapPin}
-          format="percentage"
-          color={COLORS.success}
-          trend={-2.1}
-          mlPrediction="94.2%"
-        />
-      </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Revenue Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4">Monthly Revenue Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
-              <Bar dataKey="revenue" fill={COLORS.primary} />
-            </BarChart>
-          </ResponsiveContainer>
+        {/* Clear Chart Filters */}
+        {areChartFiltersActive && (
+          <div className="mb-4 flex justify-end">
+            <button
+              onClick={clearChartFilters}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm flex items-center shadow-md"
+            >
+              <XOctagon className="h-4 w-4 mr-2" />
+              Clear Chart Filters
+            </button>
+          </div>
+        )}
+
+        {/* Results Summary */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="text-lg font-semibold text-blue-900">
+                Showing {filteredData.length} orders from database
+              </div>
+            </div>
+            {filteredData.length < orderData.length && (
+              <button
+                onClick={() => {
+                  const resetFilters = {
+                    dateRange: ['', ''],
+                    searchTerm: '',
+                    selectedFulfillment: null,
+                    selectedCategory: null,
+                    selectedTopProduct: null,
+                    selectedMR: null,
+                    selectedFulfillmentCenter: null,
+                    selectedState: null,
+                    tableSearchTerm: '',
+                    tableSearchInput: '',
+                    customerType: null,
+                    territory: null,
+                    deliveryStatus: null
+                  };
+                  setFilters(resetFilters);
+                  setPendingFilters(resetFilters);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Reset all filters
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Category Distribution Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4">Revenue by Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={categoryData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
-              <Bar dataKey="value" fill={COLORS.accent} />
-            </BarChart>
-          </ResponsiveContainer>
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          <KPICard 
+            title="Total Revenue" 
+            value={kpis.totalRevenue} 
+            icon={TrendingUp} 
+            format="currency"
+            color={COLORS.success}
+            trend={12.5}
+            mlPrediction="₹45.2K next month"
+          />
+          <KPICard 
+            title="Total Orders" 
+            value={kpis.totalOrders} 
+            icon={ShoppingCart}
+            color={COLORS.primary}
+            trend={8.2}
+            mlPrediction="18 orders expected"
+          />
+          <KPICard 
+            title="Avg Order Value" 
+            value={kpis.avgOrderValue} 
+            icon={Package}
+            format="currency"
+            color={COLORS.secondary}
+            trend={3.7}
+            mlPrediction="₹2.8K"
+          />
+          <KPICard 
+            title="Active Customers" 
+            value={kpis.activeCustomers} 
+            icon={Users}
+            color={COLORS.accent}
+            trend={15.3}
+            mlPrediction="+3 new"
+          />
+          <KPICard 
+            title="Delivery Rate" 
+            value={kpis.deliveryRate} 
+            icon={MapPin}
+            format="percentage"
+            color={COLORS.success}
+            trend={-2.1}
+            mlPrediction="94.2%"
+          />
         </div>
-      </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold">Recent Orders</h3>
-          <p className="text-sm text-gray-600">
-            Showing {Math.min(10, filteredData.length)} of {filteredData.length} orders
-          </p>
+        {/* ML Analytics */}
+        {showMLAnalytics && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <MLInsightsCompact />
+            <SalesDriversCompact />
+          </div>
+        )}
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <SalesTrendChart data={chartDataWithPredictions} />
+          </div>
+          <FulfillmentChart 
+            data={fulfillmentData}
+            filters={filters}
+            setFilters={setFilters}
+          />
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredData.slice(0, 10).map((order) => (
-                <tr key={order.orderId} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {order.orderId}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
-                    <div className="text-sm text-gray-500">{order.customerType}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {order.productName.substring(0, 30)}...
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    ₹{order.netAmount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      order.deliveryStatus === 'Delivered' ? 'bg-green-100 text-green-800' :
-                      order.deliveryStatus === 'In Transit' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {order.deliveryStatus}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(order.date).toLocaleDateString()}
-                  </td>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CategoryChart
+            data={categoryData}
+            filters={filters}
+            setFilters={setFilters}
+          />
+          <TopProductsChart
+            data={topProductsData}
+            filters={filters}
+            setFilters={setFilters}
+          />
+        </div>
+
+        {/* Data Table */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex flex-col space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Recent Orders</h3>
+                <span className="text-sm text-gray-600">
+                  Showing latest {Math.min(10, tableFilteredData.length)} orders
+                </span>
+              </div>
+              
+              <div className="w-full max-w-lg">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search Orders
+                </label>
+                <div className="flex space-x-2">
+                  <div className="relative flex-1">
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={filters.tableSearchInput || ''}
+                      onChange={(e) => setFilters(prev => ({ ...prev, tableSearchInput: e.target.value }))}
+                      onKeyPress={handleSearchKeyPress}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Search by Order ID, Customer, MR, Product..."
+                    />
+                  </div>
+                  <button
+                    onClick={handleTableSearch}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Search
+                  </button>
+                  {filters.tableSearchTerm && (
+                    <button
+                      onClick={() => setFilters(prev => ({ ...prev, tableSearchTerm: '', tableSearchInput: '' }))}
+                      className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Territory</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {tableFilteredData.slice(-10).reverse().map((order, index) => (
+                  <tr key={order.orderId} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {order.orderId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
+                      <div className="text-sm text-gray-500">{order.customerType}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ₹{order.netAmount?.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        order.deliveryStatus === 'Delivered' ? 'bg-green-100 text-green-800' :
+                        order.deliveryStatus === 'In Transit' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {order.deliveryStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {order.territory || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {order.productName}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Products Tab
   const ProductsTab = () => (
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4">Product Analytics</h3>
-        <p className="text-gray-600">
-          {productData.length} products loaded from Supabase database
-        </p>
-        {/* Add your product analytics here */}
+        <h3 className="text-lg font-semibold flex items-center mb-4">
+          <Brain className="h-5 w-5 mr-2 text-purple-600" />
+          Product Analytics ({productData.length} products loaded)
+        </h3>
+        <MedicineWiseAnalytics 
+          medicinePerformance={medicinePerformance}
+          selectedMedicine={currentMedicine}
+          availablePackSizes={availablePackSizes}
+        />
       </div>
     </div>
   );
