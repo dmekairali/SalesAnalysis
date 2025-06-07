@@ -536,15 +536,15 @@ const AyurvedicDashboard = () => {
             trend={12.5}
             mlPrediction="₹45.2K next month"
           />
-          <KPICard 
+          {/* <KPICard
             title="Total Orders" 
             value={kpis.totalOrders} 
             icon={ShoppingCart}
             color={COLORS.primary}
             trend={8.2}
             mlPrediction="18 orders expected"
-          />
-          <KPICard 
+          /> */}
+          {/* <KPICard
             title="Avg Order Value" 
             value={kpis.avgOrderValue} 
             icon={Package}
@@ -552,16 +552,16 @@ const AyurvedicDashboard = () => {
             color={COLORS.secondary}
             trend={3.7}
             mlPrediction="₹2.8K"
-          />
-          <KPICard 
+          /> */}
+          {/* <KPICard
             title="Active Customers" 
             value={kpis.activeCustomers} 
             icon={Users}
             color={COLORS.accent}
             trend={15.3}
             mlPrediction="+3 new"
-          />
-          <KPICard 
+          /> */}
+          {/* <KPICard
             title="Delivery Rate" 
             value={kpis.deliveryRate} 
             icon={MapPin}
@@ -569,7 +569,7 @@ const AyurvedicDashboard = () => {
             color={COLORS.success}
             trend={-2.1}
             mlPrediction="94.2%"
-          />
+          /> */}
         </div>
 
         {/* ML Analytics Section */}
@@ -791,8 +791,8 @@ const AyurvedicDashboard = () => {
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'products' && <ProductsTab />}
-        {activeTab === 'customers' && <CustomersTab />}
+        {/*activeTab === 'products' && <ProductsTab />*/}
+        {/*activeTab === 'customers' && <CustomersTab />*/}
       </div>
     </div>
   );
