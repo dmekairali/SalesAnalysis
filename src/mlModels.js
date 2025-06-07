@@ -11,9 +11,9 @@ export class ProductForecastingML {
     };
   }
 
-  predictProductSales(productId, salesData, productData, monthsAhead = 6) {
+  predictProductSales(productId, salesData, productMasterData, monthsAhead = 6) {
     const productSales = salesData.filter(order => order.productId === productId);
-    const product = productData.find(p => p.productId === productId);
+    const product = productMasterData.find(p => p.productId === productId);
     
     if (productSales.length === 0) return { forecasts: [], insights: [] };
 
@@ -119,15 +119,15 @@ export class CustomerForecastingML {
     this.customerPatterns = {};
   }
 
-  predictCustomerBehavior(customerId, salesData, productData, monthsAhead = 6) {
+  predictCustomerBehavior(customerId, salesData, productMasterData, monthsAhead = 6) {
     const customerOrders = salesData.filter(order => order.customerId === customerId);
     
     if (customerOrders.length === 0) return { forecasts: [], insights: [], recommendations: [] };
 
-    const patterns = this.analyzeCustomerPatterns(customerOrders); // productData is not directly used here but by predictLikelyProducts
-    const forecasts = this.generateCustomerForecasts(patterns, customerOrders, productData, monthsAhead); // Pass productData
+    const patterns = this.analyzeCustomerPatterns(customerOrders); // productMasterData is not directly used here but by predictLikelyProducts
+    const forecasts = this.generateCustomerForecasts(patterns, customerOrders, productMasterData, monthsAhead); // Pass productMasterData
     const insights = this.generateCustomerInsights(patterns, customerOrders);
-    const recommendations = this.generateProductRecommendations(customerOrders, salesData, productData); // Pass productData
+    const recommendations = this.generateProductRecommendations(customerOrders, salesData, productMasterData); // Pass productMasterData
     
     return { forecasts, insights, recommendations, patterns };
   }
@@ -175,7 +175,7 @@ export class CustomerForecastingML {
     };
   }
 
-  generateCustomerForecasts(patterns, orders, productData, monthsAhead) {
+  generateCustomerForecasts(patterns, orders, productMasterData, monthsAhead) {
     const forecasts = [];
     let currentDate = new Date(patterns.lastOrderDate);
     
@@ -187,7 +187,7 @@ export class CustomerForecastingML {
       const seasonalFactor = this.getSeasonalFactor(currentDate.getMonth() + 1, patterns.monthlyPattern);
       const predictedValue = patterns.avgOrderValue * growthFactor * seasonalFactor;
       
-      const likelyProducts = this.predictLikelyProducts(patterns, currentDate, productData); // Pass productData
+      const likelyProducts = this.predictLikelyProducts(patterns, currentDate, productMasterData); // Pass productMasterData
       
       forecasts.push({
         expectedDate: currentDate.toISOString().slice(0, 10),
@@ -208,12 +208,12 @@ export class CustomerForecastingML {
     return avgMonthlyOrders > 0 ? (orderCount / avgMonthlyOrders) : 1.0;
   }
 
-  predictLikelyProducts(patterns, orderDate, productData) {
+  predictLikelyProducts(patterns, orderDate, productMasterData) {
     const month = orderDate.getMonth() + 1;
     const products = [];
     
     patterns.preferredProducts.forEach(([productName, frequency]) => {
-      const product = productData.find(p => p.productName === productName);
+      const product = productMasterData.find(p => p.productName === productName);
       if (product) {
         let seasonalBoost = 1.0;
         if (product.seasonality.includes('Winter') && [11, 12, 1, 2].includes(month)) seasonalBoost = 1.3;
@@ -269,14 +269,14 @@ export class CustomerForecastingML {
     return insights;
   }
 
-  generateProductRecommendations(customerOrders, allSalesData, productData) {
+  generateProductRecommendations(customerOrders, allSalesData, productMasterData) {
     const customerProducts = new Set(customerOrders.map(order => order.productId));
     const customerCategories = new Set(customerOrders.map(order => order.category));
     
     const recommendations = [];
     
     customerCategories.forEach(category => {
-      const categoryProducts = productData.filter(p =>
+      const categoryProducts = productMasterData.filter(p =>
         p.category === category && !customerProducts.has(p.productId)
       );
       
