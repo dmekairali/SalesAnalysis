@@ -332,10 +332,10 @@ const AyurvedicDashboard = () => {
   }, [selectedProduct, productML, orderData, productData]);
 
   // Customer predictions  
-  // const customerPredictions = useMemo(() => {
-  //   if (!productData || productData.length === 0) return { forecasts: [], insights: [], recommendations: [], patterns: null }; // Ensure productData is loaded
-  //   return customerML.predictCustomerBehavior(selectedCustomer, orderData, productData, 6);
-  // }, [selectedCustomer, customerML, orderData, productData]);
+  const customerPredictions = useMemo(() => {
+    if (!productData || productData.length === 0 || !orderData || orderData.length === 0 || !selectedCustomer) return { forecasts: [], insights: [], recommendations: [], patterns: null };
+    return customerML.predictCustomerBehavior(selectedCustomer, orderData, productData, 6);
+  }, [selectedCustomer, customerML, orderData, productData]);
 
   // Transform product data for both views
   const { individualProducts, groupedByMedicine } = useMemo(() => 
@@ -1028,48 +1028,26 @@ const AyurvedicDashboard = () => {
   // Customers Tab Component  
   const CustomersTab = () => {
     const customerInsights = useMemo(() => {
-      if (!selectedCustomerAnalytics?.insights_json) return [];
-      try {
-        return JSON.parse(selectedCustomerAnalytics.insights_json);
-      } catch (e) {
-        console.error("Error parsing customer insights JSON:", e);
-        return [];
-      }
-    }, [selectedCustomerAnalytics]);
+      return customerPredictions?.insights || [];
+    }, [customerPredictions]);
 
     const nextOrderPredictions = useMemo(() => {
-      if (!selectedCustomerAnalytics?.next_order_predictions_json) return [];
-      try {
-        return JSON.parse(selectedCustomerAnalytics.next_order_predictions_json);
-      } catch (e) {
-        console.error("Error parsing next order predictions JSON:", e);
-        return [];
-      }
-    }, [selectedCustomerAnalytics]);
+      return customerPredictions?.forecasts || [];
+    }, [customerPredictions]);
 
     const productRecommendations = useMemo(() => {
-      if (!selectedCustomerAnalytics?.product_recommendations_json) return [];
-      try {
-        return JSON.parse(selectedCustomerAnalytics.product_recommendations_json);
-      } catch (e) {
-        console.error("Error parsing product recommendations JSON:", e);
-        return [];
-      }
-    }, [selectedCustomerAnalytics]);
+      return customerPredictions?.recommendations || [];
+    }, [customerPredictions]);
 
     const purchasePatterns = useMemo(() => {
-      if (!selectedCustomerAnalytics?.purchase_patterns_json) return { monthly_pattern: {}, preferred_products: [] };
-      try {
-        const parsed = JSON.parse(selectedCustomerAnalytics.purchase_patterns_json);
-        return {
-          monthly_pattern: parsed.monthly_pattern || {},
-          preferred_products: parsed.preferred_products || []
-        };
-      } catch (e) {
-        console.error("Error parsing purchase patterns JSON:", e);
+      if (!customerPredictions?.patterns) {
         return { monthly_pattern: {}, preferred_products: [] };
       }
-    }, [selectedCustomerAnalytics]);
+      return {
+        monthly_pattern: customerPredictions.patterns.monthlyPattern || {},
+        preferred_products: customerPredictions.patterns.preferredProducts || []
+      };
+    }, [customerPredictions]);
 
     if (!selectedCustomerAnalytics) {
       return (
