@@ -159,6 +159,7 @@ export const fetchDashboardOrders = async () => {
     return data.map(order => ({
       orderId: order.order_id,
       date: order.order_date,
+      customerId: order.customer_code, // Added customerId mapping
       customerName: order.customer_name,
       customerType: order.customer_type,
       city: order.city,
