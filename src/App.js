@@ -197,7 +197,12 @@ const AyurvedicDashboard = () => {
       const endDate = filters.dateRange[1] ? new Date(filters.dateRange[1]) : null;
 
       data = data.filter(order => {
-        const orderDate = new Date(order.date); // Uses mapped 'date'
+        if (!order.date) return false; // Skip if date is missing
+        const orderDateAttempt = new Date(order.date);
+        if (isNaN(orderDateAttempt.getTime())) {
+            return false; // Skip order if its date is invalid
+        }
+        const orderDate = orderDateAttempt;
         if (startDate && orderDate < startDate) return false;
         if (endDate && orderDate > endDate) return false;
         return true;
@@ -365,6 +370,9 @@ const AyurvedicDashboard = () => {
     const monthlyData = {};
     // Use filteredDashboardData as the source
     filteredDashboardData.forEach(order => {
+      if (!order.date || isNaN(new Date(order.date).getTime())) {
+        return; // Skip if date is invalid or missing
+      }
       const month = new Date(order.date).toISOString().slice(0, 7); // order.date is available
       if (!monthlyData[month]) monthlyData[month] = { month, actual: 0, orders: 0 };
       monthlyData[month].actual += (order.netAmount || 0); // order.netAmount is available, ensure it's a number
