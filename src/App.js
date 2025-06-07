@@ -67,6 +67,7 @@ const AyurvedicDashboard = () => {
         setDashboardOrderData(fetchedDashboardOrders || []);
 
         const fetchedAnalytics = await fetchCustomerAnalyticsTableData();
+        // console.log('Fetched customerAnalyticsData:', fetchedAnalytics); // Removed
         setCustomerAnalyticsData(fetchedAnalytics || []);
       } catch (error) {
         console.error("Error initializing data:", error);
@@ -83,6 +84,8 @@ const AyurvedicDashboard = () => {
     };
     loadData();
   }, []); // Empty dependency array to run only on mount
+
+  // Removed useEffect for logging customerAnalyticsData state
 
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
@@ -109,6 +112,8 @@ const AyurvedicDashboard = () => {
   }, [orderData]);
 
   // Create filteredData based on filters (memoized for performance)
+  // This filteredData and its related logic might be obsolete if all components switch to filteredDashboardData
+  // For now, it's kept as it's used by exportWithMLInsights and potentially other non-refactored parts.
   const filteredData = useMemo(() => {
     let data = orderData;
 
@@ -350,38 +355,37 @@ const AyurvedicDashboard = () => {
   }, [individualProducts]);
 
   const uniqueCustomers = useMemo(() => {
-    console.log('customerAnalyticsData in uniqueCustomers:', customerAnalyticsData);
+    // console.log('customerAnalyticsData in uniqueCustomers:', customerAnalyticsData); // Removed
     if (!customerAnalyticsData || customerAnalyticsData.length === 0) {
-      console.log('Computed uniqueCustomers: [] (due to empty or null customerAnalyticsData)');
+      // console.log('Computed uniqueCustomers: [] (due to empty or null customerAnalyticsData)'); // Removed
       return [];
     }
 
     const mappedCustomers = customerAnalyticsData
       .filter(analytics => {
-        // Check if customer_code exists and is not just whitespace if it's a string
         const idField = analytics.customer_code;
         let idIsValid = false;
         if (idField !== null && idField !== undefined) {
           if (typeof idField === 'string' && idField.trim() !== '') {
             idIsValid = true;
-          } else if (typeof idField === 'number') { // Allow numbers for ID
+          } else if (typeof idField === 'number') {
             idIsValid = true;
           }
         }
 
         if (!idIsValid) {
-          console.warn('Filtered out record due to invalid or missing customer_code:', analytics);
+          // console.warn('Filtered out record due to invalid or missing customer_code:', analytics); // Removed
         }
         return idIsValid;
       })
       .map(analytics => {
-        const id = String(analytics.customer_code); // Ensure ID is a string
+        const id = String(analytics.customer_code);
         let name = analytics.customer_name;
         if (!name || (typeof name === 'string' && name.trim() === '')) {
-          name = `Customer [${id}]`; // Default name if original is missing/empty
-          console.warn(`Generated default name for customer_code ${id}:`, analytics);
+          name = `Customer [${id}]`;
+          // console.warn(`Generated default name for customer_code ${id}:`, analytics); // Removed
         } else if (typeof name !== 'string') {
-          name = String(name); // Ensure name is a string if it's some other truthy type
+          name = String(name);
         }
 
         return {
@@ -393,19 +397,19 @@ const AyurvedicDashboard = () => {
     const result = mappedCustomers.filter((value, index, self) =>
       self.findIndex(c => c.id === value.id) === index
     );
-    console.log('Computed uniqueCustomers (refined):', result);
+    // console.log('Computed uniqueCustomers (refined):', result); // Removed
     return result;
   }, [customerAnalyticsData]);
 
   // Effect to reset selectedCustomer if it's no longer in uniqueCustomers (e.g., after data refresh)
   useEffect(() => {
-    console.log('useEffect for selectedCustomer: uniqueCustomers:', uniqueCustomers, 'selectedCustomer:', selectedCustomer);
+    // console.log('useEffect for selectedCustomer: uniqueCustomers:', uniqueCustomers, 'selectedCustomer:', selectedCustomer); // Removed
     if (uniqueCustomers.length > 0 && !uniqueCustomers.find(c => c.id === selectedCustomer)) {
       const newSelectedCustomerId = uniqueCustomers[0].id;
-      console.log('Setting selectedCustomer to:', newSelectedCustomerId);
+      // console.log('Setting selectedCustomer to:', newSelectedCustomerId); // Removed
       setSelectedCustomer(newSelectedCustomerId);
     } else if (uniqueCustomers.length === 0 && selectedCustomer !== null) {
-      console.log('Setting selectedCustomer to: null');
+      // console.log('Setting selectedCustomer to: null'); // Removed
       setSelectedCustomer(null);
     }
   }, [uniqueCustomers, selectedCustomer]);
@@ -1087,6 +1091,8 @@ const AyurvedicDashboard = () => {
               Customer Intelligence Engine
             </h3>
             <div className="w-80">
+              {/* console.log('CustomersTab: uniqueCustomers for dropdown:', uniqueCustomers.map(c => c.name)); */}
+              {/* console.log('CustomersTab: value for dropdown:', uniqueCustomers.find(c => c.id === selectedCustomer)?.name || ''); */}
               <SearchableDropdown
                 options={uniqueCustomers.map(c => c.name)}
                 value={uniqueCustomers.find(c => c.id === selectedCustomer)?.name || ''}
