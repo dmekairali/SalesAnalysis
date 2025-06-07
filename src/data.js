@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase configuration
-const supabaseUrl = 'https://dvswmngbmlzdflzshfhj.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2c3dtbmdibWx6ZGZsenNoZmhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkxODc2MTUsImV4cCI6MjA2NDc2MzYxNX0.hNaHB-_z7TEbh0S4n5E1KWHmSyR5RlT_2R8cY7U1llI'
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Fetch functions to replace your mock data
