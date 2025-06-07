@@ -3,7 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
-import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics } from './data.js';
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders } from './data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
@@ -27,6 +27,7 @@ const AyurvedicDashboard = () => {
   const [productData, setProductData] = useState([]);
   const [customerData, setCustomerData] = useState([]);
   const [mrData, setMrData] = useState([]);
+  const [dashboardOrderData, setDashboardOrderData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedProduct, setSelectedProduct] = useState('CGMMG0100NP2201');
@@ -60,6 +61,9 @@ const AyurvedicDashboard = () => {
         setProductData(fetchedProducts || []);
         setCustomerData(fetchedCustomers || []);
         setMrData(fetchedMrs || []);
+
+        const fetchedDashboardOrders = await fetchDashboardOrders();
+        setDashboardOrderData(fetchedDashboardOrders || []);
       } catch (error) {
         console.error("Error initializing data:", error);
         // Optionally, set an error state here to display to the user
@@ -67,6 +71,7 @@ const AyurvedicDashboard = () => {
         setProductData([]);
         setCustomerData([]);
         setMrData([]);
+        setDashboardOrderData([]);
       } finally {
         setLoading(false);
       }
@@ -162,19 +167,107 @@ const AyurvedicDashboard = () => {
     return data;
   }, [filters, orderData]);
 
+  // Create filteredDashboardData based on filters (memoized for performance)
+  const filteredDashboardData = useMemo(() => {
+    // dashboardOrderData is expected to have camelCase keys from fetchDashboardOrders
+    let data = dashboardOrderData.map(o => ({
+      orderId: o.orderId,
+      date: o.date,
+      customerName: o.customerName,
+      customerId: o.customerId,
+      customerType: o.customerType,
+      city: o.city,
+      state: o.state,
+      territory: o.territory,
+      medicalRepresentative: o.medicalRepresentative,
+      netAmount: o.netAmount, // Already defaults to 0 from fetchDashboardOrders
+      deliveredFrom: o.deliveredFrom,
+      discountTier: o.discountTier,
+      deliveryStatus: o.deliveryStatus,
+      products: o.products || [], // Already defaults to [] from fetchDashboardOrders
+      categories: o.categories || [], // Already defaults to [] from fetchDashboardOrders
+      totalQuantity: o.totalQuantity || 0, // Add fallback for numeric
+      lineItemsCount: o.lineItemsCount || 0 // Add fallback for numeric
+    }));
+
+    // Apply date range filter
+    if (filters.dateRange?.[0] || filters.dateRange?.[1]) {
+      const startDate = filters.dateRange[0] ? new Date(filters.dateRange[0]) : null;
+      const endDate = filters.dateRange[1] ? new Date(filters.dateRange[1]) : null;
+
+      data = data.filter(order => {
+        if (!order.date) return false; // Skip if date is missing
+        const orderDateAttempt = new Date(order.date);
+        if (isNaN(orderDateAttempt.getTime())) {
+            return false; // Skip order if its date is invalid
+        }
+        const orderDate = orderDateAttempt;
+        if (startDate && orderDate < startDate) return false;
+        if (endDate && orderDate > endDate) return false;
+        return true;
+      });
+    }
+
+    // Apply search term filter
+    if (filters.searchTerm) {
+      const lowerSearchTerm = filters.searchTerm.toLowerCase();
+      data = data.filter(order =>
+        (order.orderId && order.orderId.toLowerCase().includes(lowerSearchTerm)) ||
+        (order.customerName && order.customerName.toLowerCase().includes(lowerSearchTerm)) ||
+        (order.products && order.products.some(p => p.toLowerCase().includes(lowerSearchTerm))) || // Search in products array
+        (order.categories && order.categories.some(c => c.toLowerCase().includes(lowerSearchTerm))) || // Search in categories array
+        (order.city && order.city.toLowerCase().includes(lowerSearchTerm))
+      );
+    }
+
+    // Apply MR filter
+    if (filters.selectedMR) {
+      data = data.filter(order =>
+        (order.medicalRepresentative || 'N/A') === filters.selectedMR
+      );
+    }
+
+    // Apply fulfillment center filter
+    if (filters.selectedFulfillmentCenter) {
+      data = data.filter(order => order.deliveredFrom === filters.selectedFulfillmentCenter);
+    }
+
+    // Apply state filter
+    if (filters.selectedState) {
+      data = data.filter(order => order.state === filters.selectedState);
+    }
+
+    // Apply fulfillment filter (existing chart filter)
+    if (filters.selectedFulfillment) {
+      data = data.filter(order => order.deliveredFrom === filters.selectedFulfillment);
+    }
+
+    // Apply category filter (existing chart filter)
+    if (filters.selectedCategory) {
+      data = data.filter(order => (order.categories && order.categories.includes(filters.selectedCategory)));
+    }
+
+    // Apply top product filter (existing chart filter)
+    if (filters.selectedTopProduct) {
+      data = data.filter(order => (order.products && order.products.includes(filters.selectedTopProduct)));
+    }
+
+    return data;
+  }, [filters, dashboardOrderData]);
+
   // Separate table filtered data to prevent page jumping
   const tableFilteredData = useMemo(() => {
-    if (!filters.tableSearchTerm) return filteredData;
+    if (!filters.tableSearchTerm) return filteredDashboardData;
     
     const searchTerm = filters.tableSearchTerm.toLowerCase();
-    return filteredData.filter(order => 
-      order.orderId.toLowerCase().includes(searchTerm) ||
-      order.customerName.toLowerCase().includes(searchTerm) ||
-      (order.medicalRepresentative || order.salesRepresentative || 'N/A').toLowerCase().includes(searchTerm) ||
-      order.productName.toLowerCase().includes(searchTerm) ||
+    return filteredDashboardData.filter(order =>
+      (order.orderId && order.orderId.toLowerCase().includes(searchTerm)) ||
+      (order.customerName && order.customerName.toLowerCase().includes(searchTerm)) ||
+      ((order.medicalRepresentative || 'N/A').toLowerCase().includes(searchTerm)) ||
+      // Search in the products array, as productName is not a direct field
       (order.products && order.products.some(p => p.toLowerCase().includes(searchTerm)))
     );
-  }, [filteredData, filters.tableSearchTerm]);
+  }, [filteredDashboardData, filters.tableSearchTerm]);
 
   // Handle table search
   const handleTableSearch = () => {
@@ -261,22 +354,27 @@ const AyurvedicDashboard = () => {
   const currentMedicine = currentProduct?.medicineName;
   const availablePackSizes = useMemo(() => individualProducts.filter(p => p.medicineName === currentMedicine), [individualProducts, currentMedicine]);
 
-  // Calculate data for charts using filteredData
+  // Calculate data for charts using filteredDashboardData
   const kpis = useMemo(() => {
-    if (!filteredData || filteredData.length === 0) {
-      // Return a default KPI structure if filteredData is empty
+    if (!filteredDashboardData || filteredDashboardData.length === 0) {
+      // Return a default KPI structure if filteredDashboardData is empty
       return { totalRevenue: 0, totalOrders: 0, activeCustomers: 0, deliveryRate: 0, avgOrderValue: 0 };
     }
-    return calculateKPIs(filteredData);
-  }, [filteredData]);
+    return calculateKPIs(filteredDashboardData);
+  }, [filteredDashboardData]);
   
   // Enhanced chart data with predictions
+  // This chartDataWithPredictions is now updated to use filteredDashboardData
   const chartDataWithPredictions = useMemo(() => {
     const monthlyData = {};
-    filteredData.forEach(order => {
-      const month = new Date(order.date).toISOString().slice(0, 7);
+    // Use filteredDashboardData as the source
+    filteredDashboardData.forEach(order => {
+      if (!order.date || isNaN(new Date(order.date).getTime())) {
+        return; // Skip if date is invalid or missing
+      }
+      const month = new Date(order.date).toISOString().slice(0, 7); // order.date is available
       if (!monthlyData[month]) monthlyData[month] = { month, actual: 0, orders: 0 };
-      monthlyData[month].actual += order.netAmount;
+      monthlyData[month].actual += (order.netAmount || 0); // order.netAmount is available, ensure it's a number
       monthlyData[month].orders += 1;
     });
 
@@ -300,46 +398,59 @@ const AyurvedicDashboard = () => {
     }
 
     return [...historicalData, ...predictedData];
-  }, [filteredData, kpis.avgOrderValue]);
+  }, [filteredDashboardData, kpis.avgOrderValue]);
 
   // Geographic data
   const geoData = useMemo(() => {
     const locationData = {};
-    filteredData.forEach(order => {
-      const key = order.city;
+    filteredDashboardData.forEach(order => {
+      const key = order.city; // city is available
       if (!locationData[key]) {
         locationData[key] = {
           city: order.city,
-          state: order.state,
+          state: order.state, // state is available
           value: 0,
           orders: 0
         };
       }
-      locationData[key].value += order.netAmount;
+      locationData[key].value += (order.netAmount || 0); // netAmount is available
       locationData[key].orders += 1;
     });
     return Object.values(locationData);
-  }, [filteredData]);
+  }, [filteredDashboardData]);
 
   // Chart data preparations
-  const categoryData = useMemo(() => Object.entries(
-    filteredData.reduce((acc, order) => {
-      acc[order.category] = (acc[order.category] || 0) + order.netAmount;
+  const categoryData = useMemo(() => {
+    const categoriesMap = filteredDashboardData.reduce((acc, order) => {
+      if (order.categories && Array.isArray(order.categories)) {
+        order.categories.forEach(category => {
+          acc[category] = (acc[category] || 0) + (order.netAmount || 0);
+        });
+      }
       return acc;
-    }, {})
-  ).map(([name, value]) => ({ name, value })), [filteredData]);
+    }, {});
+    return Object.entries(categoriesMap).map(([name, value]) => ({ name, value }));
+  }, [filteredDashboardData]);
 
-  const topProductsData = useMemo(() => Object.entries(
-    filteredData.reduce((acc, order) => {
-      acc[order.productName] = (acc[order.productName] || 0) + order.netAmount;
+  const topProductsData = useMemo(() => {
+    const productsMap = filteredDashboardData.reduce((acc, order) => {
+      if (order.products && Array.isArray(order.products)) {
+        order.products.forEach(productName => {
+          acc[productName] = (acc[productName] || 0) + (order.netAmount || 0);
+        });
+      }
       return acc;
-    }, {})
-  ).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, value]) => ({ name: name.substring(0, 15), value })), [filteredData]);
+    }, {});
+    return Object.entries(productsMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([name, value]) => ({ name: name.substring(0, 15), value }));
+  }, [filteredDashboardData]);
 
   const fulfillmentData = useMemo(() => [
-    { name: 'Factory', value: filteredData.filter(o => o.deliveredFrom === 'Factory').length },
-    { name: 'Distributor', value: filteredData.filter(o => o.deliveredFrom === 'Distributor').length }
-  ], [filteredData]);
+    { name: 'Factory', value: filteredDashboardData.filter(o => o.deliveredFrom === 'Factory').length },
+    { name: 'Distributor', value: filteredDashboardData.filter(o => o.deliveredFrom === 'Distributor').length }
+  ], [filteredDashboardData]);
 
   // Overview Tab Component
   const OverviewTab = () => {
@@ -511,7 +622,7 @@ const AyurvedicDashboard = () => {
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Recent Orders with ML Insights</h3>
                 <span className="text-sm text-gray-600">
-                  Showing latest {Math.min(10, tableFilteredData.length)} orders (of {filteredData.length} total)
+                  Showing latest {Math.min(10, tableFilteredData.length)} orders (of {filteredDashboardData.length} total)
                 </span>
               </div>
               
@@ -581,16 +692,18 @@ const AyurvedicDashboard = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{order.customerName}</div>
+                        {/* customerType should be available from filteredDashboardData's mapping if order.customer_type exists */}
                         <div className="text-sm text-gray-500">{order.customerType}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {order.medicalRepresentative || order.salesRepresentative || 'N/A'}
+                        {order.medicalRepresentative || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ₹{order.netAmount.toLocaleString()}
+                      {/* netAmount should be available from filteredDashboardData's mapping */}
+                      ₹{(order.netAmount || 0).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -614,25 +727,18 @@ const AyurvedicDashboard = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-xs text-gray-700 max-w-xs">
-                        {/* Enhanced product display with pack sizes */}
-                        {order.orderItems ? 
-                          order.orderItems.map((item, idx) => (
-                            <div key={idx} className="mb-1 last:mb-0 p-2 bg-gray-50 rounded border-l-2 border-green-500">
-                              <div className="font-medium text-gray-900">{item.medicineName}</div>
-                              <div className="text-gray-500 text-xs flex justify-between">
-                                <span>{item.packSize}</span>
-                                <span>Qty: {item.quantity}</span>
-                              </div>
-                              <div className="text-green-600 text-xs font-medium">₹{item.unitPrice} each</div>
+                        {/* Simplified product display for dashboardOrderData */}
+                        {order.products && order.products.length > 0 ? (
+                          order.products.map((productName, idx) => (
+                            <div key={idx} className="mb-1 last:mb-0 p-2 bg-gray-50 rounded">
+                              <div className="font-medium text-gray-900">{productName}</div>
                             </div>
-                          )) :
+                          ))
+                        ) : (
                           <div className="p-2 bg-gray-50 rounded">
-                            <div className="font-medium text-gray-900">{order.productName}</div>
-                            {order.packSize && (
-                              <div className="text-gray-500 text-xs">Pack: {order.packSize}</div>
-                            )}
+                            <div className="font-medium text-gray-900 italic">No products listed</div>
                           </div>
-                        }
+                        )}
                       </div>
                     </td>
                   </tr>
