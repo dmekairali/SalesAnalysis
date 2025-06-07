@@ -3,7 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
-import { sampleOrderData, productMasterData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics } from './data.js';
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics } from './data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
@@ -23,6 +23,11 @@ import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.j
 import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
 
 const AyurvedicDashboard = () => {
+  const [orderData, setOrderData] = useState([]);
+  const [productData, setProductData] = useState([]);
+  const [customerData, setCustomerData] = useState([]);
+  const [mrData, setMrData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedProduct, setSelectedProduct] = useState('CGMMG0100NP2201');
   const [selectedCustomer, setSelectedCustomer] = useState('CUST001');
@@ -46,6 +51,29 @@ const AyurvedicDashboard = () => {
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
   const [pendingFilters, setPendingFilters] = useState(filters); // For Apply button functionality
 
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const { sampleOrderData: fetchedOrders, productMasterData: fetchedProducts, customerData: fetchedCustomers, mrData: fetchedMrs } = await initializeData();
+        setOrderData(fetchedOrders || []);
+        setProductData(fetchedProducts || []);
+        setCustomerData(fetchedCustomers || []);
+        setMrData(fetchedMrs || []);
+      } catch (error) {
+        console.error("Error initializing data:", error);
+        // Optionally, set an error state here to display to the user
+        setOrderData([]); // Ensure data arrays are empty on error
+        setProductData([]);
+        setCustomerData([]);
+        setMrData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []); // Empty dependency array to run only on mount
+
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
   const customerML = useMemo(() => new CustomerForecastingML(), []);
@@ -53,7 +81,9 @@ const AyurvedicDashboard = () => {
   // Real-time notifications
   useEffect(() => {
     const interval = setInterval(() => {
-      const newOrder = sampleOrderData[Math.floor(Math.random() * sampleOrderData.length)];
+      // Ensure orderData is not empty before trying to access it
+      if (orderData.length === 0) return;
+      const newOrder = orderData[Math.floor(Math.random() * orderData.length)];
       const notification = {
         id: Date.now(),
         message: `🔔 New order ${newOrder.orderId} from ${newOrder.customerName}`,
@@ -66,11 +96,11 @@ const AyurvedicDashboard = () => {
     }, 20000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [orderData]);
 
   // Create filteredData based on filters (memoized for performance)
   const filteredData = useMemo(() => {
-    let data = sampleOrderData;
+    let data = orderData;
 
     // Apply date range filter
     if (filters.dateRange?.[0] || filters.dateRange?.[1]) {
@@ -130,7 +160,7 @@ const AyurvedicDashboard = () => {
     }
 
     return data;
-  }, [filters]);
+  }, [filters, orderData]);
 
   // Separate table filtered data to prevent page jumping
   const tableFilteredData = useMemo(() => {
@@ -194,17 +224,19 @@ const AyurvedicDashboard = () => {
 
   // Product predictions
   const productPredictions = useMemo(() => {
-    return productML.predictProductSales(selectedProduct, sampleOrderData, 6);
-  }, [selectedProduct, productML]);
+    if (!productData || productData.length === 0) return { forecasts: [], insights: [], product: null }; // Ensure productData is loaded
+    return productML.predictProductSales(selectedProduct, orderData, productData, 6);
+  }, [selectedProduct, productML, orderData, productData]);
 
   // Customer predictions  
   const customerPredictions = useMemo(() => {
-    return customerML.predictCustomerBehavior(selectedCustomer, sampleOrderData, 6);
-  }, [selectedCustomer, customerML]);
+    if (!productData || productData.length === 0) return { forecasts: [], insights: [], recommendations: [], patterns: null }; // Ensure productData is loaded
+    return customerML.predictCustomerBehavior(selectedCustomer, orderData, productData, 6);
+  }, [selectedCustomer, customerML, orderData, productData]);
 
   // Transform product data for both views
   const { individualProducts, groupedByMedicine } = useMemo(() => 
-    transformProductData(productMasterData), [productMasterData]
+    transformProductData(productData), [productData]
   );
 
   // Get analytics for both medicine-wise and pack-wise views
@@ -213,17 +245,30 @@ const AyurvedicDashboard = () => {
   );
 
   // Get unique values for dropdowns
-  const uniqueProducts = individualProducts;
-  const uniqueMedicines = [...new Set(individualProducts.map(p => p.medicineName))];
-  const uniqueCustomers = [...new Set(sampleOrderData.map(order => ({ id: order.customerId, name: order.customerName })))];
+  const uniqueProducts = individualProducts; // This seems fine as individualProducts is derived from productData
+  const uniqueMedicines = useMemo(() => {
+    if (!individualProducts || individualProducts.length === 0) return [];
+    return [...new Set(individualProducts.map(p => p.medicineName))];
+  }, [individualProducts]);
+
+  const uniqueCustomers = useMemo(() => {
+    if (!orderData || orderData.length === 0) return []; // Handle empty or undefined orderData
+    return [...new Set(orderData.map(order => ({ id: order.customerId, name: order.customerName })))];
+  }, [orderData]);
 
   // Current product data based on selection
-  const currentProduct = individualProducts.find(p => p.sku === selectedProduct);
+  const currentProduct = useMemo(() => individualProducts.find(p => p.sku === selectedProduct), [individualProducts, selectedProduct]);
   const currentMedicine = currentProduct?.medicineName;
-  const availablePackSizes = individualProducts.filter(p => p.medicineName === currentMedicine);
+  const availablePackSizes = useMemo(() => individualProducts.filter(p => p.medicineName === currentMedicine), [individualProducts, currentMedicine]);
 
   // Calculate data for charts using filteredData
-  const kpis = calculateKPIs(filteredData);
+  const kpis = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) {
+      // Return a default KPI structure if filteredData is empty
+      return { totalRevenue: 0, totalOrders: 0, activeCustomers: 0, deliveryRate: 0, avgOrderValue: 0 };
+    }
+    return calculateKPIs(filteredData);
+  }, [filteredData]);
   
   // Enhanced chart data with predictions
   const chartDataWithPredictions = useMemo(() => {
@@ -316,7 +361,7 @@ const AyurvedicDashboard = () => {
         <EnhancedOverviewFilters
           filters={filters}
           setFilters={setFilters}
-          sampleOrderData={sampleOrderData}
+          sampleOrderData={orderData} // Use orderData instead of sampleOrderData
           isFiltersVisible={isFiltersVisible}
           setIsFiltersVisible={setIsFiltersVisible}
           pendingFilters={pendingFilters}
@@ -341,15 +386,15 @@ const AyurvedicDashboard = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="text-lg font-semibold text-blue-900">
-                Showing {filteredData.length} of {sampleOrderData.length} orders
+                Showing {filteredData.length} of {orderData.length} orders
               </div>
-              {filteredData.length !== sampleOrderData.length && (
+              {filteredData.length !== orderData.length && (
                 <span className="text-sm text-blue-600">
-                  ({sampleOrderData.length - filteredData.length} orders filtered out)
+                  ({orderData.length - filteredData.length} orders filtered out)
                 </span>
               )}
             </div>
-            {filteredData.length < sampleOrderData.length && (
+            {filteredData.length < orderData.length && (
               <button
                 onClick={() => {
                   const resetFilters = {
@@ -786,14 +831,14 @@ const AyurvedicDashboard = () => {
 
       {/* ML Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {productPredictions.insights.map((insight, index) => (
+        {productPredictions.insights && productPredictions.insights.map((insight, index) => (
           <MLInsightCard key={index} insight={insight} />
         ))}
       </div>
 
       {/* Sales Forecast Chart */}
       <ProductForecastChart 
-        data={productPredictions.forecasts.map((forecast, index) => ({
+        data={productPredictions.forecasts && productPredictions.forecasts.map((forecast, index) => ({
           month: new Date(forecast.month).toLocaleDateString('en-US', { month: 'short' }),
           revenue: forecast.revenue,
           quantity: forecast.quantity,
@@ -832,19 +877,19 @@ const AyurvedicDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-600">Customer Type</p>
-              <p className="font-semibold">{customerPredictions.patterns.customerInfo.customerType}</p>
+              <p className="font-semibold">{customerPredictions.patterns?.customerInfo?.customerType}</p>
             </div>
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-green-600">Territory</p>
-              <p className="font-semibold">{customerPredictions.patterns.customerInfo.territory}</p>
+              <p className="font-semibold">{customerPredictions.patterns?.customerInfo?.territory}</p>
             </div>
             <div className="bg-purple-50 p-4 rounded-lg">
               <p className="text-sm text-purple-600">Total Orders</p>
-              <p className="font-semibold">{customerPredictions.patterns.totalOrders}</p>
+              <p className="font-semibold">{customerPredictions.patterns?.totalOrders}</p>
             </div>
             <div className="bg-orange-50 p-4 rounded-lg">
               <p className="text-sm text-orange-600">Avg Order Value</p>
-              <p className="font-semibold">₹{customerPredictions.patterns.avgOrderValue.toFixed(0)}</p>
+              <p className="font-semibold">₹{customerPredictions.patterns?.avgOrderValue?.toFixed(0)}</p>
             </div>
           </div>
         )}
@@ -852,7 +897,7 @@ const AyurvedicDashboard = () => {
 
       {/* Customer Insights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {customerPredictions.insights.map((insight, index) => (
+        {customerPredictions.insights && customerPredictions.insights.map((insight, index) => (
           <div key={index} className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-semibold text-gray-800">{insight.title}</h4>
@@ -875,7 +920,7 @@ const AyurvedicDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Timeline Chart */}
           <CustomerTimelineChart 
-            data={customerPredictions.forecasts.map((forecast, index) => ({
+            data={customerPredictions.forecasts && customerPredictions.forecasts.map((forecast, index) => ({
               period: `Month ${index + 1}`,
               value: forecast.expectedValue,
               probability: forecast.orderProbability * 100
@@ -886,7 +931,7 @@ const AyurvedicDashboard = () => {
           <div>
             <h4 className="font-medium mb-3">Next 3 Order Predictions</h4>
             <div className="space-y-3">
-              {customerPredictions.forecasts.slice(0, 3).map((forecast, index) => (
+              {customerPredictions.forecasts && customerPredictions.forecasts.slice(0, 3).map((forecast, index) => (
                 <div key={index} className="border rounded-lg p-4">
                   <div className="flex justify-between items-center mb-2">
                     <span className="font-medium">Order #{index + 1}</span>
@@ -920,7 +965,7 @@ const AyurvedicDashboard = () => {
           AI Product Recommendations
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {customerPredictions.recommendations.slice(0, 6).map((rec, index) => (
+          {customerPredictions.recommendations && customerPredictions.recommendations.slice(0, 6).map((rec, index) => (
             <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-medium">{rec.productName}</h4>
@@ -950,10 +995,10 @@ const AyurvedicDashboard = () => {
             <div>
               <h4 className="font-medium mb-3">Purchase Patterns</h4>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={Object.entries(customerPredictions.patterns.monthlyPattern).map(([month, orders]) => ({
+                <BarChart data={customerPredictions.patterns?.monthlyPattern ? Object.entries(customerPredictions.patterns.monthlyPattern).map(([month, orders]) => ({
                   month: `Month ${month}`,
                   orders
-                }))}>
+                })) : []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -967,14 +1012,14 @@ const AyurvedicDashboard = () => {
             <div>
               <h4 className="font-medium mb-3">Product Preferences</h4>
               <div className="space-y-2">
-                {customerPredictions.patterns.preferredProducts.map(([product, count], index) => (
+                {customerPredictions.patterns?.preferredProducts && customerPredictions.patterns.preferredProducts.map(([product, count], index) => (
                   <div key={index} className="flex justify-between items-center">
                     <span className="text-sm">{product}</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 h-2 bg-gray-200 rounded-full">
                         <div 
                           className="h-full bg-green-500 rounded-full"
-                          style={{ width: `${(count / customerPredictions.patterns.totalOrders) * 100}%` }}
+                          style={{ width: `${(count / (customerPredictions.patterns?.totalOrders || 1)) * 100}%` }} // Added guard for totalOrders
                         ></div>
                       </div>
                       <span className="text-xs text-gray-500">{count}</span>
@@ -990,6 +1035,14 @@ const AyurvedicDashboard = () => {
   );
 
   // Main render
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-xl font-semibold">Loading Dashboard Data...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation 
