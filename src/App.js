@@ -8,6 +8,8 @@ import {
   initializeData, 
   refreshDashboardData,
   fetchFilteredOrderData,
+  fetchProductSalesSummary,
+  updateLegacyExports,
   COLORS, 
   calculateKPIs, 
   getUniqueValues, 
@@ -96,6 +98,9 @@ const AyurvedicDashboard = () => {
       setMrData(data.mrData);
       setLastRefresh(new Date());
       setConnectionStatus('connected');
+      
+      // Update legacy exports for components that still need them
+      updateLegacyExports(data.sampleOrderData, data.productMasterData);
       
       // Set default selections if data is available
       if (data.productMasterData.length > 0) {
