@@ -8,16 +8,37 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Fetch functions to replace your mock data
 export const fetchOrderData = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000; // Supabase default limit, can be adjusted
+
   try {
-    const { data, error } = await supabase
-      .from('order_items')
-      .select('*')
-      .order('order_date', { ascending: false });
-    
-    if (error) throw error;
-    
-    // Transform to match your existing data structure
-    return data.map(item => ({
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('order_items')
+        .select('*')
+        .order('order_date', { ascending: false })
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of order_items:', chunkError);
+        throw chunkError; // Propagate error to be caught by the outer try-catch
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0; // Should not happen if no error, but as a safeguard
+      }
+      // Optional: Add a small delay if hitting rate limits is a concern
+      // if (lastItemCount === pageSize) await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
+
+    // The existing mapping should be applied to `allItems`
+    return allItems.map(item => ({
       orderId: item.order_id,
       date: item.order_date,
       customerId: item.customer_code,
@@ -26,7 +47,7 @@ export const fetchOrderData = async () => {
       territory: item.territory,
       city: item.city,
       state: item.state,
-      netAmount: parseFloat(item.order_net_amount),
+      netAmount: parseFloat(item.order_net_amount) || 0, // Ensure fallback to 0 if NaN
       deliveredFrom: item.delivered_from,
       discountTier: item.discount_tier,
       deliveryStatus: item.delivery_status,
@@ -35,30 +56,28 @@ export const fetchOrderData = async () => {
       quantity: item.quantity,
       medicalRepresentative: item.mr_name,
       salesRepresentative: item.mr_name,
-      // Enhanced fields from new schema
       trackingNumber: item.tracking_number,
       courierPartner: item.courier_partner,
       paymentMode: item.payment_mode,
       paymentStatus: item.payment_status,
-      // Order items with master product data
-      orderItems: [{
+      orderItems: [{ // This structure for orderItems might need re-evaluation if it's for detailed views
         sku: item.sku,
         medicineName: item.product_description,
         packSize: item.size_display,
         quantity: item.quantity,
-        unitPrice: parseFloat(item.unit_price),
-        totalPrice: parseFloat(item.line_total),
+        unitPrice: parseFloat(item.unit_price) || 0, // Ensure fallback
+        totalPrice: parseFloat(item.line_total) || 0, // Ensure fallback
         category: item.category,
         master_code: item.master_code,
         variant_code: item.variant_code
       }],
-      // For backward compatibility
-      products: [item.product_description],
+      products: [item.product_description], // Also seems item-specific
       master_code: item.master_code
     }));
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    return [];
+    // Error is already logged by the chunk fetching or will be caught here
+    console.error('Error in paginated fetchOrderData (outer catch):', error);
+    return []; // Return empty array in case of any error
   }
 };
 
