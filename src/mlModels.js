@@ -144,6 +144,16 @@ export class CustomerForecastingML {
   }
 
   analyzeCustomerPatterns(lineItems) { // Renamed 'orders' to 'lineItems' for clarity
+    console.log('[ML_Debug] analyzeCustomerPatterns input lineItems count:', lineItems ? lineItems.length : 'null or undefined');
+    if (lineItems && lineItems.length > 0) {
+      // Log first item as a sample, being careful about stringification issues
+      try {
+        console.log('[ML_Debug] First lineItem sample:', JSON.parse(JSON.stringify(lineItems[0])));
+      } catch (e) {
+        console.error('[ML_Debug] Error stringifying first lineItem sample:', e);
+        console.log('[ML_Debug] First lineItem sample (raw):', lineItems[0]);
+      }
+    }
     if (!lineItems || lineItems.length === 0) {
       return { // Return a default structure if there are no line items at all
         avgOrderInterval: 30,
@@ -161,6 +171,7 @@ export class CustomerForecastingML {
 
     const ordersMap = {};
     lineItems.forEach(item => {
+      console.log('[ML_Debug] Processing lineItem:', JSON.parse(JSON.stringify(item)));
       if (!ordersMap[item.orderId]) {
         ordersMap[item.orderId] = {
           orderId: item.orderId,
@@ -181,9 +192,12 @@ export class CustomerForecastingML {
         quantity: item.quantity
         // itemNetAmount could be item.netAmount if it were item-specific
       });
+      console.log('[ML_Debug] ordersMap entry for', item.orderId, 'after adding item:', JSON.parse(JSON.stringify(ordersMap[item.orderId])));
     });
 
+    console.log('[ML_Debug] Final ordersMap:', JSON.parse(JSON.stringify(ordersMap)));
     const distinctCustomerOrders = Object.values(ordersMap);
+    console.log('[ML_Debug] distinctCustomerOrders array:', JSON.parse(JSON.stringify(distinctCustomerOrders)));
 
     if (distinctCustomerOrders.length === 0) { // Should not happen if lineItems is not empty, but as a safeguard
        return {
@@ -194,6 +208,7 @@ export class CustomerForecastingML {
     }
 
     const sortedOrders = distinctCustomerOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
+    console.log('[ML_Debug] sortedOrders (distinct orders sorted):', JSON.parse(JSON.stringify(sortedOrders)));
     
     const orderDates = sortedOrders.map(order => new Date(order.date));
     const intervals = [];
@@ -226,26 +241,40 @@ export class CustomerForecastingML {
     });
 
     const firstOrder = sortedOrders[0];
-
-    return {
-      avgOrderInterval,
-      avgOrderValue,
-      minAmount,
-      maxAmount,
-      totalOrders: sortedOrders.length,
-      preferredProducts: Object.entries(productFreq).sort((a, b) => b[1] - a[1]).slice(0, 3),
-      preferredCategories: Object.entries(categoryFreq).sort((a, b) => b[1] - a[1]).slice(0, 3),
-      monthlyPattern: monthlyOrders,
-      lastOrderDate: orderDates.length > 0 ? orderDates[orderDates.length - 1] : new Date(),
-      customerInfo: { // Extract relevant fields from the first distinct order
+    const totalOrders = sortedOrders.length;
+    const preferredProductsResult = Object.entries(productFreq).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const preferredCategoriesResult = Object.entries(categoryFreq).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const monthlyPatternResult = monthlyOrders;
+    const lastOrderDateResult = orderDates.length > 0 ? orderDates[orderDates.length - 1] : new Date();
+    const customerInfoResult = {
         customerId: firstOrder.customerId,
         customerName: firstOrder.customerName,
         customerType: firstOrder.customerType,
         territory: firstOrder.territory,
         city: firstOrder.city,
         state: firstOrder.state,
-      },
-      distinctSortedOrders: sortedOrders // Add distinct sorted orders to the returned patterns object
+    };
+    const distinctSortedOrdersResult = sortedOrders;
+
+    console.log('[ML_Debug] patterns.totalOrders:', totalOrders);
+    console.log('[ML_Debug] patterns.avgOrderValue:', avgOrderValue);
+    console.log('[ML_Debug] patterns.preferredProducts:', JSON.parse(JSON.stringify(preferredProductsResult)));
+    console.log('[ML_Debug] patterns.monthlyPattern:', JSON.parse(JSON.stringify(monthlyPatternResult)));
+    console.log('[ML_Debug] patterns.distinctSortedOrders count:', distinctSortedOrdersResult ? distinctSortedOrdersResult.length : 'N/A');
+
+
+    return {
+      avgOrderInterval,
+      avgOrderValue,
+      minAmount,
+      maxAmount,
+      totalOrders: totalOrders,
+      preferredProducts: preferredProductsResult,
+      preferredCategories: preferredCategoriesResult,
+      monthlyPattern: monthlyPatternResult,
+      lastOrderDate: lastOrderDateResult,
+      customerInfo: customerInfoResult,
+      distinctSortedOrders: distinctSortedOrdersResult
     };
   }
 
@@ -332,9 +361,9 @@ export class CustomerForecastingML {
 
     const recentAvg = recentDistinctOrders.length > 0 ? recentDistinctOrders.reduce((sum, o) => sum + o.netAmount, 0) / recentDistinctOrders.length : 0;
     const earlierAvg = earlierDistinctOrders.length > 0 ? earlierDistinctOrders.reduce((sum, o) => sum + o.netAmount, 0) / earlierDistinctOrders.length : 0;
-
-    const valueChange = earlierAvg !== 0 ? ((recentAvg - earlierAvg) / earlierAvg) * 100 : (recentAvg > 0 ? 100.0 : 0.0);
     
+    const valueChange = earlierAvg !== 0 ? ((recentAvg - earlierAvg) / earlierAvg) * 100 : (recentAvg > 0 ? 100.0 : 0.0);
+
     let description = 'Stable order values';
     if (valueChange > 10) description = 'Increasing order values';
     if (valueChange < -10) description = 'Decreasing order values';
