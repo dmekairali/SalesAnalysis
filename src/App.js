@@ -352,18 +352,43 @@ const AyurvedicDashboard = () => {
   const uniqueCustomers = useMemo(() => {
     console.log('customerAnalyticsData in uniqueCustomers:', customerAnalyticsData);
     if (!customerAnalyticsData || customerAnalyticsData.length === 0) {
-      console.log('Computed uniqueCustomers: [] (due to empty customerAnalyticsData)');
+      console.log('Computed uniqueCustomers: [] (due to empty or null customerAnalyticsData)');
       return [];
     }
+
     const mappedCustomers = customerAnalyticsData
-      .filter(analytics =>
-        analytics.customer_id && typeof analytics.customer_id === 'string' && analytics.customer_id.trim() !== '' &&
-        analytics.customer_name && typeof analytics.customer_name === 'string' && analytics.customer_name.trim() !== ''
-      )
-      .map(analytics => ({
-        id: analytics.customer_id,
-        name: analytics.customer_name
-      }));
+      .filter(analytics => {
+        // Check if customer_code exists and is not just whitespace if it's a string
+        const idField = analytics.customer_code;
+        let idIsValid = false;
+        if (idField !== null && idField !== undefined) {
+          if (typeof idField === 'string' && idField.trim() !== '') {
+            idIsValid = true;
+          } else if (typeof idField === 'number') { // Allow numbers for ID
+            idIsValid = true;
+          }
+        }
+
+        if (!idIsValid) {
+          console.warn('Filtered out record due to invalid or missing customer_code:', analytics);
+        }
+        return idIsValid;
+      })
+      .map(analytics => {
+        const id = String(analytics.customer_code); // Ensure ID is a string
+        let name = analytics.customer_name;
+        if (!name || (typeof name === 'string' && name.trim() === '')) {
+          name = `Customer [${id}]`; // Default name if original is missing/empty
+          console.warn(`Generated default name for customer_code ${id}:`, analytics);
+        } else if (typeof name !== 'string') {
+          name = String(name); // Ensure name is a string if it's some other truthy type
+        }
+
+        return {
+          id: id,
+          name: name
+        };
+      });
 
     const result = mappedCustomers.filter((value, index, self) =>
       self.findIndex(c => c.id === value.id) === index
