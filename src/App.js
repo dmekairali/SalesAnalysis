@@ -9,6 +9,10 @@ import {
   refreshDashboardData,
   fetchFilteredOrderData,
   fetchProductSalesSummary,
+  fetchProductData, // Add this
+  fetchOrderData,   // Add this  
+  fetchCustomerData, // Add this
+  fetchMRData,      // Add this
   COLORS, 
   calculateKPIs, 
   getUniqueValues, 
