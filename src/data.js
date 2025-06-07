@@ -6,6 +6,7 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+
 // Fetch functions to replace your mock data
 export const fetchOrderData = async () => {
   try {
