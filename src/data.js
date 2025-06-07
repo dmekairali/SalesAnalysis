@@ -1,440 +1,214 @@
-// data.js - Enhanced with Pack Size Support (keeping your existing data)
+// data.js - Updated for Supabase Integration
+import { createClient } from '@supabase/supabase-js'
 
-// Your existing order data enhanced with pack sizes and MR mapping
-export const sampleOrderData = [
-  { 
-    orderId: 'ORD001', date: '2024-01-15', mrId: 'MR001', mrName: 'Rajesh Kumar', customerId: 'CUST001', customerName: 'Dr. Ashok Gupta', customerType: 'Doctor', territory: 'Delhi North', city: 'Delhi', state: 'Delhi', netAmount: 1463, deliveredFrom: 'Factory', discountTier: 'Gold', deliveryStatus: 'Delivered', productId: 'PROD001', productName: 'Chyawanprash', category: 'Immunity', quantity: 5,
-    // Enhanced fields for pack size support
-    medicalRepresentative: 'Rajesh Kumar',
-    salesRepresentative: 'Rajesh Kumar',
-    orderItems: [
-      {
-        sku: 'PROD001-500G',
-        medicineName: 'Chyawanprash',
-        packSize: '500g',
-        quantity: 5,
-        unitPrice: 295,
-        totalPrice: 1475,
-        category: 'Immunity'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD002', date: '2024-01-18', mrId: 'MR001', mrName: 'Rajesh Kumar', customerId: 'CUST005', customerName: 'Sharma Medical Store', customerType: 'Retailer', territory: 'Delhi North', city: 'Delhi', state: 'Delhi', netAmount: 2742, deliveredFrom: 'Distributor', discountTier: 'Platinum', deliveryStatus: 'Delivered', productId: 'PROD002', productName: 'Triphala Churna', category: 'Digestive', quantity: 12,
-    medicalRepresentative: 'Rajesh Kumar',
-    salesRepresentative: 'Rajesh Kumar',
-    orderItems: [
-      {
-        sku: 'PROD002-100G',
-        medicineName: 'Triphala Churna',
-        packSize: '100g',
-        quantity: 12,
-        unitPrice: 85,
-        totalPrice: 1020,
-        category: 'Digestive'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD003', date: '2024-02-03', mrId: 'MR002', mrName: 'Priya Singh', customerId: 'CUST001', customerName: 'Dr. Ashok Gupta', customerType: 'Doctor', territory: 'Delhi North', city: 'Delhi', state: 'Delhi', netAmount: 1824, deliveredFrom: 'Factory', discountTier: 'Gold', deliveryStatus: 'Delivered', productId: 'PROD003', productName: 'Ashwagandha Capsules', category: 'Stress Relief', quantity: 4,
-    medicalRepresentative: 'Priya Singh',
-    salesRepresentative: 'Priya Singh',
-    orderItems: [
-      {
-        sku: 'PROD003-60CAP',
-        medicineName: 'Ashwagandha Capsules',
-        packSize: '60 Capsules',
-        quantity: 4,
-        unitPrice: 450,
-        totalPrice: 1800,
-        category: 'Stress Relief'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD004', date: '2024-02-10', mrId: 'MR002', mrName: 'Priya Singh', customerId: 'CUST006', customerName: 'Apollo Pharmacy', customerType: 'Retailer', territory: 'Delhi South', city: 'Delhi', state: 'Delhi', netAmount: 3249, deliveredFrom: 'Distributor', discountTier: 'Diamond', deliveryStatus: 'Delivered', productId: 'PROD004', productName: 'Arjuna Tablets', category: 'Heart Care', quantity: 15,
-    medicalRepresentative: 'Priya Singh',
-    salesRepresentative: 'Priya Singh',
-    orderItems: [
-      {
-        sku: 'PROD004-100TAB',
-        medicineName: 'Arjuna Tablets',
-        packSize: '100 Tablets',
-        quantity: 15,
-        unitPrice: 180,
-        totalPrice: 2700,
-        category: 'Heart Care'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD005', date: '2024-02-20', mrId: 'MR005', mrName: 'Vikram Singh', customerId: 'CUST008', customerName: 'Dr. Mohan Lal Jain', customerType: 'Doctor', territory: 'Jaipur City', city: 'Jaipur', state: 'Rajasthan', netAmount: 1202, deliveredFrom: 'Factory', discountTier: 'Gold', deliveryStatus: 'Delivered', productId: 'PROD001', productName: 'Chyawanprash', category: 'Immunity', quantity: 3,
-    medicalRepresentative: 'Vikram Singh',
-    salesRepresentative: 'Vikram Singh',
-    orderItems: [
-      {
-        sku: 'PROD001-250G',
-        medicineName: 'Chyawanprash',
-        packSize: '250g',
-        quantity: 3,
-        unitPrice: 150,
-        totalPrice: 450,
-        category: 'Immunity'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD006', date: '2024-03-05', mrId: 'MR007', mrName: 'Rohit Agarwal', customerId: 'CUST001', customerName: 'Dr. Ashok Gupta', customerType: 'Doctor', territory: 'Delhi North', city: 'Delhi', state: 'Delhi', netAmount: 2193, deliveredFrom: 'Factory', discountTier: 'Gold', deliveryStatus: 'Delivered', productId: 'PROD005', productName: 'Brahmi Syrup', category: 'Brain Tonic', quantity: 6,
-    medicalRepresentative: 'Rohit Agarwal',
-    salesRepresentative: 'Rohit Agarwal',
-    orderItems: [
-      {
-        sku: 'PROD005-200ML',
-        medicineName: 'Brahmi Syrup',
-        packSize: '200ml',
-        quantity: 6,
-        unitPrice: 125,
-        totalPrice: 750,
-        category: 'Brain Tonic'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD007', date: '2024-03-12', mrId: 'MR003', mrName: 'Amit Verma', customerId: 'CUST003', customerName: 'Dr. Rakesh Sharma', customerType: 'Doctor', territory: 'Delhi East', city: 'Delhi', state: 'Delhi', netAmount: 812, deliveredFrom: 'Factory', discountTier: 'Gold', deliveryStatus: 'Delivered', productId: 'PROD006', productName: 'Neem Face Pack', category: 'Skin Care', quantity: 8,
-    medicalRepresentative: 'Amit Verma',
-    salesRepresentative: 'Amit Verma',
-    orderItems: [
-      {
-        sku: 'PROD006-50G',
-        medicineName: 'Neem Face Pack',
-        packSize: '50g',
-        quantity: 8,
-        unitPrice: 65,
-        totalPrice: 520,
-        category: 'Skin Care'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD008', date: '2024-03-25', mrId: 'MR008', mrName: 'Kavita Malhotra', customerId: 'CUST005', customerName: 'Sharma Medical Store', customerType: 'Retailer', territory: 'Delhi North', city: 'Delhi', state: 'Delhi', netAmount: 4255, deliveredFrom: 'Distributor', discountTier: 'Platinum', deliveryStatus: 'Delivered', productId: 'PROD007', productName: 'Tulsi Drops', category: 'Respiratory', quantity: 20,
-    medicalRepresentative: 'Kavita Malhotra',
-    salesRepresentative: 'Kavita Malhotra',
-    orderItems: [
-      {
-        sku: 'PROD007-30ML',
-        medicineName: 'Tulsi Drops',
-        packSize: '30ml',
-        quantity: 20,
-        unitPrice: 95,
-        totalPrice: 1900,
-        category: 'Respiratory'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD009', date: '2024-04-08', mrId: 'MR006', mrName: 'Meera Sharma', customerId: 'CUST009', customerName: 'Dr. Kavita Sharma', customerType: 'Doctor', territory: 'Jaipur Rural', city: 'Jaipur', state: 'Rajasthan', netAmount: 1579, deliveredFrom: 'Factory', discountTier: 'Silver', deliveryStatus: 'Delivered', productId: 'PROD008', productName: 'Giloy Juice', category: 'Immunity', quantity: 5,
-    medicalRepresentative: 'Meera Sharma',
-    salesRepresentative: 'Meera Sharma',
-    orderItems: [
-      {
-        sku: 'PROD008-500ML',
-        medicineName: 'Giloy Juice',
-        packSize: '500ml',
-        quantity: 5,
-        unitPrice: 155,
-        totalPrice: 775,
-        category: 'Immunity'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD010', date: '2024-04-20', mrId: 'MR004', mrName: 'Sunita Joshi', customerId: 'CUST007', customerName: 'Ayush Medical', customerType: 'Retailer', territory: 'Delhi West', city: 'Delhi', state: 'Delhi', netAmount: 3827, deliveredFrom: 'Distributor', discountTier: 'Diamond', deliveryStatus: 'Delivered', productId: 'PROD009', productName: 'Aloe Vera Gel', category: 'Skin Care', quantity: 18,
-    medicalRepresentative: 'Sunita Joshi',
-    salesRepresentative: 'Sunita Joshi',
-    orderItems: [
-      {
-        sku: 'PROD009-150G',
-        medicineName: 'Aloe Vera Gel',
-        packSize: '150g',
-        quantity: 18,
-        unitPrice: 110,
-        totalPrice: 1980,
-        category: 'Skin Care'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD011', date: '2024-05-05', mrId: 'MR001', mrName: 'Rajesh Kumar', customerId: 'CUST001', customerName: 'Dr. Ashok Gupta', customerType: 'Doctor', territory: 'Delhi North', city: 'Delhi', state: 'Delhi', netAmount: 1931, deliveredFrom: 'Factory', discountTier: 'Gold', deliveryStatus: 'Delivered', productId: 'PROD001', productName: 'Chyawanprash', category: 'Immunity', quantity: 4,
-    medicalRepresentative: 'Rajesh Kumar',
-    salesRepresentative: 'Rajesh Kumar',
-    orderItems: [
-      {
-        sku: 'PROD001-500G',
-        medicineName: 'Chyawanprash',
-        packSize: '500g',
-        quantity: 4,
-        unitPrice: 295,
-        totalPrice: 1180,
-        category: 'Immunity'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD012', date: '2024-05-18', mrId: 'MR005', mrName: 'Vikram Singh', customerId: 'CUST012', customerName: 'Jain Medical Hall', customerType: 'Retailer', territory: 'Jaipur City', city: 'Jaipur', state: 'Rajasthan', netAmount: 2428, deliveredFrom: 'Distributor', discountTier: 'Diamond', deliveryStatus: 'Delivered', productId: 'PROD010', productName: 'Amla Candy', category: 'Vitamin C', quantity: 25,
-    medicalRepresentative: 'Vikram Singh',
-    salesRepresentative: 'Vikram Singh',
-    orderItems: [
-      {
-        sku: 'PROD010-200G',
-        medicineName: 'Amla Candy',
-        packSize: '200g',
-        quantity: 25,
-        unitPrice: 75,
-        totalPrice: 1875,
-        category: 'Vitamin C'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD013', date: '2024-05-28', mrId: 'MR001', mrName: 'Rajesh Kumar', customerId: 'CUST005', customerName: 'Sharma Medical Store', customerType: 'Retailer', territory: 'Delhi North', city: 'Delhi', state: 'Delhi', netAmount: 5642, deliveredFrom: 'Distributor', discountTier: 'Platinum', deliveryStatus: 'In Transit', productId: 'PROD002', productName: 'Triphala Churna', category: 'Digestive', quantity: 30,
-    medicalRepresentative: 'Rajesh Kumar',
-    salesRepresentative: 'Rajesh Kumar',
-    orderItems: [
-      {
-        sku: 'PROD002-100G',
-        medicineName: 'Triphala Churna',
-        packSize: '100g',
-        quantity: 30,
-        unitPrice: 85,
-        totalPrice: 2550,
-        category: 'Digestive'
-      }
-    ]
-  },
-  { 
-    orderId: 'ORD014', date: '2024-06-02', mrId: 'MR003', mrName: 'Amit Verma', customerId: 'CUST015', customerName: 'New Delhi Clinic', customerType: 'Doctor', territory: 'Delhi East', city: 'Delhi', state: 'Delhi', netAmount: 1245, deliveredFrom: 'Factory', discountTier: 'Silver', deliveryStatus: 'Processing', productId: 'PROD003', productName: 'Ashwagandha Capsules', category: 'Stress Relief', quantity: 3,
-    medicalRepresentative: 'Amit Verma',
-    salesRepresentative: 'Amit Verma',
-    orderItems: [
-      {
-        sku: 'PROD003-30CAP',
-        medicineName: 'Ashwagandha Capsules',
-        packSize: '30 Capsules',
-        quantity: 3,
-        unitPrice: 250,
-        totalPrice: 750,
-        category: 'Stress Relief'
-      }
-    ]
+// Supabase configuration
+const supabaseUrl = 'https://dvswmngbmlzdflzshfhj.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2c3dtbmdibWx6ZGZsenNoZmhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkxODc2MTUsImV4cCI6MjA2NDc2MzYxNX0.hNaHB-_z7TEbh0S4n5E1KWHmSyR5RlT_2R8cY7U1llI'
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Fetch functions to replace your mock data
+export const fetchOrderData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('order_items')
+      .select('*')
+      .order('order_date', { ascending: false });
+    
+    if (error) throw error;
+    
+    // Transform to match your existing data structure
+    return data.map(item => ({
+      orderId: item.order_id,
+      date: item.order_date,
+      customerId: item.customer_code,
+      customerName: item.customer_name,
+      customerType: item.customer_type,
+      territory: item.territory,
+      city: item.city,
+      state: item.state,
+      netAmount: parseFloat(item.order_net_amount),
+      deliveredFrom: item.delivered_from,
+      discountTier: item.discount_tier,
+      deliveryStatus: item.delivery_status,
+      productName: item.product_description,
+      category: item.category,
+      quantity: item.quantity,
+      medicalRepresentative: item.mr_name,
+      salesRepresentative: item.mr_name,
+      // Enhanced fields from new schema
+      trackingNumber: item.tracking_number,
+      courierPartner: item.courier_partner,
+      paymentMode: item.payment_mode,
+      paymentStatus: item.payment_status,
+      // Order items with master product data
+      orderItems: [{
+        sku: item.sku,
+        medicineName: item.product_description,
+        packSize: item.size_display,
+        quantity: item.quantity,
+        unitPrice: parseFloat(item.unit_price),
+        totalPrice: parseFloat(item.line_total),
+        category: item.category,
+        master_code: item.master_code,
+        variant_code: item.variant_code
+      }],
+      // For backward compatibility
+      products: [item.product_description],
+      master_code: item.master_code
+    }));
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    return [];
   }
-];
+};
 
-// Enhanced Product Master Data with pack sizes
-export const productMasterData = [
-  // Chyawanprash variants
-  { 
-    Category: 'Immunity', 
-    'Medicine Name': 'Chyawanprash', 
-    MasterSku: 'PROD001', 
-    Pack: '250g', 
-    Sku: 'PROD001-250G', 
-    Mrp: 150,
-    productId: 'PROD001-250G',
-    productName: 'Chyawanprash',
-    category: 'Immunity',
-    unitPrice: 150,
-    seasonality: 'Winter Peak',
-    competitor: 'Dabur',
-    marketShare: 15
-  },
-  { 
-    Category: 'Immunity', 
-    'Medicine Name': 'Chyawanprash', 
-    MasterSku: 'PROD001', 
-    Pack: '500g', 
-    Sku: 'PROD001-500G', 
-    Mrp: 295,
-    productId: 'PROD001-500G',
-    productName: 'Chyawanprash',
-    category: 'Immunity',
-    unitPrice: 295,
-    seasonality: 'Winter Peak',
-    competitor: 'Dabur',
-    marketShare: 15
-  },
+export const fetchProductData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true);
+    
+    if (error) throw error;
+    
+    // Transform to match your existing productMasterData structure
+    return data.map(product => ({
+      Category: product.category,
+      'Medicine Name': product.description,
+      MasterSku: product.master_code,
+      Pack: product.size_display,
+      Sku: product.sku,
+      Mrp: parseFloat(product.mrp),
+      productId: product.sku,
+      productName: `${product.description} (${product.size_display})`,
+      category: product.category,
+      unitPrice: parseFloat(product.mrp),
+      seasonality: 'Year Round', // Add seasonality logic later if needed
+      competitor: 'N/A', // Add competitor data later if needed
+      marketShare: 15, // Add market share calculation later if needed
+      // Enhanced fields
+      brand: product.brand,
+      variant_code: product.variant_code,
+      master_code: product.master_code,
+      status: product.status,
+      focus_status: product.focus_status
+    }));
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return [];
+  }
+};
+
+export const fetchCustomerData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('is_active', true);
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    return [];
+  }
+};
+
+export const fetchMRData = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('medical_representatives')
+      .select('*')
+      .eq('is_active', true);
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching MRs:', error);
+    return [];
+  }
+};
+
+// Enhanced data loading with real-time sync
+export const initializeData = async () => {
+  const [orders, products, customers, mrs] = await Promise.all([
+    fetchOrderData(),
+    fetchProductData(),
+    fetchCustomerData(),
+    fetchMRData()
+  ]);
   
-  // Triphala Churna variants
-  { 
-    Category: 'Digestive', 
-    'Medicine Name': 'Triphala Churna', 
-    MasterSku: 'PROD002', 
-    Pack: '100g', 
-    Sku: 'PROD002-100G', 
-    Mrp: 85,
-    productId: 'PROD002-100G',
-    productName: 'Triphala Churna',
-    category: 'Digestive',
-    unitPrice: 85,
-    seasonality: 'Year Round',
-    competitor: 'Patanjali',
-    marketShare: 22
-  },
-  { 
-    Category: 'Digestive', 
-    'Medicine Name': 'Triphala Churna', 
-    MasterSku: 'PROD002', 
-    Pack: '250g', 
-    Sku: 'PROD002-250G', 
-    Mrp: 190,
-    productId: 'PROD002-250G',
-    productName: 'Triphala Churna',
-    category: 'Digestive',
-    unitPrice: 190,
-    seasonality: 'Year Round',
-    competitor: 'Patanjali',
-    marketShare: 22
-  },
+  return {
+    sampleOrderData: orders,
+    productMasterData: products,
+    customerData: customers,
+    mrData: mrs
+  };
+};
 
-  // Ashwagandha Capsules variants
-  { 
-    Category: 'Stress Relief', 
-    'Medicine Name': 'Ashwagandha Capsules', 
-    MasterSku: 'PROD003', 
-    Pack: '30 Capsules', 
-    Sku: 'PROD003-30CAP', 
-    Mrp: 250,
-    productId: 'PROD003-30CAP',
-    productName: 'Ashwagandha Capsules',
-    category: 'Stress Relief',
-    unitPrice: 250,
-    seasonality: 'Monsoon Peak',
-    competitor: 'Himalaya',
-    marketShare: 18
-  },
-  { 
-    Category: 'Stress Relief', 
-    'Medicine Name': 'Ashwagandha Capsules', 
-    MasterSku: 'PROD003', 
-    Pack: '60 Capsules', 
-    Sku: 'PROD003-60CAP', 
-    Mrp: 450,
-    productId: 'PROD003-60CAP',
-    productName: 'Ashwagandha Capsules',
-    category: 'Stress Relief',
-    unitPrice: 450,
-    seasonality: 'Monsoon Peak',
-    competitor: 'Himalaya',
-    marketShare: 18
-  },
-
-  // Single pack size products (keeping as is)
-  { 
-    Category: 'Heart Care', 
-    'Medicine Name': 'Arjuna Tablets', 
-    MasterSku: 'PROD004', 
-    Pack: '100 Tablets', 
-    Sku: 'PROD004-100TAB', 
-    Mrp: 180,
-    productId: 'PROD004',
-    productName: 'Arjuna Tablets',
-    category: 'Heart Care',
-    unitPrice: 180,
-    seasonality: 'Summer Peak',
-    competitor: 'Baidyanath',
-    marketShare: 12
-  },
-  { 
-    Category: 'Brain Tonic', 
-    'Medicine Name': 'Brahmi Syrup', 
-    MasterSku: 'PROD005', 
-    Pack: '200ml', 
-    Sku: 'PROD005-200ML', 
-    Mrp: 125,
-    productId: 'PROD005',
-    productName: 'Brahmi Syrup',
-    category: 'Brain Tonic',
-    unitPrice: 125,
-    seasonality: 'Exam Season',
-    competitor: 'Zandu',
-    marketShare: 20
-  },
-  { 
-    Category: 'Skin Care', 
-    'Medicine Name': 'Neem Face Pack', 
-    MasterSku: 'PROD006', 
-    Pack: '50g', 
-    Sku: 'PROD006-50G', 
-    Mrp: 65,
-    productId: 'PROD006',
-    productName: 'Neem Face Pack',
-    category: 'Skin Care',
-    unitPrice: 65,
-    seasonality: 'Summer Peak',
-    competitor: 'Forest Essentials',
-    marketShare: 8
-  },
-  { 
-    Category: 'Respiratory', 
-    'Medicine Name': 'Tulsi Drops', 
-    MasterSku: 'PROD007', 
-    Pack: '30ml', 
-    Sku: 'PROD007-30ML', 
-    Mrp: 95,
-    productId: 'PROD007',
-    productName: 'Tulsi Drops',
-    category: 'Respiratory',
-    unitPrice: 95,
-    seasonality: 'Winter Peak',
-    competitor: 'Organic India',
-    marketShare: 14
-  },
-  { 
-    Category: 'Immunity', 
-    'Medicine Name': 'Giloy Juice', 
-    MasterSku: 'PROD008', 
-    Pack: '500ml', 
-    Sku: 'PROD008-500ML', 
-    Mrp: 155,
-    productId: 'PROD008',
-    productName: 'Giloy Juice',
-    category: 'Immunity',
-    unitPrice: 155,
-    seasonality: 'Monsoon Peak',
-    competitor: 'Kapiva',
-    marketShare: 16
-  },
-  { 
-    Category: 'Skin Care', 
-    'Medicine Name': 'Aloe Vera Gel', 
-    MasterSku: 'PROD009', 
-    Pack: '150g', 
-    Sku: 'PROD009-150G', 
-    Mrp: 110,
-    productId: 'PROD009',
-    productName: 'Aloe Vera Gel',
-    category: 'Skin Care',
-    unitPrice: 110,
-    seasonality: 'Summer Peak',
-    competitor: 'Patanjali',
-    marketShare: 25
-  },
-  { 
-    Category: 'Vitamin C', 
-    'Medicine Name': 'Amla Candy', 
-    MasterSku: 'PROD010', 
-    Pack: '200g', 
-    Sku: 'PROD010-200G', 
-    Mrp: 75,
-    productId: 'PROD010',
-    productName: 'Amla Candy',
-    category: 'Vitamin C',
-    unitPrice: 75,
-    seasonality: 'Winter Peak',
-    competitor: 'Dabur',
-    marketShare: 19
+// Fetch aggregated dashboard data using views
+export const fetchDashboardOrders = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('order_date', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data.map(order => ({
+      orderId: order.order_id,
+      date: order.order_date,
+      customerName: order.customer_name,
+      customerType: order.customer_type,
+      city: order.city,
+      state: order.state,
+      territory: order.territory,
+      medicalRepresentative: order.mr_name,
+      netAmount: parseFloat(order.net_amount),
+      deliveredFrom: order.delivered_from,
+      discountTier: order.discount_tier,
+      deliveryStatus: order.delivery_status,
+      products: order.products ? order.products.split(', ') : [],
+      categories: order.categories ? order.categories.split(', ') : [],
+      totalQuantity: order.total_quantity,
+      lineItemsCount: order.line_items_count
+    }));
+  } catch (error) {
+    console.error('Error fetching dashboard orders:', error);
+    return [];
   }
-];
+};
 
+export const fetchProductSalesSummary = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('product_sales_summary')
+      .select('*')
+      .order('total_revenue', { ascending: false });
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching product sales summary:', error);
+    return [];
+  }
+};
+
+export const fetchCustomerAnalytics = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_customer_analytics'); // You can create this RPC function in Supabase
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching customer analytics:', error);
+    return [];
+  }
+};
+
+// Keep your existing utility functions and constants
 export const COLORS = {
   primary: '#2E7D32',
   secondary: '#FF8F00', 
@@ -479,7 +253,7 @@ export const SALES_DRIVERS = [
   { factor: 'Territory Strength', importance: 76, color: '#9C27B0' }
 ];
 
-// Utility functions
+// Enhanced utility functions
 export const calculateKPIs = (data) => {
   const totalRevenue = data.reduce((sum, order) => sum + order.netAmount, 0);
   const totalOrders = data.length;
@@ -495,14 +269,14 @@ export const getUniqueValues = (data, key) => {
   return [...new Set(data.map(item => ({ id: item[key + 'Id'] || item[key], name: item[key + 'Name'] || item[key] })))];
 };
 
-// Product transformation utilities
+// Enhanced product transformation for new schema
 export const transformProductData = (productMasterData) => {
-  // Individual products (each pack size separate)
+  // Individual products (each SKU separate)
   const individualProducts = productMasterData.map(item => ({
     productId: item.Sku || item.productId,
     productName: item['Medicine Name'] ? `${item['Medicine Name']} (${item.Pack})` : item.productName,
     medicineName: item['Medicine Name'] || item.productName,
-    masterSku: item.MasterSku || item.productId,
+    masterSku: item.MasterSku || item.master_code,
     packSize: item.Pack || 'Standard',
     sku: item.Sku || item.productId,
     mrp: item.Mrp || item.unitPrice || 0,
@@ -510,18 +284,25 @@ export const transformProductData = (productMasterData) => {
     unitPrice: item.unitPrice || item.Mrp || 0,
     seasonality: item.seasonality || 'Year Round',
     competitor: item.competitor || 'N/A',
-    marketShare: item.marketShare || 0
+    marketShare: item.marketShare || 0,
+    // Enhanced fields
+    brand: item.brand,
+    variant_code: item.variant_code,
+    master_code: item.master_code,
+    status: item.status,
+    focus_status: item.focus_status
   }));
 
-  // Grouped by medicine
+  // Grouped by medicine (master_code)
   const groupedByMedicine = individualProducts.reduce((acc, product) => {
-    const medicineName = product.medicineName;
-    const existingMedicine = acc.find(p => p.medicineName === medicineName);
+    const masterCode = product.master_code;
+    const existingMedicine = acc.find(p => p.master_code === masterCode);
     
     const packVariant = {
       pack: product.packSize,
       sku: product.sku,
-      mrp: product.mrp
+      mrp: product.mrp,
+      status: product.status
     };
 
     if (existingMedicine) {
@@ -529,9 +310,10 @@ export const transformProductData = (productMasterData) => {
     } else {
       acc.push({
         productId: product.masterSku,
-        medicineName: medicineName,
-        masterSku: product.masterSku,
+        medicineName: product.medicineName,
+        master_code: masterCode,
         category: product.category,
+        brand: product.brand,
         packSizes: [packVariant]
       });
     }
@@ -542,7 +324,7 @@ export const transformProductData = (productMasterData) => {
   return { individualProducts, groupedByMedicine };
 };
 
-// Analytics functions for pack size analysis
+// Enhanced analytics for pack size analysis
 export const getPackSizeAnalytics = (orderData) => {
   const packSizePerformance = {};
   const medicinePerformance = {};
@@ -558,16 +340,19 @@ export const getPackSizeAnalytics = (orderData) => {
             packSize: item.packSize,
             totalQuantity: 0,
             totalRevenue: 0,
-            orderCount: 0
+            orderCount: 0,
+            master_code: item.master_code
           };
         }
         packSizePerformance[packKey].totalQuantity += item.quantity;
         packSizePerformance[packKey].totalRevenue += item.totalPrice;
         packSizePerformance[packKey].orderCount += 1;
 
-        // Medicine-wise analytics
-        if (!medicinePerformance[item.medicineName]) {
-          medicinePerformance[item.medicineName] = {
+        // Medicine-wise analytics (by master_code)
+        const masterCode = item.master_code;
+        if (!medicinePerformance[masterCode]) {
+          medicinePerformance[masterCode] = {
+            master_code: masterCode,
             medicineName: item.medicineName,
             totalQuantity: 0,
             totalRevenue: 0,
@@ -575,10 +360,10 @@ export const getPackSizeAnalytics = (orderData) => {
             packSizes: new Set()
           };
         }
-        medicinePerformance[item.medicineName].totalQuantity += item.quantity;
-        medicinePerformance[item.medicineName].totalRevenue += item.totalPrice;
-        medicinePerformance[item.medicineName].orderCount += 1;
-        medicinePerformance[item.medicineName].packSizes.add(item.packSize);
+        medicinePerformance[masterCode].totalQuantity += item.quantity;
+        medicinePerformance[masterCode].totalRevenue += item.totalPrice;
+        medicinePerformance[masterCode].orderCount += 1;
+        medicinePerformance[masterCode].packSizes.add(item.packSize);
       });
     } else {
       // Handle legacy data without orderItems
@@ -589,7 +374,8 @@ export const getPackSizeAnalytics = (orderData) => {
           packSize: 'Standard',
           totalQuantity: 0,
           totalRevenue: 0,
-          orderCount: 0
+          orderCount: 0,
+          master_code: order.master_code
         };
       }
       packSizePerformance[packKey].totalQuantity += order.quantity || 1;
@@ -604,4 +390,54 @@ export const getPackSizeAnalytics = (orderData) => {
   });
 
   return { packSizePerformance, medicinePerformance };
+};
+
+// Real-time data refresh function
+export const refreshDashboardData = async () => {
+  try {
+    const data = await initializeData();
+    return data;
+  } catch (error) {
+    console.error('Error refreshing dashboard data:', error);
+    throw error;
+  }
+};
+
+// Function to get latest order data with filters
+export const fetchFilteredOrderData = async (filters = {}) => {
+  try {
+    let query = supabase
+      .from('order_items')
+      .select('*');
+
+    // Apply filters
+    if (filters.dateRange && filters.dateRange[0]) {
+      query = query.gte('order_date', filters.dateRange[0]);
+    }
+    if (filters.dateRange && filters.dateRange[1]) {
+      query = query.lte('order_date', filters.dateRange[1]);
+    }
+    if (filters.customerType) {
+      query = query.eq('customer_type', filters.customerType);
+    }
+    if (filters.territory) {
+      query = query.eq('territory', filters.territory);
+    }
+    if (filters.mrName) {
+      query = query.eq('mr_name', filters.mrName);
+    }
+    if (filters.deliveryStatus) {
+      query = query.eq('delivery_status', filters.deliveryStatus);
+    }
+
+    query = query.order('order_date', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching filtered order data:', error);
+    return [];
+  }
 };
