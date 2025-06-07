@@ -387,7 +387,8 @@ const AyurvedicDashboard = () => {
 
   const selectedCustomerAnalytics = useMemo(() => {
     if (!selectedCustomer || !customerAnalyticsData || customerAnalyticsData.length === 0) return null;
-    return customerAnalyticsData.find(analytics => analytics.customer_id === selectedCustomer);
+    // Ensure this uses customer_code if uniqueCustomers' id is customer_code
+    return customerAnalyticsData.find(analytics => analytics.customer_code === selectedCustomer);
   }, [customerAnalyticsData, selectedCustomer]);
 
   // Current product data based on selection
