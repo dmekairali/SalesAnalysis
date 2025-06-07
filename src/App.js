@@ -365,7 +365,7 @@ const AyurvedicDashboard = () => {
     const monthlyData = {};
     // Use filteredDashboardData as the source
     filteredDashboardData.forEach(order => {
-      const month = new Date(order.date).toISOString().slice(0, 7); // order.date is available
+      const month = new Date(order.order_date).toISOString().slice(0, 7); // order.date is available
       if (!monthlyData[month]) monthlyData[month] = { month, actual: 0, orders: 0 };
       monthlyData[month].actual += (order.netAmount || 0); // order.netAmount is available, ensure it's a number
       monthlyData[month].orders += 1;
