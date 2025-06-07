@@ -350,21 +350,38 @@ const AyurvedicDashboard = () => {
   }, [individualProducts]);
 
   const uniqueCustomers = useMemo(() => {
-    if (!customerAnalyticsData || customerAnalyticsData.length === 0) return [];
-    return customerAnalyticsData.map(analytics => ({
-      id: analytics.customer_id,
-      name: analytics.customer_name
-    })).filter((value, index, self) =>
+    console.log('customerAnalyticsData in uniqueCustomers:', customerAnalyticsData);
+    if (!customerAnalyticsData || customerAnalyticsData.length === 0) {
+      console.log('Computed uniqueCustomers: [] (due to empty customerAnalyticsData)');
+      return [];
+    }
+    const mappedCustomers = customerAnalyticsData
+      .filter(analytics =>
+        analytics.customer_id && typeof analytics.customer_id === 'string' && analytics.customer_id.trim() !== '' &&
+        analytics.customer_name && typeof analytics.customer_name === 'string' && analytics.customer_name.trim() !== ''
+      )
+      .map(analytics => ({
+        id: analytics.customer_id,
+        name: analytics.customer_name
+      }));
+
+    const result = mappedCustomers.filter((value, index, self) =>
       self.findIndex(c => c.id === value.id) === index
     );
+    console.log('Computed uniqueCustomers (refined):', result);
+    return result;
   }, [customerAnalyticsData]);
 
   // Effect to reset selectedCustomer if it's no longer in uniqueCustomers (e.g., after data refresh)
   useEffect(() => {
+    console.log('useEffect for selectedCustomer: uniqueCustomers:', uniqueCustomers, 'selectedCustomer:', selectedCustomer);
     if (uniqueCustomers.length > 0 && !uniqueCustomers.find(c => c.id === selectedCustomer)) {
-      setSelectedCustomer(uniqueCustomers[0].id); // Select the first customer
+      const newSelectedCustomerId = uniqueCustomers[0].id;
+      console.log('Setting selectedCustomer to:', newSelectedCustomerId);
+      setSelectedCustomer(newSelectedCustomerId);
     } else if (uniqueCustomers.length === 0 && selectedCustomer !== null) {
-      setSelectedCustomer(null); // No customers available
+      console.log('Setting selectedCustomer to: null');
+      setSelectedCustomer(null);
     }
   }, [uniqueCustomers, selectedCustomer]);
 
@@ -1056,171 +1073,184 @@ const AyurvedicDashboard = () => {
               />
             </div>
           </div>
+        </div>
 
-          {/* Customer Info */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-600">Customer Type</p>
-              <p className="font-semibold">{selectedCustomerAnalytics?.customer_type || 'N/A'}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-600">Territory</p>
-              <p className="font-semibold">{selectedCustomerAnalytics?.territory || 'N/A'}</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <p className="text-sm text-purple-600">Total Orders</p>
-              <p className="font-semibold">{selectedCustomerAnalytics?.total_orders || 0}</p>
-            </div>
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <p className="text-sm text-orange-600">Avg Order Value</p>
-              <p className="font-semibold">₹{(selectedCustomerAnalytics?.avg_order_value || 0).toFixed(0)}</p>
+       {/* Conditional Analytics Display */}
+       {selectedCustomerAnalytics ? (
+        <>
+          {/* Customer Info - Now conditional */}
+          <div className="bg-white p-6 rounded-lg shadow-md"> {/* Card for Customer Info */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-600">Customer Type</p>
+                <p className="font-semibold">{selectedCustomerAnalytics?.customer_type || 'N/A'}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-green-600">Territory</p>
+                <p className="font-semibold">{selectedCustomerAnalytics?.territory || 'N/A'}</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <p className="text-sm text-purple-600">Total Orders</p>
+                <p className="font-semibold">{selectedCustomerAnalytics?.total_orders || 0}</p>
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <p className="text-sm text-orange-600">Avg Order Value</p>
+                <p className="font-semibold">₹{(selectedCustomerAnalytics?.avg_order_value || 0).toFixed(0)}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Customer Insights */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {customerInsights.map((insight, index) => (
-            <div key={index} className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold text-gray-800">{insight.title}</h4>
-                <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                  {insight.confidence}
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-green-600 mb-1">{insight.value}</p>
-              <p className="text-sm text-gray-600">{insight.description}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Next Order Predictions */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Star className="h-5 w-5 mr-2" />
-            Next Order Predictions
-          </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Timeline Chart */}
-            <CustomerTimelineChart
-              data={nextOrderPredictions.map((forecast, index) => ({
-                period: `Month ${index + 1}`,
-                value: forecast.expectedValue,
-                probability: forecast.orderProbability * 100
-              }))}
-            />
-
-            {/* Prediction Details */}
-            <div>
-              <h4 className="font-medium mb-3">Next 3 Order Predictions</h4>
-              <div className="space-y-3">
-                {nextOrderPredictions.slice(0, 3).map((forecast, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-medium">Order #{index + 1}</span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        forecast.confidence > 0.8 ? 'bg-green-100 text-green-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {(forecast.confidence * 100).toFixed(1)}% confident
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      <strong>Expected Date:</strong> {new Date(forecast.expectedDate).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <strong>Expected Value:</strong> ₹{forecast.expectedValue?.toLocaleString() || 0}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <strong>Likely Products:</strong> {forecast.likelyProducts?.map(p => p.productName).join(', ') || 'N/A'}
-                    </p>
+          {/* Customer Insights */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {customerInsights.map((insight, index) => (
+              <div key={index} className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-gray-800">{insight.title}</h4>
+                  <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                    {insight.confidence}
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Product Recommendations */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Star className="h-5 w-5 mr-2" />
-            AI Product Recommendations
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {productRecommendations.slice(0, 6).map((rec, index) => (
-              <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-medium">{rec.productName}</h4>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                    Score: {rec.score?.toFixed(1) || 'N/A'}
-                  </span>
                 </div>
-                <p className="text-sm text-gray-600 mb-2">{rec.category}</p>
-                <p className="text-sm text-gray-500 mb-2">{rec.reason}</p>
-                <p className="text-sm font-medium text-green-600">
-                  Expected Value: ₹{(rec.expectedValue || 0).toFixed(0)}
-                </p>
+                <p className="text-2xl font-bold text-green-600 mb-1">{insight.value}</p>
+                <p className="text-sm text-gray-600">{insight.description}</p>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Customer Behavior Analysis */}
-        { (Object.keys(purchasePatterns.monthly_pattern).length > 0 || purchasePatterns.preferred_products.length > 0) && (
+          {/* Next Order Predictions */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <Users className="h-5 w-5 mr-2" />
-              Customer Behavior Analysis
+              <Star className="h-5 w-5 mr-2" />
+              Next Order Predictions
             </h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Purchase Pattern */}
-              {Object.keys(purchasePatterns.monthly_pattern).length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-3">Purchase Patterns</h4>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={Object.entries(purchasePatterns.monthly_pattern).map(([month, orders]) => ({
-                      month: `Month ${month}`, // Assuming month is a number like 1, 2, ...
-                      orders
-                    }))}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="orders" fill={COLORS.accent} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              {/* Timeline Chart */}
+              <CustomerTimelineChart
+                data={nextOrderPredictions.map((forecast, index) => ({
+                  period: `Month ${index + 1}`,
+                  value: forecast.expectedValue,
+                  probability: forecast.orderProbability * 100
+                }))}
+              />
 
-              {/* Product Preferences */}
-              {purchasePatterns.preferred_products.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-3">Product Preferences</h4>
-                  <div className="space-y-2">
-                    {purchasePatterns.preferred_products.map(([product, count], index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-sm">{product}</span>
-                        <div className="flex items-center space-x-2">
-                          <div className="w-16 h-2 bg-gray-200 rounded-full">
-                            <div
-                              className="h-full bg-green-500 rounded-full"
-                              style={{ width: `${(count / (selectedCustomerAnalytics?.total_orders || 1)) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-500">{count}</span>
-                        </div>
+              {/* Prediction Details */}
+              <div>
+                <h4 className="font-medium mb-3">Next 3 Order Predictions</h4>
+                <div className="space-y-3">
+                  {nextOrderPredictions.slice(0, 3).map((forecast, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">Order #{index + 1}</span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          forecast.confidence > 0.8 ? 'bg-green-100 text-green-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {(forecast.confidence * 100).toFixed(1)}% confident
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-sm text-gray-600">
+                        <strong>Expected Date:</strong> {new Date(forecast.expectedDate).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Expected Value:</strong> ₹{forecast.expectedValue?.toLocaleString() || 0}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Likely Products:</strong> {forecast.likelyProducts?.map(p => p.productName).join(', ') || 'N/A'}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           </div>
-        )}
-      </div>
-    );
-  };
+
+          {/* Product Recommendations */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Star className="h-5 w-5 mr-2" />
+              AI Product Recommendations
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {productRecommendations.slice(0, 6).map((rec, index) => (
+                <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-medium">{rec.productName}</h4>
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                      Score: {rec.score?.toFixed(1) || 'N/A'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">{rec.category}</p>
+                  <p className="text-sm text-gray-500 mb-2">{rec.reason}</p>
+                  <p className="text-sm font-medium text-green-600">
+                    Expected Value: ₹{(rec.expectedValue || 0).toFixed(0)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Customer Behavior Analysis */}
+          { (Object.keys(purchasePatterns.monthly_pattern).length > 0 || purchasePatterns.preferred_products.length > 0) && (
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <Users className="h-5 w-5 mr-2" />
+                Customer Behavior Analysis
+              </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Purchase Pattern */}
+                {Object.keys(purchasePatterns.monthly_pattern).length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3">Purchase Patterns</h4>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={Object.entries(purchasePatterns.monthly_pattern).map(([month, orders]) => ({
+                        month: `Month ${month}`, // Assuming month is a number like 1, 2, ...
+                        orders
+                      }))}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="orders" fill={COLORS.accent} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Product Preferences */}
+                {purchasePatterns.preferred_products.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3">Product Preferences</h4>
+                    <div className="space-y-2">
+                      {purchasePatterns.preferred_products.map(([product, count], index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <span className="text-sm">{product}</span>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-16 h-2 bg-gray-200 rounded-full">
+                              <div
+                                className="h-full bg-green-500 rounded-full"
+                                style={{ width: `${(count / (selectedCustomerAnalytics?.total_orders || 1)) * 100}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs text-gray-500">{count}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex justify-center items-center min-h-[calc(100vh-300px)]"> {/* Adjusted height */}
+          <div className="text-xl font-semibold text-gray-500">
+            {uniqueCustomers.length > 0 ? "Select a customer to view analytics." : "No customer analytics data available."}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
   // Main render
   if (loading) {
