@@ -9,7 +9,6 @@ import {
   refreshDashboardData,
   fetchFilteredOrderData,
   fetchProductSalesSummary,
-  updateLegacyExports,
   COLORS, 
   calculateKPIs, 
   getUniqueValues, 
