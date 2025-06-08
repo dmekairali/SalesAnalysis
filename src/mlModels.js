@@ -144,16 +144,15 @@ export class CustomerForecastingML {
   }
 
   analyzeCustomerPatterns(lineItems) { // Renamed 'orders' to 'lineItems' for clarity
-    console.log('[ML_Debug] analyzeCustomerPatterns input lineItems count:', lineItems ? lineItems.length : 'null or undefined');
-    if (lineItems && lineItems.length > 0) {
-      // Log first item as a sample, being careful about stringification issues
-      try {
-        console.log('[ML_Debug] First lineItem sample:', JSON.parse(JSON.stringify(lineItems[0])));
-      } catch (e) {
-        console.error('[ML_Debug] Error stringifying first lineItem sample:', e);
-        console.log('[ML_Debug] First lineItem sample (raw):', lineItems[0]);
-      }
-    }
+    // console.log('[ML_Debug] analyzeCustomerPatterns input lineItems count:', lineItems ? lineItems.length : 'null or undefined'); // Removed
+    // if (lineItems && lineItems.length > 0) { // Removed
+    //   try { // Removed
+    //     console.log('[ML_Debug] First lineItem sample:', JSON.parse(JSON.stringify(lineItems[0]))); // Removed
+    //   } catch (e) { // Removed
+    //     console.error('[ML_Debug] Error stringifying first lineItem sample:', e); // Removed - This is an error log but part of the removed block
+    //     console.log('[ML_Debug] First lineItem sample (raw):', lineItems[0]); // Removed
+    //   } // Removed
+    // } // Removed
     if (!lineItems || lineItems.length === 0) {
       return { // Return a default structure if there are no line items at all
         avgOrderInterval: 30,
@@ -171,7 +170,7 @@ export class CustomerForecastingML {
 
     const ordersMap = {};
     lineItems.forEach(item => {
-      console.log('[ML_Debug] Processing lineItem:', JSON.parse(JSON.stringify(item)));
+      // console.log('[ML_Debug] Processing lineItem:', JSON.parse(JSON.stringify(item))); // Removed
       if (!ordersMap[item.orderId]) {
         ordersMap[item.orderId] = {
           orderId: item.orderId,
@@ -192,12 +191,12 @@ export class CustomerForecastingML {
         quantity: item.quantity
         // itemNetAmount could be item.netAmount if it were item-specific
       });
-      console.log('[ML_Debug] ordersMap entry for', item.orderId, 'after adding item:', JSON.parse(JSON.stringify(ordersMap[item.orderId])));
+      // console.log('[ML_Debug] ordersMap entry for', item.orderId, 'after adding item:', JSON.parse(JSON.stringify(ordersMap[item.orderId]))); // Removed
     });
 
-    console.log('[ML_Debug] Final ordersMap:', JSON.parse(JSON.stringify(ordersMap)));
+    // console.log('[ML_Debug] Final ordersMap:', JSON.parse(JSON.stringify(ordersMap))); // Removed
     const distinctCustomerOrders = Object.values(ordersMap);
-    console.log('[ML_Debug] distinctCustomerOrders array:', JSON.parse(JSON.stringify(distinctCustomerOrders)));
+    // console.log('[ML_Debug] distinctCustomerOrders array:', JSON.parse(JSON.stringify(distinctCustomerOrders))); // Removed
 
     if (distinctCustomerOrders.length === 0) { // Should not happen if lineItems is not empty, but as a safeguard
        return {
@@ -208,7 +207,7 @@ export class CustomerForecastingML {
     }
 
     const sortedOrders = distinctCustomerOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
-    console.log('[ML_Debug] sortedOrders (distinct orders sorted):', JSON.parse(JSON.stringify(sortedOrders)));
+    // console.log('[ML_Debug] sortedOrders (distinct orders sorted):', JSON.parse(JSON.stringify(sortedOrders))); // Removed
     
     const orderDates = sortedOrders.map(order => new Date(order.date));
     const intervals = [];
@@ -256,11 +255,11 @@ export class CustomerForecastingML {
     };
     const distinctSortedOrdersResult = sortedOrders;
 
-    console.log('[ML_Debug] patterns.totalOrders:', totalOrders);
-    console.log('[ML_Debug] patterns.avgOrderValue:', avgOrderValue);
-    console.log('[ML_Debug] patterns.preferredProducts:', JSON.parse(JSON.stringify(preferredProductsResult)));
-    console.log('[ML_Debug] patterns.monthlyPattern:', JSON.parse(JSON.stringify(monthlyPatternResult)));
-    console.log('[ML_Debug] patterns.distinctSortedOrders count:', distinctSortedOrdersResult ? distinctSortedOrdersResult.length : 'N/A');
+    // console.log('[ML_Debug] patterns.totalOrders:', totalOrders); // Removed
+    // console.log('[ML_Debug] patterns.avgOrderValue:', avgOrderValue); // Removed
+    // console.log('[ML_Debug] patterns.preferredProducts:', JSON.parse(JSON.stringify(preferredProductsResult))); // Removed
+    // console.log('[ML_Debug] patterns.monthlyPattern:', JSON.parse(JSON.stringify(monthlyPatternResult))); // Removed
+    // console.log('[ML_Debug] patterns.distinctSortedOrders count:', distinctSortedOrdersResult ? distinctSortedOrdersResult.length : 'N/A'); // Removed
 
 
     return {
@@ -307,8 +306,33 @@ export class CustomerForecastingML {
 
   getSeasonalFactor(month, monthlyPattern) {
     const orderCount = monthlyPattern[month] || 0;
-    const avgMonthlyOrders = Object.values(monthlyPattern).reduce((a, b) => a + b, 0) / 12;
-    return avgMonthlyOrders > 0 ? (orderCount / avgMonthlyOrders) : 1.0;
+    const totalOrdersAcrossAllMonths = Object.values(monthlyPattern).reduce((a, b) => a + b, 0);
+
+    if (totalOrdersAcrossAllMonths === 0) {
+      // No order history at all in the pattern
+      return 1.0; // Default neutral factor
+    }
+
+    const avgMonthlyOrders = totalOrdersAcrossAllMonths / 12;
+
+    // If avgMonthlyOrders is 0 (e.g. total orders < 12, and they are all in one month not the target month),
+    // avoid division by zero. This also handles the case where orderCount is 0.
+    if (avgMonthlyOrders === 0) {
+        // This case implies totalOrdersAcrossAllMonths is > 0 but < 12, and none in the current month's calculation led to a non-zero avg.
+        // It's safer to return a neutral factor if the average is zero.
+        console.warn(`[ML_Debug] getSeasonalFactor: avgMonthlyOrders is 0 for month ${month}. Returning neutral 1.0. Pattern:`, JSON.parse(JSON.stringify(monthlyPattern)));
+        return 1.0;
+    }
+
+    if (orderCount > 0) {
+      // If there are orders in the target month, calculate factor normally
+      return orderCount / avgMonthlyOrders;
+    } else {
+      // If no orders in the target month, but there IS history in other months,
+      // avoid returning 0. Return a neutral factor (1.0).
+      console.warn(`[ML_Debug] getSeasonalFactor: No orders in target month ${month}, but history exists. Returning neutral factor 1.0. monthlyPattern:`, JSON.parse(JSON.stringify(monthlyPattern)));
+      return 1.0;
+    }
   }
 
   predictLikelyProducts(patterns, orderDate, productData) {
@@ -316,7 +340,10 @@ export class CustomerForecastingML {
     const products = [];
     
     patterns.preferredProducts.forEach(([productName, frequency]) => {
-      const product = productData.find(p => p.productName === productName);
+      // const product = productData.find(p => p.productName === productName);
+      // Change to case-insensitive matching:
+      const product = productData.find(p => p.productName && p.productName.toLowerCase() === productName.toLowerCase());
+
       if (product) {
         let seasonalBoost = 1.0;
         if (product.seasonality.includes('Winter') && [11, 12, 1, 2].includes(month)) seasonalBoost = 1.3;
@@ -329,6 +356,8 @@ export class CustomerForecastingML {
           category: product.category,
           expectedQuantity: Math.round(2 + Math.random() * 3)
         });
+      } else {
+        console.warn(`[ML_Debug] Product "${productName}" from preferredProducts not found in productData (case-insensitive search). Cannot include in likelyProducts.`);
       }
     });
 
@@ -361,7 +390,7 @@ export class CustomerForecastingML {
 
     const recentAvg = recentDistinctOrders.length > 0 ? recentDistinctOrders.reduce((sum, o) => sum + o.netAmount, 0) / recentDistinctOrders.length : 0;
     const earlierAvg = earlierDistinctOrders.length > 0 ? earlierDistinctOrders.reduce((sum, o) => sum + o.netAmount, 0) / earlierDistinctOrders.length : 0;
-    
+
     const valueChange = earlierAvg !== 0 ? ((recentAvg - earlierAvg) / earlierAvg) * 100 : (recentAvg > 0 ? 100.0 : 0.0);
 
     let description = 'Stable order values';
