@@ -140,6 +140,87 @@ export const fetchProductData = async () => {
   }
 };
 
+export const fetchMRVisits = async (filters = {}) => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
+  try {
+    do {
+      let query = supabase.from('mr_visits').select('*');
+
+      // Apply Filters
+      if (filters.empName) {
+        query = query.eq('empName', filters.empName);
+      }
+      if (filters.startDate) {
+        query = query.gte('dcrDate', filters.startDate);
+      }
+      if (filters.endDate) {
+        query = query.lte('dcrDate', filters.endDate);
+      }
+
+      // Add Ordering
+      query = query.order('dcrDate', { ascending: false });
+
+      // Apply Range
+      query = query.range(offset, offset + pageSize - 1);
+
+      const { data: chunk, error: chunkError } = await query;
+
+      if (chunkError) {
+        console.error('Error fetching chunk of mr_visits:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        lastItemCount = chunk.length;
+        offset += pageSize;
+        console.log('[DataLoad_Debug] Fetching MR visits. Filters:', filters, 'Current total:', allItems.length);
+      } else {
+        lastItemCount = 0;
+      }
+    } while (lastItemCount === pageSize);
+
+    return allItems.map(visit => ({
+      visitId: visit.visitId,
+      empId: visit.empId,
+      mrName: visit.empName,
+      date: visit.dcrDate,
+      clientId: visit.clientId,
+      clientName: visit.clientName,
+      clientMobileNo: visit.clientMobileNo,
+      visitType: visit.visitType,
+      inTime: visit.inTime,
+      outTime: visit.outTime,
+      visitDuration: visit.visit_duration,
+      areaName: visit.areaName,
+      cityName: visit.cityName,
+      pinCode: visit.pinCode,
+      fullLocationAddress: visit.fullLocationAddress,
+      amountOfSale: parseFloat(visit.amountOfSale) || 0,
+      amountCollect: parseFloat(visit.amountCollect) || 0,
+      sampleValue: parseFloat(visit.sampleValue) || 0,
+      sampleGiven: visit.sampleGiven,
+      productSale: visit.productSale,
+      dcrStatus: visit.dcrStatus,
+      deviation: visit.deviation,
+      tpDeviationReason: visit.tpDeviationReason,
+      planedTP: visit.planedTP,
+      visitedArea: visit.visitedArea,
+      km: visit.km,
+      workType: visit.workType,
+      // Add other relevant fields from mr_visits schema if needed
+      // e.g., jointWorkWith: visit.jointWorkWith, remarks: visit.remarks etc.
+    }));
+  } catch (error) {
+    console.error('Error in paginated fetchMRVisits (outer catch):', error);
+    return [];
+  }
+};
+
 export const formatIndianCurrency = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
     return '0'; // Or 'N/A' or handle as an error

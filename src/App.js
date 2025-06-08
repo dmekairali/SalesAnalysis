@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, Map as MapIcon, CalendarDays, UserSquare } from 'lucide-react'; // Added MapIcon, CalendarDays, UserSquare
 
 // Import modules - Updated paths for Create React App
-import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData } from './data.js';
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData, fetchMRVisits } from './data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
@@ -29,6 +29,20 @@ const AyurvedicDashboard = () => {
   const [mrData, setMrData] = useState([]);
   const [dashboardOrderData, setDashboardOrderData] = useState([]);
   const [customerAnalyticsData, setCustomerAnalyticsData] = useState([]);
+  const [mrVisitsData, setMrVisitsData] = useState([]);
+
+  const initialDate = new Date();
+  const y = initialDate.getFullYear();
+  const m = initialDate.getMonth();
+  const firstDayCurrentMonth = new Date(y, m, 1).toISOString().split('T')[0];
+  const lastDayCurrentMonth = new Date(y, m + 1, 0).toISOString().split('T')[0];
+
+  const [mrVisitsFilters, setMrVisitsFilters] = useState({
+    empName: null,
+    startDate: firstDayCurrentMonth,
+    endDate: lastDayCurrentMonth,
+  });
+
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedProduct, setSelectedProduct] = useState('CGMMG0100NP2201');
@@ -53,6 +67,156 @@ const AyurvedicDashboard = () => {
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
   const [pendingFilters, setPendingFilters] = useState(filters); // For Apply button functionality
 
+  // Component for MR Visits Tab
+  const VisitsTab = () => {
+    const mrNamesForDropdown = useMemo(() => {
+      const names = [...new Set(mrData.map(mr => mr.mr_name || mr.name).filter(Boolean))];
+      return ["All MRs", ...names.sort()];
+    }, [mrData]);
+
+    const currentYear = new Date().getFullYear();
+    const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+    const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+      value: i + 1,
+      label: new Date(0, i).toLocaleString('default', { month: 'long' })
+    }));
+
+    const handleMRChange = (selectedMrName) => {
+      setMrVisitsFilters(prev => ({
+        ...prev,
+        empName: selectedMrName === "All MRs" ? null : selectedMrName
+      }));
+    };
+
+    const handleYearChange = (e) => {
+      const year = parseInt(e.target.value);
+      const currentMonth = new Date(mrVisitsFilters.startDate).getMonth() + 1;
+      const newStartDate = new Date(year, currentMonth - 1, 1).toISOString().split('T')[0];
+      const newEndDate = new Date(year, currentMonth, 0).toISOString().split('T')[0];
+      setMrVisitsFilters(prev => ({
+        ...prev,
+        startDate: newStartDate,
+        endDate: newEndDate
+      }));
+    };
+
+    const handleMonthChange = (e) => {
+      const month = parseInt(e.target.value);
+      const currentYear = new Date(mrVisitsFilters.startDate).getFullYear();
+      const newStartDate = new Date(currentYear, month - 1, 1).toISOString().split('T')[0];
+      const newEndDate = new Date(currentYear, month, 0).toISOString().split('T')[0];
+      setMrVisitsFilters(prev => ({
+        ...prev,
+        startDate: newStartDate,
+        endDate: newEndDate
+      }));
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-white p-4 rounded-lg shadow">
+          <h3 className="text-lg font-semibold mb-3 text-gray-700">Filter MR Visits</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <SearchableDropdown
+                label="Medical Representative"
+                options={mrNamesForDropdown}
+                value={mrVisitsFilters.empName || "All MRs"}
+                onChange={handleMRChange}
+                icon={UserSquare}
+              />
+            </div>
+            <div>
+              <label htmlFor="year-filter" className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+              <div className="relative">
+                <CalendarDays className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <select
+                  id="year-filter"
+                  value={new Date(mrVisitsFilters.startDate).getFullYear()}
+                  onChange={handleYearChange}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+                >
+                  {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="month-filter" className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+              <div className="relative">
+                <CalendarDays className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <select
+                  id="month-filter"
+                  value={new Date(mrVisitsFilters.startDate).getMonth() + 1}
+                  onChange={handleMonthChange}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+                >
+                  {monthOptions.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Table to display MR Visits Data */}
+        <div className="bg-white rounded-lg shadow-md">
+          <div className="px-4 py-3 border-b">
+            <h3 className="text-md font-semibold">MR Visit Records ({mrVisitsData.length})</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR Name</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Type</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale Amount</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DCR Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {mrVisitsData.length === 0 ? (
+                  <tr>
+                    <td colSpan="9" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                      No visits found for the selected criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  mrVisitsData.map(visit => (
+                    <tr key={visit.visitId}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(visit.date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.mrName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.clientName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.cityName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.areaName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {visit.amountOfSale.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          visit.dcrStatus === 'Approved' ? 'bg-green-100 text-green-800' :
+                          visit.dcrStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800' // For Rejected or other statuses
+                        }`}>
+                          {visit.dcrStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.workType}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -67,23 +231,55 @@ const AyurvedicDashboard = () => {
         setDashboardOrderData(fetchedDashboardOrders || []);
 
         const fetchedAnalytics = await fetchCustomerAnalyticsTableData();
-        // console.log('Fetched customerAnalyticsData:', fetchedAnalytics); // Removed
         setCustomerAnalyticsData(fetchedAnalytics || []);
+
+        // Set initial MR Visit Filters - this will trigger the dedicated useEffect for MR visits
+        const initialFiltersForMrVisits = {
+          empName: null,
+          startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+          endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0],
+        };
+        console.log('[DataLoad_Debug] Setting Initial MR Visit Filters:', initialFiltersForMrVisits);
+        setMrVisitsFilters(initialFiltersForMrVisits);
+
       } catch (error) {
         console.error("Error initializing data:", error);
-        // Optionally, set an error state here to display to the user
-        setOrderData([]); // Ensure data arrays are empty on error
+        setOrderData([]);
         setProductData([]);
         setCustomerData([]);
         setMrData([]);
         setDashboardOrderData([]);
         setCustomerAnalyticsData([]);
+        setMrVisitsData([]); // Also reset MR visits data on initial load error
       } finally {
         setLoading(false);
       }
     };
     loadData();
   }, []); // Empty dependency array to run only on mount
+
+  // useEffect for fetching MR visits data when filters change
+  useEffect(() => {
+    const loadMrVisits = async () => {
+      // Ensure filters are set before fetching
+      if (!mrVisitsFilters.startDate || !mrVisitsFilters.endDate) {
+        console.log('[DataLoad_Debug] MR Visit filters not ready yet, skipping fetch.');
+        return;
+      }
+      console.log('[DataLoad_Debug] mrVisitsFilters changed, fetching new visits:', mrVisitsFilters);
+      try {
+        // setLoadingMrVisits(true); // Optional: if you add a specific loading state for MR visits
+        const fetchedVisits = await fetchMRVisits(mrVisitsFilters);
+        setMrVisitsData(fetchedVisits || []);
+      } catch (error) {
+        console.error("Error fetching MR visits based on filter change:", error);
+        setMrVisitsData([]);
+      } finally {
+        // setLoadingMrVisits(false); // Optional
+      }
+    };
+    loadMrVisits();
+  }, [mrVisitsFilters]);
 
   // Removed useEffect for logging customerAnalyticsData state
 
@@ -1417,17 +1613,28 @@ const AyurvedicDashboard = () => {
         exportWithMLInsights={exportWithMLInsights}
         showMLAnalytics={showMLAnalytics}
         setShowMLAnalytics={setShowMLAnalytics}
-        filters={filters}
-        setFilters={setFilters}
-        isFiltersVisible={isFiltersVisible}
-        setIsFiltersVisible={setIsFiltersVisible}
-        pendingFilters={pendingFilters}
-        setPendingFilters={setPendingFilters}
+        filters={filters} // General filters for navigation/header search if needed
+        setFilters={setFilters} // General filters
+        // Pass MR specific filters if Navigation needs to interact with them, otherwise not needed here
+        // For this task, Navigation just needs to know about the "visits" tab
+        // mrVisitsFilters={mrVisitsFilters}
+        // setMrVisitsFilters={setMrVisitsFilters}
+        isFiltersVisible={isFiltersVisible} // This is for general overview filters
+        setIsFiltersVisible={setIsFiltersVisible} // This is for general overview filters
+        pendingFilters={pendingFilters} // This is for general overview filters
+        setPendingFilters={setPendingFilters} // This is for general overview filters
+        navTabs={[ // Explicitly passing tabs to Navigation
+          { id: 'overview', label: 'Overview', icon: Home },
+          { id: 'products', label: 'Product Predictions', icon: Box },
+          { id: 'customers', label: 'Customer Intelligence', icon: Users },
+          { id: 'visits', label: 'MR Visits', icon: MapIcon }
+        ]}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
+        {activeTab === 'visits' && <VisitsTab />}
       </div>
     </div>
   );
