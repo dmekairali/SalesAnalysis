@@ -3,8 +3,9 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { Home, Box, TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, Map, CalendarDays, UserSquare } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
-import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData, fetchMRVisits } from './data.js';
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData, fetchMRVisits, formatIndianCurrency } from './data.js'; // Added formatIndianCurrency for completeness, though not directly used in this change
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
+import { generateVisitPlan } from './visitPlanningModel.js';
 import { 
   Navigation, 
   KPICard, 
@@ -30,6 +31,8 @@ const AyurvedicDashboard = () => {
   const [dashboardOrderData, setDashboardOrderData] = useState([]);
   const [customerAnalyticsData, setCustomerAnalyticsData] = useState([]);
   const [mrVisitsData, setMrVisitsData] = useState([]);
+  const [currentVisitPlan, setCurrentVisitPlan] = useState([]);
+  const [planGenerated, setPlanGenerated] = useState(false);
 
   const initialDate = new Date();
   const y = initialDate.getFullYear();
@@ -87,6 +90,8 @@ const AyurvedicDashboard = () => {
         ...prev,
         empName: selectedMrName === "All MRs" ? null : selectedMrName
       }));
+      setCurrentVisitPlan([]);
+      setPlanGenerated(false);
     };
 
     const handleYearChange = (e) => {
@@ -99,6 +104,8 @@ const AyurvedicDashboard = () => {
         startDate: newStartDate,
         endDate: newEndDate
       }));
+      setCurrentVisitPlan([]);
+      setPlanGenerated(false);
     };
 
     const handleMonthChange = (e) => {
@@ -111,6 +118,36 @@ const AyurvedicDashboard = () => {
         startDate: newStartDate,
         endDate: newEndDate
       }));
+      setCurrentVisitPlan([]);
+      setPlanGenerated(false);
+    };
+
+    const handleGeneratePlan = () => {
+      const mrName = mrVisitsFilters.empName;
+      if (!mrName) {
+        console.warn("No MR selected to generate plan for.");
+        setCurrentVisitPlan([]);
+        setPlanGenerated(false);
+        return;
+      }
+      const dateFromFilter = new Date(mrVisitsFilters.startDate);
+      const month = dateFromFilter.getMonth() + 1; // 1-12
+      const year = dateFromFilter.getFullYear();
+
+      const planningParams = {
+        mrName: mrName,
+        month: month,
+        year: year,
+        allMrVisitsDataForMr: mrVisitsData,
+        comprehensiveClientData: comprehensiveClientData,
+        orderData: orderData,
+        productData: productData
+      };
+
+      const newPlan = generateVisitPlan(planningParams);
+      setCurrentVisitPlan(newPlan || []);
+      setPlanGenerated(true);
+      console.log(`[VisitPlan] Generated plan for ${mrName} for ${month}/${year}. Plan length:`, newPlan?.length);
     };
 
     return (
@@ -158,60 +195,108 @@ const AyurvedicDashboard = () => {
           </div>
         </div>
 
-        {/* Table to display MR Visits Data */}
         <div className="bg-white rounded-lg shadow-md">
           <div className="px-4 py-3 border-b">
-            <h3 className="text-md font-semibold">MR Visit Records ({mrVisitsData.length})</h3>
+            <h3 className="text-md font-semibold">
+              {planGenerated ?
+                `Generated Visit Plan ${mrVisitsFilters.empName ? `for ${mrVisitsFilters.empName}` : ''} (${currentVisitPlan.length} visits)` :
+                `Past Visit Records ${mrVisitsFilters.empName ? `for ${mrVisitsFilters.empName}` : ''} (${mrVisitsData.length} records)`
+              }
+            </h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR Name</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Type</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale Amount</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DCR Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {mrVisitsData.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                      No visits found for the selected criteria.
-                    </td>
-                  </tr>
-                ) : (
-                  mrVisitsData.map(visit => (
-                    <tr key={visit.visitId}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(visit.date).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.mrName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.clientName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.cityName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.areaName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        {visit.amountOfSale.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          visit.dcrStatus === 'Approved' ? 'bg-green-100 text-green-800' :
-                          visit.dcrStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800' // For Rejected or other statuses
-                        }`}>
-                          {visit.dcrStatus}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.workType}</td>
+            {(() => {
+              if (!mrVisitsFilters.empName) {
+                return <p className="text-center text-gray-500 py-10">Please select an MR to view their visits or generate a plan.</p>;
+              }
+              if (!planGenerated) {
+                 // Show past visits table (mrVisitsData)
+                if (mrVisitsData.length === 0) {
+                  return <p className="text-center text-gray-500 py-10">No past visits found for {mrVisitsFilters.empName} in the selected period. Click 'Generate Visit Plan' to create a new plan.</p>;
+                }
+                return (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR Name</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Type</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale Amount</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DCR Status</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {mrVisitsData.map(visit => (
+                        <tr key={visit.visitId}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(visit.date).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.mrName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.clientName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.cityName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.areaName}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            {visit.amountOfSale.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              visit.dcrStatus === 'Approved' ? 'bg-green-100 text-green-800' :
+                              visit.dcrStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {visit.dcrStatus}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.workType}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              }
+              if (planGenerated && currentVisitPlan.length === 0) {
+                return <p className="text-center text-gray-500 py-10">No visits could be planned for the selected criteria.</p>;
+              }
+              // Render the currentVisitPlan table
+              return (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR Name</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Status</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Type</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Reason for Visit</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentVisitPlan.map((visit, index) => (
+                      <tr key={visit.date + visit.clientCode + index}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(visit.date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.mrName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.customerName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              visit.clientStatus === 'NBD' ? 'bg-blue-100 text-blue-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                            {visit.clientStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.plannedLocation}</td>
+                        <td className="px-6 py-4 text-sm text-gray-700 min-w-[200px] whitespace-pre-wrap break-words">{visit.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()}
           </div>
         </div>
       </div>
