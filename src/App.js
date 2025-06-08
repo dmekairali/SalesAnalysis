@@ -283,17 +283,7 @@ const AyurvedicDashboard = () => {
 
   // Removed useEffect for logging customerAnalyticsData state
 
-  useEffect(() => {
-    console.log('[DataLoad_Debug] orderData state updated. Total Length:', orderData.length);
-    // Optionally, log a few more details if orderData is very small, to ensure it's not empty due to an error
-    if (orderData.length > 0 && orderData.length < 5) {
-      try {
-        console.log('[DataLoad_Debug] Sample of small orderData:', JSON.parse(JSON.stringify(orderData)));
-      } catch(e) {
-        console.log('[DataLoad_Debug] Sample of small orderData (raw):', orderData);
-      }
-    }
-  }, [orderData]);
+  // Removed [DataLoad_Debug] useEffect for orderData.length
 
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
@@ -541,25 +531,7 @@ const AyurvedicDashboard = () => {
 
   // Customer predictions  
   const customerPredictions = useMemo(() => {
-    console.log('[App_Debug] customerPredictions hook triggered. Selected Customer ID:', selectedCustomer);
-    console.log('[App_Debug] Total orderData length:', orderData ? orderData.length : 'orderData is null/undefined');
-    console.log('[App_Debug] Total productData length:', productData ? productData.length : 'productData is null/undefined');
-
-    if (orderData && selectedCustomer) {
-      const relevantOrderItems = orderData.filter(o => o.customerId === selectedCustomer);
-      console.log('[App_Debug] Found relevantOrderItems for selectedCustomer:', relevantOrderItems.length);
-      if (relevantOrderItems.length > 0 && relevantOrderItems.length < 20) { // Log sample if not too many
-         try {
-            console.log('[App_Debug] Sample of relevantOrderItems:', JSON.parse(JSON.stringify(relevantOrderItems.slice(0, 5))));
-         } catch (e) {
-            console.error('[App_Debug] Error stringifying relevantOrderItems sample:', e);
-            console.log('[App_Debug] Sample of relevantOrderItems (raw first 5):', relevantOrderItems.slice(0, 5));
-         }
-      }
-    } else {
-      console.log('[App_Debug] orderData or selectedCustomer is missing, cannot filter relevantOrderItems.');
-    }
-
+    // Removed [App_Debug] logs
     if (!productData || productData.length === 0 || !orderData || orderData.length === 0 || !selectedCustomer) return { forecasts: [], insights: [], recommendations: [], patterns: null };
     return customerML.predictCustomerBehavior(selectedCustomer, orderData, productData, 6);
   }, [selectedCustomer, customerML, orderData, productData]);
