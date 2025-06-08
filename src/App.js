@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, Map as MapIcon, CalendarDays, UserSquare } from 'lucide-react'; // Added MapIcon, CalendarDays, UserSquare
+import { Home, Box, TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, Map, CalendarDays, UserSquare } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
 import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData, fetchMRVisits } from './data.js';
@@ -1627,7 +1627,7 @@ const AyurvedicDashboard = () => {
           { id: 'overview', label: 'Overview', icon: Home },
           { id: 'products', label: 'Product Predictions', icon: Box },
           { id: 'customers', label: 'Customer Intelligence', icon: Users },
-          { id: 'visits', label: 'MR Visits', icon: MapIcon }
+          { id: 'visits', label: 'MR Visits', icon: Map }
         ]}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
