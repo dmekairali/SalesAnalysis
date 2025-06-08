@@ -125,26 +125,29 @@ const AyurvedicDashboard = () => {
     const handleGeneratePlan = () => {
       const mrName = mrVisitsFilters.empName;
       if (!mrName) {
-        console.warn("No MR selected to generate plan for.");
+        console.warn("[VisitPlan] No MR selected to generate plan for."); // Added prefix for clarity
         setCurrentVisitPlan([]);
         setPlanGenerated(false);
         return;
       }
+
       const dateFromFilter = new Date(mrVisitsFilters.startDate);
       const month = dateFromFilter.getMonth() + 1; // 1-12
       const year = dateFromFilter.getFullYear();
+
+      console.log(`[VisitPlan] Generating plan for ${mrName} for ${month}/${year} using current mrVisitsData count: ${mrVisitsData.length}`);
 
       const planningParams = {
         mrName: mrName,
         month: month,
         year: year,
-        allMrVisitsDataForMr: mrVisitsData,
+        allMrVisitsDataForMr: mrVisitsData, // Uses currently filtered past visits for this MR as historical context
         comprehensiveClientData: comprehensiveClientData,
-        orderData: orderData,
-        productData: productData
+        orderData: orderData, // Full orderData
+        productData: productData // Full productData
       };
 
-      const newPlan = generateVisitPlan(planningParams);
+      const newPlan = generateVisitPlan(planningParams); // Ensure generateVisitPlan is imported
       setCurrentVisitPlan(newPlan || []);
       setPlanGenerated(true);
       console.log(`[VisitPlan] Generated plan for ${mrName} for ${month}/${year}. Plan length:`, newPlan?.length);
