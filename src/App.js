@@ -70,7 +70,8 @@ const AyurvedicDashboard = () => {
   // Component for MR Visits Tab
   const VisitsTab = () => {
     const mrNamesForDropdown = useMemo(() => {
-      const names = [...new Set(mrData.map(mr => mr.mr_name || mr.name).filter(Boolean))];
+      if (!mrData) return ["All MRs"]; // Handle mrData not yet loaded
+      const names = [...new Set(mrData.map(mr => mr.name).filter(Boolean))];
       return ["All MRs", ...names.sort()];
     }, [mrData]);
 
@@ -239,7 +240,7 @@ const AyurvedicDashboard = () => {
           startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
           endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0],
         };
-        console.log('[DataLoad_Debug] Setting Initial MR Visit Filters:', initialFiltersForMrVisits);
+        // console.log('[DataLoad_Debug] Setting Initial MR Visit Filters:', initialFiltersForMrVisits); // Removed this log
         setMrVisitsFilters(initialFiltersForMrVisits);
 
       } catch (error) {
@@ -266,7 +267,14 @@ const AyurvedicDashboard = () => {
         console.log('[DataLoad_Debug] MR Visit filters not ready yet, skipping fetch.');
         return;
       }
-      console.log('[DataLoad_Debug] mrVisitsFilters changed, fetching new visits:', mrVisitsFilters);
+      // console.log('[DataLoad_Debug] mrVisitsFilters changed, fetching new visits:', mrVisitsFilters); // Removed this log
+
+      if (!mrVisitsFilters.empName) {
+        setMrVisitsData([]); // Clear data if no MR is selected
+        console.log('[DataLoad_Debug] No MR selected, clearing MR visits data.');
+        return;
+      }
+
       try {
         // setLoadingMrVisits(true); // Optional: if you add a specific loading state for MR visits
         const fetchedVisits = await fetchMRVisits(mrVisitsFilters);
