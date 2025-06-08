@@ -38,7 +38,7 @@ export const KPICard = ({ title, value, icon: Icon, format = 'number', color = C
 );
 
 // Navigation Component
-export const Navigation = ({ activeTab, setActiveTab, notifications, showNotifications, setShowNotifications, exportWithMLInsights, showMLAnalytics, setShowMLAnalytics, filters, setFilters }) => (
+export const Navigation = ({ activeTab, setActiveTab, notifications, showNotifications, setShowNotifications, exportWithMLInsights, showMLAnalytics, setShowMLAnalytics, filters, setFilters, navTabs }) => (
   <nav className="bg-white shadow-sm border-b">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col md:flex-row justify-between items-center py-4 md:space-y-0 space-y-4">
@@ -47,11 +47,7 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
             AyurML Analytics
           </h1>
           <div className="flex flex-wrap space-x-1">
-            {[
-              { id: 'overview', label: 'Overview', icon: Home },
-              { id: 'products', label: 'Product Predictions', icon: Box },
-              { id: 'customers', label: 'Customer Intelligence', icon: Users }
-            ].map(tab => (
+            {(navTabs || []).map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
