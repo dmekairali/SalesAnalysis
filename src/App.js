@@ -293,6 +293,57 @@ const AyurvedicDashboard = () => {
 
   // Removed [DataLoad_Debug] useEffect for orderData.length
 
+  const comprehensiveClientData = useMemo(() => {
+    if (!customerAnalyticsData || customerAnalyticsData.length === 0) return [];
+    return customerAnalyticsData.map(record => {
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setHours(0, 0, 0, 0);
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+      let clientStatus = 'CRR';
+
+      const totalOrders = parseInt(record.total_orders, 10);
+      const firstOrderDateStr = record.first_order_date;
+
+      if (isNaN(totalOrders) || totalOrders <= 1) {
+        clientStatus = 'NBD';
+      } else if (firstOrderDateStr) {
+        const firstOrderDate = new Date(firstOrderDateStr);
+        firstOrderDate.setHours(0,0,0,0);
+        if (!isNaN(firstOrderDate.getTime()) && firstOrderDate > ninetyDaysAgo) {
+          clientStatus = 'NBD';
+        }
+      }
+      return {
+        ...record,
+        clientCode: record.customer_code,
+        customerName: record.customer_name,
+        clientAOV: record.avg_order_value || 0,
+        clientStatus: clientStatus,
+      };
+    });
+  }, [customerAnalyticsData]);
+
+  useEffect(() => {
+    console.log('[DataLoad_Debug] comprehensiveClientData processed. Length:', comprehensiveClientData.length);
+    if (comprehensiveClientData.length > 0 && comprehensiveClientData.length < 20) { // Log sample if not too many
+       try {
+          console.log('[DataLoad_Debug] Sample of comprehensiveClientData:', JSON.parse(JSON.stringify(comprehensiveClientData.slice(0,3))));
+       } catch (e) {
+          console.error('[DataLoad_Debug] Error stringifying comprehensiveClientData sample:', e);
+          console.log('[DataLoad_Debug] Sample of comprehensiveClientData (raw first 3):', comprehensiveClientData.slice(0,3));
+       }
+    } else if (comprehensiveClientData.length > 0) {
+      // Log just the first one if the list is long
+       try {
+          console.log('[DataLoad_Debug] First item of comprehensiveClientData:', JSON.parse(JSON.stringify(comprehensiveClientData[0])));
+       } catch (e) {
+          console.error('[DataLoad_Debug] Error stringifying first comprehensiveClientData item:', e);
+          console.log('[DataLoad_Debug] First item of comprehensiveClientData (raw):', comprehensiveClientData[0]);
+       }
+    }
+  }, [comprehensiveClientData]);
+
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
   const customerML = useMemo(() => new CustomerForecastingML(), []);
