@@ -140,6 +140,32 @@ export const fetchProductData = async () => {
   }
 };
 
+export const formatIndianCurrency = (num) => {
+  if (num === null || num === undefined || isNaN(Number(num))) {
+    return '0'; // Or 'N/A' or handle as an error
+  }
+
+  const number = Number(num);
+
+  if (Math.abs(number) >= 10000000) { // 1 Crore = 1,00,00,000
+    return (number / 10000000).toFixed(2) + ' Cr';
+  }
+  if (Math.abs(number) >= 100000) { // 1 Lakh = 1,00,000
+    return (number / 100000).toFixed(2) + ' L';
+  }
+  if (Math.abs(number) >= 1000) { // 1 Thousand
+    // For K, often one decimal place is preferred if not round, or none if round.
+    // Example: 12345 -> 12.3K, 12000 -> 12K
+    const thousandValue = number / 1000;
+    if (thousandValue % 1 === 0) { // Check if it's a whole number
+        return thousandValue.toFixed(0) + ' K';
+    } else {
+        return thousandValue.toFixed(1) + ' K';
+    }
+  }
+  return number.toString(); // Or number.toLocaleString('en-IN') for smaller numbers
+};
+
 export const fetchCustomerData = async () => {
   let allItems = [];
   let lastItemCount = 0;
