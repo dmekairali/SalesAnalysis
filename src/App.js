@@ -1262,13 +1262,13 @@ const AyurvedicDashboard = () => {
                     <h4 className="font-medium mb-3">Product Preferences</h4>
                     <div className="space-y-2">
                       {purchasePatterns.preferred_products.map(([product, count], index) => (
-                        <div key={index} className="flex justify-between items-center">
-                          <span className="text-sm">{product}</span>
+                        <div key={index} className="flex justify-between items-center space-x-2">
+                          <span className="text-sm flex-1 min-w-0 break-words pr-2">{product}</span>
                           <div className="flex items-center space-x-2">
-                            <div className="w-16 h-2 bg-gray-200 rounded-full">
+                            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-green-500 rounded-full"
-                                style={{ width: `${(count / (selectedCustomerAnalytics?.total_orders || 1)) * 100}%` }}
+                                style={{ width: `${Math.min(100, (count / (selectedCustomerAnalytics?.total_orders || 1)) * 100)}%` }}
                               ></div>
                             </div>
                             <span className="text-xs text-gray-500">{count}</span>
