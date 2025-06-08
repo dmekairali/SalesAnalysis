@@ -1066,6 +1066,42 @@ const AyurvedicDashboard = () => {
       return customerPredictions?.forecasts || [];
     }, [customerPredictions]);
 
+    const timelineChartData = useMemo(() => {
+      let combinedData = [];
+      const actualOrdersRaw = customerPredictions?.patterns?.distinctSortedOrders;
+      const predictedOrdersRaw = customerPredictions?.forecasts;
+
+      if (actualOrdersRaw && Array.isArray(actualOrdersRaw)) {
+        const actuals = actualOrdersRaw.map(order => ({
+          date: order.date, // Assuming this is a string like 'YYYY-MM-DD'
+          value: order.netAmount,
+          type: 'actual'
+        }));
+        combinedData = combinedData.concat(actuals);
+      }
+
+      if (predictedOrdersRaw && Array.isArray(predictedOrdersRaw)) {
+        const predictions = predictedOrdersRaw.map(forecast => ({
+          date: forecast.expectedDate, // Assuming this is 'YYYY-MM-DD'
+          value: forecast.expectedValue,
+          type: 'predicted',
+          probability: forecast.orderProbability
+        }));
+        combinedData = combinedData.concat(predictions);
+      }
+
+      // Sort by date
+      combinedData.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      // Format for the chart
+      return combinedData.map(item => ({
+        period: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        actualValue: item.type === 'actual' ? item.value : null,
+        predictedValue: item.type === 'predicted' ? item.value : null,
+        probability: item.type === 'predicted' ? (item.probability * 100) : null
+      }));
+    }, [customerPredictions]);
+
     const productRecommendations = useMemo(() => {
       return customerPredictions?.recommendations || [];
     }, [customerPredictions]);
@@ -1079,6 +1115,65 @@ const AyurvedicDashboard = () => {
         preferred_products: customerPredictions.patterns.preferredProducts || []
       };
     }, [customerPredictions]);
+
+    const churnAttentionDetails = useMemo(() => {
+      let message = null;
+      let level = 'info'; // Default level
+
+      const forecasts = customerPredictions?.forecasts;
+      const actualOrders = customerPredictions?.patterns?.distinctSortedOrders;
+
+      if (!forecasts || forecasts.length === 0 || !actualOrders) {
+        return { message, level };
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
+
+      for (let i = 0; i < forecasts.length; i++) {
+        const forecast = forecasts[i];
+        const forecastDate = new Date(forecast.expectedDate);
+        forecastDate.setHours(0, 0, 0, 0); // Normalize
+
+        if (forecastDate < today) {
+          // This prediction is in the past
+          const windowStart = forecastDate;
+          // Determine the end of the window for checking actual orders
+          // It's either the day before the next forecast, or today if this is the last past forecast
+          let windowEnd = today;
+          if (i + 1 < forecasts.length) {
+            const nextForecastDate = new Date(forecasts[i+1].expectedDate);
+            nextForecastDate.setHours(0,0,0,0);
+            // If next forecast is also in past or today, use it as boundary, otherwise use today
+            windowEnd = nextForecastDate <= today ? new Date(nextForecastDate.getTime() - 86400000) : today;
+          }
+
+          const foundActualOrder = actualOrders.some(order => {
+            const actualOrderDate = new Date(order.date);
+            actualOrderDate.setHours(0, 0, 0, 0); // Normalize
+            return actualOrderDate >= windowStart && actualOrderDate <= windowEnd;
+          });
+
+          if (!foundActualOrder) {
+            message = `Attention: Predicted order around ${windowStart.toLocaleDateString()} for ~₹${forecast.expectedValue?.toLocaleString()} was potentially missed.`;
+
+            // Determine level based on how overdue
+            const daysDiff = (today.getTime() - windowStart.getTime()) / (1000 * 3600 * 24);
+            if (daysDiff > 30) { // Example: more than 30 days overdue
+                level = 'error';
+                 message = `Critical: Predicted order around ${windowStart.toLocaleDateString()} for ~₹${forecast.expectedValue?.toLocaleString()} appears missed. Over ${daysDiff.toFixed(0)} days overdue.`;
+            } else {
+                level = 'warning';
+            }
+            break; // Flag the first significant missed prediction
+          }
+        } else {
+          // Forecasts are sorted by date, so if we hit a future forecast, we can stop
+          break;
+        }
+      }
+      return { message, level };
+    }, [customerPredictions?.forecasts, customerPredictions?.patterns?.distinctSortedOrders]);
 
     if (!selectedCustomerAnalytics) {
       return (
@@ -1115,6 +1210,21 @@ const AyurvedicDashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Churn/Attention Indicator */}
+        {churnAttentionDetails.message && (
+          <div className={`p-4 rounded-md text-sm mb-6 shadow ${
+            churnAttentionDetails.level === 'warning' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
+            churnAttentionDetails.level === 'error' ? 'bg-red-100 text-red-800 border border-red-300' :
+            'bg-blue-100 text-blue-700 border border-blue-300' // Default to info
+          }`}>
+            <div className="flex items-center">
+              <Users className="h-5 w-5 mr-3"/> {/* Using Users icon, could be AlertTriangle for warning/error */}
+              <span className="font-semibold">Customer Alert:</span>
+              <p className="ml-2">{churnAttentionDetails.message}</p>
+            </div>
+          </div>
+        )}
 
        {/* Conditional Analytics Display */}
        {selectedCustomerAnalytics ? (
@@ -1165,13 +1275,7 @@ const AyurvedicDashboard = () => {
             </h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Timeline Chart */}
-              <CustomerTimelineChart
-                data={nextOrderPredictions.map((forecast, index) => ({
-                  period: `Month ${index + 1}`,
-                  value: forecast.expectedValue,
-                  probability: forecast.orderProbability * 100
-                }))}
-              />
+              <CustomerTimelineChart data={timelineChartData} />
 
               {/* Prediction Details */}
               <div>

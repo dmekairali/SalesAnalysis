@@ -431,15 +431,45 @@ export const ProductForecastChart = ({ data }) => (
 // Customer Timeline Chart
 export const CustomerTimelineChart = ({ data }) => (
   <div>
-    <h4 className="font-medium mb-3">Expected Order Timeline</h4>
+    <h4 className="font-medium mb-3">Customer Order Timeline (Actual vs. Predicted)</h4>
     <ResponsiveContainer width="100%" height={250}>
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="period" />
-        <YAxis />
+        <YAxis yAxisId="left" />
+        <YAxis yAxisId="right" orientation="right" />
         <Tooltip />
-        <Line type="monotone" dataKey="value" stroke={COLORS.primary} name="Expected Value (₹)" />
-        <Line type="monotone" dataKey="probability" stroke={COLORS.accent} name="Order Probability %" />
+        <Legend />
+        <Line
+          yAxisId="left"
+          type="monotone"
+          dataKey="actualValue"
+          stroke={COLORS.success || '#82ca9d'}
+          name="Actual Value (₹)"
+          strokeWidth={2}
+          dot={{ r: 4 }}
+          activeDot={{ r: 6 }}
+        />
+        <Line
+          yAxisId="left"
+          type="monotone"
+          dataKey="predictedValue"
+          stroke={COLORS.primary || '#8884d8'}
+          name="Predicted Value (₹)"
+          strokeWidth={2}
+          strokeDasharray="5 5"
+          dot={{ r: 4 }}
+          activeDot={{ r: 6 }}
+        />
+        <Line
+          yAxisId="right"
+          type="monotone"
+          dataKey="probability"
+          stroke={COLORS.accent || '#ffc658'}
+          name="Order Probability %"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+        />
       </LineChart>
     </ResponsiveContainer>
   </div>
