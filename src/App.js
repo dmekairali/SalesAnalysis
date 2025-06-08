@@ -87,6 +87,18 @@ const AyurvedicDashboard = () => {
 
   // Removed useEffect for logging customerAnalyticsData state
 
+  useEffect(() => {
+    console.log('[DataLoad_Debug] orderData state updated. Total Length:', orderData.length);
+    // Optionally, log a few more details if orderData is very small, to ensure it's not empty due to an error
+    if (orderData.length > 0 && orderData.length < 5) {
+      try {
+        console.log('[DataLoad_Debug] Sample of small orderData:', JSON.parse(JSON.stringify(orderData)));
+      } catch(e) {
+        console.log('[DataLoad_Debug] Sample of small orderData (raw):', orderData);
+      }
+    }
+  }, [orderData]);
+
   // Initialize ML Models
   const productML = useMemo(() => new ProductForecastingML(), []);
   const customerML = useMemo(() => new CustomerForecastingML(), []);

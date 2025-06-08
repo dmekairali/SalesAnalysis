@@ -341,8 +341,8 @@ export class CustomerForecastingML {
     
     patterns.preferredProducts.forEach(([productName, frequency]) => {
       // const product = productData.find(p => p.productName === productName);
-      // Change to case-insensitive matching:
-      const product = productData.find(p => p.productName && p.productName.toLowerCase() === productName.toLowerCase());
+      // Change to case-insensitive matching and ensure 'Medicine Name' field is used:
+      const product = productData.find(p => p['Medicine Name'] && typeof p['Medicine Name'] === 'string' && p['Medicine Name'].toLowerCase() === productName.toLowerCase());
 
       if (product) {
         let seasonalBoost = 1.0;
