@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
+/ Add this import at the top of App.js
+import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
+
 // Import modules - Updated paths for Create React App
 import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData } from './data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
@@ -1428,6 +1431,7 @@ const AyurvedicDashboard = () => {
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
+        {activeTab === 'visitplanner' && <MRVisitPlannerDashboard />} {/* NEW TAB CONTENT */}
       </div>
     </div>
   );
