@@ -8,16 +8,38 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Fetch functions to replace your mock data
 export const fetchOrderData = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000; // Supabase default limit, can be adjusted
+
   try {
-    const { data, error } = await supabase
-      .from('order_items')
-      .select('*')
-      .order('order_date', { ascending: false });
-    
-    if (error) throw error;
-    
-    // Transform to match your existing data structure
-    return data.map(item => ({
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('order_items')
+        .select('*')
+        .order('order_date', { ascending: false })
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of order_items:', chunkError);
+        throw chunkError; // Propagate error to be caught by the outer try-catch
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        lastItemCount = chunk.length;
+        offset += pageSize;
+        // console.log('[DataLoad_Debug] Fetching all order_items. Current total:', allItems.length); // Removed for this subtask
+      } else {
+        lastItemCount = 0; // Should not happen if no error, but as a safeguard
+      }
+      // Optional: Add a small delay if hitting rate limits is a concern
+      // if (lastItemCount === pageSize) await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
+
+    // The existing mapping should be applied to `allItems`
+    return allItems.map(item => ({
       orderId: item.order_id,
       date: item.order_date,
       customerId: item.customer_code,
@@ -26,7 +48,7 @@ export const fetchOrderData = async () => {
       territory: item.territory,
       city: item.city,
       state: item.state,
-      netAmount: parseFloat(item.order_net_amount),
+      netAmount: parseFloat(item.order_net_amount) || 0, // Ensure fallback to 0 if NaN
       deliveredFrom: item.delivered_from,
       discountTier: item.discount_tier,
       deliveryStatus: item.delivery_status,
@@ -35,54 +57,73 @@ export const fetchOrderData = async () => {
       quantity: item.quantity,
       medicalRepresentative: item.mr_name,
       salesRepresentative: item.mr_name,
-      // Enhanced fields from new schema
       trackingNumber: item.tracking_number,
       courierPartner: item.courier_partner,
       paymentMode: item.payment_mode,
       paymentStatus: item.payment_status,
-      // Order items with master product data
-      orderItems: [{
+      orderItems: [{ // This structure for orderItems might need re-evaluation if it's for detailed views
         sku: item.sku,
         medicineName: item.product_description,
         packSize: item.size_display,
         quantity: item.quantity,
-        unitPrice: parseFloat(item.unit_price),
-        totalPrice: parseFloat(item.line_total),
+        unitPrice: parseFloat(item.unit_price) || 0, // Ensure fallback
+        totalPrice: parseFloat(item.line_total) || 0, // Ensure fallback
         category: item.category,
         master_code: item.master_code,
         variant_code: item.variant_code
       }],
-      // For backward compatibility
-      products: [item.product_description],
+      products: [item.product_description], // Also seems item-specific
       master_code: item.master_code
     }));
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    return [];
+    // Error is already logged by the chunk fetching or will be caught here
+    console.error('Error in paginated fetchOrderData (outer catch):', error);
+    return []; // Return empty array in case of any error
   }
 };
 
 export const fetchProductData = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('is_active', true);
-    
-    if (error) throw error;
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true) // Keep existing filters
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of products:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        // console.log('[DataLoad_Debug] Fetching all products. Current total:', allItems.length); // Removed
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0;
+      }
+      // Optional: await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
     
     // Transform to match your existing productMasterData structure
-    return data.map(product => ({
+    return allItems.map(product => ({
       Category: product.category,
       'Medicine Name': product.description,
       MasterSku: product.master_code,
       Pack: product.size_display,
       Sku: product.sku,
-      Mrp: parseFloat(product.mrp),
+      Mrp: parseFloat(product.mrp) || 0,
       productId: product.sku,
       productName: `${product.description} (${product.size_display})`,
       category: product.category,
-      unitPrice: parseFloat(product.mrp),
+      unitPrice: parseFloat(product.mrp) || 0,
       seasonality: 'Year Round', // Add seasonality logic later if needed
       competitor: 'N/A', // Add competitor data later if needed
       marketShare: 15, // Add market share calculation later if needed
@@ -94,37 +135,107 @@ export const fetchProductData = async () => {
       focus_status: product.focus_status
     }));
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Error in paginated fetchProductData (outer catch):', error);
     return [];
   }
 };
 
+export const formatIndianCurrency = (num) => {
+  if (num === null || num === undefined || isNaN(Number(num))) {
+    return '0'; // Or 'N/A' or handle as an error
+  }
+
+  const number = Number(num);
+
+  if (Math.abs(number) >= 10000000) { // 1 Crore = 1,00,00,000
+    return (number / 10000000).toFixed(2) + ' Cr';
+  }
+  if (Math.abs(number) >= 100000) { // 1 Lakh = 1,00,000
+    return (number / 100000).toFixed(2) + ' L';
+  }
+  if (Math.abs(number) >= 1000) { // 1 Thousand
+    // For K, often one decimal place is preferred if not round, or none if round.
+    // Example: 12345 -> 12.3K, 12000 -> 12K
+    const thousandValue = number / 1000;
+    if (thousandValue % 1 === 0) { // Check if it's a whole number
+        return thousandValue.toFixed(0) + ' K';
+    } else {
+        return thousandValue.toFixed(1) + ' K';
+    }
+  }
+  return number.toString(); // Or number.toLocaleString('en-IN') for smaller numbers
+};
+
 export const fetchCustomerData = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
   try {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('is_active', true);
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('is_active', true) // Keep existing filters
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of customers:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        // console.log('[DataLoad_Debug] Fetching all customers. Current total:', allItems.length); // Removed
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0;
+      }
+      // Optional: await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
     
-    if (error) throw error;
-    return data;
+    return allItems; // Return all fetched items, no mapping needed here
   } catch (error) {
-    console.error('Error fetching customers:', error);
+    console.error('Error in paginated fetchCustomerData (outer catch):', error);
     return [];
   }
 };
 
 export const fetchMRData = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
   try {
-    const { data, error } = await supabase
-      .from('medical_representatives')
-      .select('*')
-      .eq('is_active', true);
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('medical_representatives')
+        .select('*')
+        .eq('is_active', true) // Keep existing filters
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of medical_representatives:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        // console.log('[DataLoad_Debug] Fetching all MRs. Current total:', allItems.length); // Removed
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0;
+      }
+      // Optional: await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
     
-    if (error) throw error;
-    return data;
+    return allItems; // Return all fetched items
   } catch (error) {
-    console.error('Error fetching MRs:', error);
+    console.error('Error in paginated fetchMRData (outer catch):', error);
     return [];
   }
 };
@@ -148,18 +259,39 @@ export const initializeData = async () => {
 
 // Fetch aggregated dashboard data using views
 export const fetchDashboardOrders = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('order_date', { ascending: false });
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('orders') // This is a view
+        .select('*')
+        .order('order_date', { ascending: false }) // Keep existing ordering
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of dashboard orders:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        // console.log('[DataLoad_Debug] Fetching all dashboard orders. Current total:', allItems.length); // Removed
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0;
+      }
+      // Optional: await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
     
-    if (error) throw error;
-    
-    return data.map(order => ({
+    return allItems.map(order => ({
       orderId: order.order_id,
       date: order.order_date,
-      customerId: order.customer_code, // Added customerId mapping
+      customerId: order.customer_code,
       customerName: order.customer_name,
       customerType: order.customer_type,
       city: order.city,
@@ -176,22 +308,44 @@ export const fetchDashboardOrders = async () => {
       lineItemsCount: order.line_items_count
     }));
   } catch (error) {
-    console.error('Error fetching dashboard orders:', error);
+    console.error('Error in paginated fetchDashboardOrders (outer catch):', error);
     return [];
   }
 };
 
 export const fetchProductSalesSummary = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
   try {
-    const { data, error } = await supabase
-      .from('product_sales_summary')
-      .select('*')
-      .order('total_revenue', { ascending: false });
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('product_sales_summary') // This is a view
+        .select('*')
+        .order('total_revenue', { ascending: false }) // Keep existing ordering
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of product_sales_summary:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        // console.log('[DataLoad_Debug] Fetching all product sales summary. Current total:', allItems.length); // Removed
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0;
+      }
+      // Optional: await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
     
-    if (error) throw error;
-    return data;
+    return allItems; // Return all fetched items, no mapping needed here
   } catch (error) {
-    console.error('Error fetching product sales summary:', error);
+    console.error('Error in paginated fetchProductSalesSummary (outer catch):', error);
     return [];
   }
 };
@@ -205,6 +359,43 @@ export const fetchCustomerAnalytics = async () => {
     return data;
   } catch (error) {
     console.error('Error fetching customer analytics:', error);
+    return [];
+  }
+};
+
+export const fetchCustomerAnalyticsTableData = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
+  try {
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('customer_analytics')
+        .select('*')
+        .order('customer_name', { ascending: true }) // Keep existing ordering
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of customer_analytics:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        // console.log('[DataLoad_Debug] Fetching all customer analytics data. Current total:', allItems.length); // Removed
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0;
+      }
+      // Optional: await new Promise(resolve => setTimeout(resolve, 200));
+    } while (lastItemCount === pageSize);
+
+    return allItems; // Return all fetched items
+  } catch (error) {
+    console.error('Error in paginated fetchCustomerAnalyticsTableData (outer catch):', error);
     return [];
   }
 };
