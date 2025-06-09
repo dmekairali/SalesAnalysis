@@ -1,7 +1,8 @@
 // Update MRVisitPlannerDashboard.js to use real data
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Route, Calendar as CalendarIcon } from 'lucide-react';
+//import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Route, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Calendar as CalendarIcon } from 'lucide-react';
 
 // Import your existing components and utilities
 import { COLORS, getVisitPlanAPI } from '../data.js';
@@ -351,7 +352,8 @@ const MRVisitPlannerDashboard = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-              <Route className="h-6 w-6 mr-2 text-green-600" />
+              //<Route className="h-6 w-6 mr-2 text-green-600" />
+               <Navigation className="h-6 w-6 mr-2 text-green-600" />
               MR Visit Planner - AI-Powered Route Optimization
             </h1>
             <p className="text-gray-600">
