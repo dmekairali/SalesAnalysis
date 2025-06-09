@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
-/ Add this import at the top of App.js
+// Add this import at the top of App.js
 import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
 
 // Import modules - Updated paths for Create React App
