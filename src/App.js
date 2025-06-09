@@ -3,7 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
 // Add this import at the top of App.js
-import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
+import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard.js';
 
 // Import modules - Updated paths for Create React App
 import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData } from './data.js';
