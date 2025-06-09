@@ -70,200 +70,220 @@ const AyurvedicDashboard = () => {
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
   const [pendingFilters, setPendingFilters] = useState(filters); // For Apply button functionality
 
-  // Component for MR Visits Tab
-  const VisitsTab = () => {
-    const mrNamesForDropdown = useMemo(() => {
-      if (!mrData) return ["All MRs"]; // Handle mrData not yet loaded
-      const names = [...new Set(mrData.map(mr => mr.name).filter(Boolean))];
-      return ["All MRs", ...names.sort()];
-    }, [mrData]);
+// Component for MR Visits Tab - Fixed Version with Generate Visit Plan Button
+const VisitsTab = () => {
+  const mrNamesForDropdown = useMemo(() => {
+    if (!mrData) return ["All MRs"];
+    const names = [...new Set(mrData.map(mr => mr.name).filter(Boolean))];
+    return ["All MRs", ...names.sort()];
+  }, [mrData]);
 
-    const currentYear = new Date().getFullYear();
-    const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
-    const monthOptions = Array.from({ length: 12 }, (_, i) => ({
-      value: i + 1,
-      label: new Date(0, i).toLocaleString('default', { month: 'long' })
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [currentYear, currentYear - 1, currentYear - 2];
+  const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: new Date(0, i).toLocaleString('default', { month: 'long' })
+  }));
+
+  const handleMRChange = (selectedMrName) => {
+    setMrVisitsFilters(prev => ({
+      ...prev,
+      empName: selectedMrName === "All MRs" ? null : selectedMrName
     }));
+    setCurrentVisitPlan([]);
+    setPlanGenerated(false);
+  };
 
-    const handleMRChange = (selectedMrName) => {
-      setMrVisitsFilters(prev => ({
-        ...prev,
-        empName: selectedMrName === "All MRs" ? null : selectedMrName
-      }));
+  const handleYearChange = (e) => {
+    const year = parseInt(e.target.value);
+    const currentMonth = new Date(mrVisitsFilters.startDate).getMonth() + 1;
+    const newStartDate = new Date(year, currentMonth - 1, 1).toISOString().split('T')[0];
+    const newEndDate = new Date(year, currentMonth, 0).toISOString().split('T')[0];
+    setMrVisitsFilters(prev => ({
+      ...prev,
+      startDate: newStartDate,
+      endDate: newEndDate
+    }));
+    setCurrentVisitPlan([]);
+    setPlanGenerated(false);
+  };
+
+  const handleMonthChange = (e) => {
+    const month = parseInt(e.target.value);
+    const currentYear = new Date(mrVisitsFilters.startDate).getFullYear();
+    const newStartDate = new Date(currentYear, month - 1, 1).toISOString().split('T')[0];
+    const newEndDate = new Date(currentYear, month, 0).toISOString().split('T')[0];
+    setMrVisitsFilters(prev => ({
+      ...prev,
+      startDate: newStartDate,
+      endDate: newEndDate
+    }));
+    setCurrentVisitPlan([]);
+    setPlanGenerated(false);
+  };
+
+  const handleGeneratePlan = () => {
+    const mrName = mrVisitsFilters.empName;
+    if (!mrName) {
+      console.warn("[VisitPlan] No MR selected to generate plan for.");
       setCurrentVisitPlan([]);
       setPlanGenerated(false);
+      return;
+    }
+
+    const dateFromFilter = new Date(mrVisitsFilters.startDate);
+    const month = dateFromFilter.getMonth() + 1;
+    const year = dateFromFilter.getFullYear();
+
+    console.log(`[VisitPlan] Generating plan for ${mrName} for ${month}/${year} using current mrVisitsData count: ${mrVisitsData.length}`);
+
+    const planningParams = {
+      mrName: mrName,
+      month: month,
+      year: year,
+      allMrVisitsDataForMr: mrVisitsData,
+      comprehensiveClientData: comprehensiveClientData,
+      orderData: orderData,
+      productData: productData
     };
 
-    const handleYearChange = (e) => {
-      const year = parseInt(e.target.value);
-      const currentMonth = new Date(mrVisitsFilters.startDate).getMonth() + 1;
-      const newStartDate = new Date(year, currentMonth - 1, 1).toISOString().split('T')[0];
-      const newEndDate = new Date(year, currentMonth, 0).toISOString().split('T')[0];
-      setMrVisitsFilters(prev => ({
-        ...prev,
-        startDate: newStartDate,
-        endDate: newEndDate
-      }));
-      setCurrentVisitPlan([]);
-      setPlanGenerated(false);
-    };
+    const newPlan = generateVisitPlan(planningParams);
+    setCurrentVisitPlan(newPlan || []);
+    setPlanGenerated(true);
+    console.log(`[VisitPlan] Generated plan for ${mrName} for ${month}/${year}. Plan length:`, newPlan?.length);
+  };
 
-    const handleMonthChange = (e) => {
-      const month = parseInt(e.target.value);
-      const currentYear = new Date(mrVisitsFilters.startDate).getFullYear();
-      const newStartDate = new Date(currentYear, month - 1, 1).toISOString().split('T')[0];
-      const newEndDate = new Date(currentYear, month, 0).toISOString().split('T')[0];
-      setMrVisitsFilters(prev => ({
-        ...prev,
-        startDate: newStartDate,
-        endDate: newEndDate
-      }));
-      setCurrentVisitPlan([]);
-      setPlanGenerated(false);
-    };
-
-    const handleGeneratePlan = () => {
-      const mrName = mrVisitsFilters.empName;
-      if (!mrName) {
-        console.warn("[VisitPlan] No MR selected to generate plan for."); // Added prefix for clarity
-        setCurrentVisitPlan([]);
-        setPlanGenerated(false);
-        return;
-      }
-
-      const dateFromFilter = new Date(mrVisitsFilters.startDate);
-      const month = dateFromFilter.getMonth() + 1; // 1-12
-      const year = dateFromFilter.getFullYear();
-
-      console.log(`[VisitPlan] Generating plan for ${mrName} for ${month}/${year} using current mrVisitsData count: ${mrVisitsData.length}`);
-
-      const planningParams = {
-        mrName: mrName,
-        month: month,
-        year: year,
-        allMrVisitsDataForMr: mrVisitsData, // Uses currently filtered past visits for this MR as historical context
-        comprehensiveClientData: comprehensiveClientData,
-        orderData: orderData, // Full orderData
-        productData: productData // Full productData
-      };
-
-      const newPlan = generateVisitPlan(planningParams); // Ensure generateVisitPlan is imported
-      setCurrentVisitPlan(newPlan || []);
-      setPlanGenerated(true);
-      console.log(`[VisitPlan] Generated plan for ${mrName} for ${month}/${year}. Plan length:`, newPlan?.length);
-    };
-
-    return (
-      <div className="space-y-6">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-lg font-semibold mb-3 text-gray-700">Filter MR Visits</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <SearchableDropdown
-                label="Medical Representative"
-                options={mrNamesForDropdown}
-                value={mrVisitsFilters.empName || "All MRs"}
-                onChange={handleMRChange}
-                icon={UserSquare}
-              />
+  return (
+    <div className="space-y-6">
+      {/* Filter Controls */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-3 text-gray-700">Filter MR Visits</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <SearchableDropdown
+              label="Medical Representative"
+              options={mrNamesForDropdown}
+              value={mrVisitsFilters.empName || "All MRs"}
+              onChange={handleMRChange}
+              icon={UserSquare}
+            />
+          </div>
+          <div>
+            <label htmlFor="year-filter" className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+            <div className="relative">
+              <CalendarDays className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <select
+                id="year-filter"
+                value={new Date(mrVisitsFilters.startDate).getFullYear()}
+                onChange={handleYearChange}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+              >
+                {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}
+              </select>
             </div>
-            <div>
-              <label htmlFor="year-filter" className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-              <div className="relative">
-                <CalendarDays className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <select
-                  id="year-filter"
-                  value={new Date(mrVisitsFilters.startDate).getFullYear()}
-                  onChange={handleYearChange}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
-                >
-                  {yearOptions.map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label htmlFor="month-filter" className="block text-sm font-medium text-gray-700 mb-1">Month</label>
-              <div className="relative">
-                <CalendarDays className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <select
-                  id="month-filter"
-                  value={new Date(mrVisitsFilters.startDate).getMonth() + 1}
-                  onChange={handleMonthChange}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
-                >
-                  {monthOptions.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
-                </select>
-              </div>
+          </div>
+          <div>
+            <label htmlFor="month-filter" className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+            <div className="relative">
+              <CalendarDays className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <select
+                id="month-filter"
+                value={new Date(mrVisitsFilters.startDate).getMonth() + 1}
+                onChange={handleMonthChange}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
+              >
+                {monthOptions.map(month => <option key={month.value} value={month.value}>{month.label}</option>)}
+              </select>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="px-4 py-3 border-b">
-            <h3 className="text-md font-semibold">
-              {planGenerated ?
-                `Generated Visit Plan ${mrVisitsFilters.empName ? `for ${mrVisitsFilters.empName}` : ''} (${currentVisitPlan.length} visits)` :
-                `Past Visit Records ${mrVisitsFilters.empName ? `for ${mrVisitsFilters.empName}` : ''} (${mrVisitsData.length} records)`
+      {/* Action Buttons */}
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex-1">
+            <h4 className="text-md font-medium text-gray-800">
+              {mrVisitsFilters.empName ?
+                `Data for ${mrVisitsFilters.empName}` :
+                "Select an MR to view visits or generate a plan"
               }
-            </h3>
-          </div>
-          <div className="overflow-x-auto">
-            {(() => {
-              if (!mrVisitsFilters.empName) {
-                return <p className="text-center text-gray-500 py-10">Please select an MR to view their visits or generate a plan.</p>;
-              }
-              if (!planGenerated) {
-                 // Show past visits table (mrVisitsData)
-                if (mrVisitsData.length === 0) {
-                  return <p className="text-center text-gray-500 py-10">No past visits found for {mrVisitsFilters.empName} in the selected period. Click 'Generate Visit Plan' to create a new plan.</p>;
+            </h4>
+            {mrVisitsFilters.empName && (
+              <p className="text-sm text-gray-600 mt-1">
+                {planGenerated ?
+                  `Showing generated visit plan for ${new Date(mrVisitsFilters.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}` :
+                  `Showing past visits for ${new Date(mrVisitsFilters.startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
                 }
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            {mrVisitsFilters.empName && planGenerated && (
+              <button
+                onClick={() => {
+                  setCurrentVisitPlan([]);
+                  setPlanGenerated(false);
+                }}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-colors text-sm flex items-center shadow-md"
+              >
+                <CalendarDays className="h-4 w-4 mr-2" />
+                View Past Visits
+              </button>
+            )}
+
+            {mrVisitsFilters.empName && (
+              <button
+                onClick={handleGeneratePlan}
+                disabled={!mrVisitsFilters.empName}
+                className={`px-4 py-2 rounded-lg focus:ring-2 transition-colors text-sm flex items-center shadow-md ${
+                  mrVisitsFilters.empName
+                    ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                {planGenerated ? 'Regenerate Visit Plan' : 'Generate Visit Plan'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Results Table */}
+      <div className="bg-white rounded-lg shadow-md">
+        <div className="px-4 py-3 border-b">
+          <h3 className="text-md font-semibold">
+            {planGenerated ?
+              `Generated Visit Plan ${mrVisitsFilters.empName ? `for ${mrVisitsFilters.empName}` : ''} (${currentVisitPlan.length} visits)` :
+              `Past Visit Records ${mrVisitsFilters.empName ? `for ${mrVisitsFilters.empName}` : ''} (${mrVisitsData.length} records)`
+            }
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          {(() => {
+            if (!mrVisitsFilters.empName) {
+              return (
+                <div className="text-center text-gray-500 py-10">
+                  <Map className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-lg font-medium">Select a Medical Representative</p>
+                  <p className="text-sm">Choose an MR from the dropdown above to view their visits or generate a new visit plan.</p>
+                </div>
+              );
+            }
+
+            if (!planGenerated) {
+              if (mrVisitsData.length === 0) {
                 return (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR Name</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Type</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale Amount</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DCR Status</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {mrVisitsData.map(visit => (
-                        <tr key={visit.visitId}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(visit.date).toLocaleDateString()}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.mrName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.clientName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.cityName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.areaName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            {visit.amountOfSale.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              visit.dcrStatus === 'Approved' ? 'bg-green-100 text-green-800' :
-                              visit.dcrStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {visit.dcrStatus}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.workType}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="text-center text-gray-500 py-10">
+                    <CalendarDays className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p className="text-lg font-medium">No past visits found</p>
+                    <p className="text-sm">No visits found for ${mrVisitsFilters.empName} in the selected period.</p>
+                    <p className="text-sm">Click 'Generate Visit Plan' to create a new plan.</p>
+                  </div>
                 );
               }
-              if (planGenerated && currentVisitPlan.length === 0) {
-                return <p className="text-center text-gray-500 py-10">No visits could be planned for the selected criteria.</p>;
-              }
-              // Render the currentVisitPlan table
               return (
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -271,42 +291,95 @@ const AyurvedicDashboard = () => {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR Name</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Status</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Type</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Reason for Visit</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sale Amount</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DCR Status</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentVisitPlan.map((visit, index) => (
-                      <tr key={visit.date + visit.clientCode + index}>
+                    {mrVisitsData.map(visit => (
+                      <tr key={visit.visitId} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(visit.date).toLocaleDateString()}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.mrName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.customerName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.clientName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.cityName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.areaName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {visit.amountOfSale.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              visit.clientStatus === 'NBD' ? 'bg-blue-100 text-blue-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                            {visit.clientStatus}
+                            visit.dcrStatus === 'Approved' ? 'bg-green-100 text-green-800' :
+                            visit.dcrStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {visit.dcrStatus}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.plannedLocation}</td>
-                        <td className="px-6 py-4 text-sm text-gray-700 min-w-[200px] whitespace-pre-wrap break-words">{visit.reason}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.workType}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               );
-            })()}
-          </div>
+            }
+
+            if (planGenerated && currentVisitPlan.length === 0) {
+              return (
+                <div className="text-center text-gray-500 py-10">
+                  <Brain className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-lg font-medium">No visits planned</p>
+                  <p className="text-sm">No visits could be planned for the selected criteria.</p>
+                  <p className="text-sm">Try adjusting the filters or check the data availability.</p>
+                </div>
+              );
+            }
+
+            return (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR Name</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Name</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client Status</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Visit Type</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Reason for Visit</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {currentVisitPlan.map((visit, index) => (
+                    <tr key={visit.date + visit.clientCode + index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(visit.date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.mrName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.customerName}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            visit.clientStatus === 'NBD' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                          {visit.clientStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.visitType}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.plannedLocation}</td>
+                      <td className="px-6 py-4 text-sm text-gray-700 min-w-[200px] whitespace-pre-wrap break-words">{visit.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
-    );
-  };
-
-  useEffect(() => {
+    </div>
+  );
+};
     const loadData = async () => {
       try {
         setLoading(true);
