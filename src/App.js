@@ -1432,7 +1432,7 @@ const AyurvedicDashboard = () => {
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
-        {activeTab === 'visitplanner' && <VisitPlannerVerification />} 
+        {activeTab === 'visitplanner' && <MRVisitPlannerDashboard />}//{activeTab === 'visitplanner' && <VisitPlannerVerification />} 
       </div>
     </div>
   );
