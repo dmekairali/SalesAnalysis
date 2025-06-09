@@ -1000,3 +1000,411 @@ export const autoUpdateCustomerPatterns = async () => {
     return [];
   }
 };
+
+
+//--- new uopdate for visits
+
+// Add these functions to src/data.js
+
+// Visit Planner ML Integration Class
+export class VisitPlannerML {
+  constructor(supabaseClient) {
+    this.supabase = supabaseClient;
+  }
+
+  // Generate visit plan using ML
+  async generateVisitPlan(mrName, month, year) {
+    try {
+      // First calculate customer patterns
+      await this.calculateCustomerPatterns(mrName);
+      
+      // Get visit plan from API
+      const { data, error } = await this.supabase
+        .rpc('get_visit_plan_api', {
+          p_mr_name: mrName,
+          p_month: month,
+          p_year: year
+        });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error generating visit plan:', error);
+      return null;
+    }
+  }
+
+  // Calculate customer patterns
+  async calculateCustomerPatterns(mrName) {
+    try {
+      const { data, error } = await this.supabase
+        .rpc('calculate_customer_patterns', {
+          p_mr_name: mrName
+        });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error calculating customer patterns:', error);
+      return [];
+    }
+  }
+
+  // Get customer predictions
+  async getCustomerPredictions(mrName, month, year) {
+    try {
+      const { data, error } = await this.supabase
+        .rpc('get_customer_predictions', {
+          p_mr_name: mrName,
+          p_target_month: month,
+          p_target_year: year
+        });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error getting customer predictions:', error);
+      return [];
+    }
+  }
+}
+
+// Initialize visit planner ML
+export const visitPlannerML = new VisitPlannerML(supabase);
+
+// Fetch MR list from visits data
+export const fetchMRList = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('mr_visits')
+      .select('mr_name')
+      .not('mr_name', 'is', null)
+      .order('mr_name');
+
+    if (error) throw error;
+    
+    // Get unique MR names
+    const uniqueMRs = [...new Set(data.map(item => item.mr_name))].sort();
+    return uniqueMRs;
+  } catch (error) {
+    console.error('Error fetching MR list:', error);
+    return [];
+  }
+};
+
+// Fetch visit plan by ID
+export const fetchVisitPlanById = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .from('visit_plans')
+      .select(`
+        *,
+        daily_visit_plans (
+          *,
+          planned_visits (*)
+        )
+      `)
+      .eq('id', planId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching visit plan:', error);
+    return null;
+  }
+};
+
+// Update visit plan status
+export const updateVisitPlanStatus = async (planId, status) => {
+  try {
+    const { data, error } = await supabase
+      .from('visit_plans')
+      .update({ plan_status: status })
+      .eq('id', planId);
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating visit plan status:', error);
+    return null;
+  }
+};
+
+// Get MR performance analytics
+export const getMRPerformanceAnalytics = async (mrName, startDate, endDate) => {
+  try {
+    const { data, error } = await supabase
+      .from('mr_visits')
+      .select('*')
+      .eq('mr_name', mrName)
+      .gte('dcrDate', startDate)
+      .lte('dcrDate', endDate)
+      .order('dcrDate', { ascending: false });
+
+    if (error) throw error;
+
+    // Calculate analytics
+    const analytics = {
+      totalVisits: data.length,
+      totalSales: data.reduce((sum, visit) => sum + (parseFloat(visit.amountOfSale) || 0), 0),
+      avgSalesPerVisit: 0,
+      uniqueCustomers: new Set(data.map(v => v.customer_phone)).size,
+      conversionRate: 0,
+      topAreas: {},
+      monthlyTrend: {}
+    };
+
+    if (analytics.totalVisits > 0) {
+      analytics.avgSalesPerVisit = analytics.totalSales / analytics.totalVisits;
+      const salesVisits = data.filter(v => parseFloat(v.amountOfSale) > 0);
+      analytics.conversionRate = (salesVisits.length / analytics.totalVisits) * 100;
+    }
+
+    // Top areas
+    data.forEach(visit => {
+      const area = visit.areaName || 'Unknown';
+      analytics.topAreas[area] = (analytics.topAreas[area] || 0) + 1;
+    });
+
+    // Monthly trend
+    data.forEach(visit => {
+      const month = new Date(visit.dcrDate).toISOString().slice(0, 7);
+      if (!analytics.monthlyTrend[month]) {
+        analytics.monthlyTrend[month] = { visits: 0, sales: 0 };
+      }
+      analytics.monthlyTrend[month].visits += 1;
+      analytics.monthlyTrend[month].sales += parseFloat(visit.amountOfSale) || 0;
+    });
+
+    return analytics;
+  } catch (error) {
+    console.error('Error getting MR performance analytics:', error);
+    return null;
+  }
+};
+
+// Export visit plan to different formats
+export const exportVisitPlan = async (planId, format = 'csv') => {
+  try {
+    const planData = await fetchVisitPlanById(planId);
+    if (!planData) return null;
+
+    switch (format.toLowerCase()) {
+      case 'csv':
+        return exportVisitPlanToCSV(planData);
+      case 'json':
+        return JSON.stringify(planData, null, 2);
+      default:
+        return planData;
+    }
+  } catch (error) {
+    console.error('Error exporting visit plan:', error);
+    return null;
+  }
+};
+
+// Helper function to export to CSV
+const exportVisitPlanToCSV = (planData) => {
+  const headers = [
+    'Date', 'Day', 'Customer Name', 'Customer Type', 'Area', 
+    'Scheduled Time', 'Expected Order Value', 'Priority', 'Phone'
+  ];
+
+  let csvContent = headers.join(',') + '\n';
+
+  planData.daily_visit_plans.forEach(day => {
+    day.planned_visits.forEach(visit => {
+      const row = [
+        day.visit_date,
+        day.day_of_week,
+        `"${visit.customer_name}"`,
+        visit.customer_type || '',
+        visit.area_name || '',
+        visit.scheduled_time || '',
+        visit.expected_order_value || 0,
+        visit.priority_level || '',
+        visit.customer_phone || ''
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+  });
+
+  return csvContent;
+};
+
+// Create area master data from existing visits
+export const createAreaMasterFromVisits = async () => {
+  try {
+    // Get unique areas from visits
+    const { data: areas, error } = await supabase
+      .from('mr_visits')
+      .select('areaName, cityName, pinCode')
+      .not('areaName', 'is', null)
+      .not('cityName', 'is', null);
+
+    if (error) throw error;
+
+    // Group and insert unique areas
+    const uniqueAreas = new Map();
+    areas.forEach(area => {
+      const key = `${area.areaName}-${area.cityName}`;
+      if (!uniqueAreas.has(key)) {
+        uniqueAreas.set(key, {
+          area_name: area.areaName,
+          city: area.cityName,
+          pin_code: area.pinCode
+        });
+      }
+    });
+
+    // Insert areas
+    const { data: insertedAreas, error: insertError } = await supabase
+      .from('area_master')
+      .upsert(Array.from(uniqueAreas.values()), { 
+        onConflict: 'area_name,city,state' 
+      });
+
+    if (insertError) throw insertError;
+    return insertedAreas;
+  } catch (error) {
+    console.error('Error creating area master data:', error);
+    return [];
+  }
+};
+
+// Get visit plan statistics
+export const getVisitPlanStatistics = async (mrName, year) => {
+  try {
+    const { data, error } = await supabase
+      .from('visit_plans')
+      .select('*')
+      .eq('mr_name', mrName)
+      .eq('plan_year', year);
+
+    if (error) throw error;
+
+    const stats = {
+      totalPlans: data.length,
+      totalVisits: data.reduce((sum, plan) => sum + (plan.total_planned_visits || 0), 0),
+      totalRevenue: data.reduce((sum, plan) => sum + (parseFloat(plan.estimated_revenue) || 0), 0),
+      avgEfficiency: 0,
+      plansByStatus: {}
+    };
+
+    if (data.length > 0) {
+      stats.avgEfficiency = data.reduce((sum, plan) => sum + (plan.efficiency_score || 0), 0) / data.length;
+    }
+
+    // Group by status
+    data.forEach(plan => {
+      const status = plan.plan_status || 'UNKNOWN';
+      stats.plansByStatus[status] = (stats.plansByStatus[status] || 0) + 1;
+    });
+
+    return stats;
+  } catch (error) {
+    console.error('Error getting visit plan statistics:', error);
+    return null;
+  }
+};
+
+// Customer location utilities
+export const updateCustomerLocation = async (customerPhone, locationData) => {
+  try {
+    const { data, error } = await supabase
+      .from('customer_locations')
+      .upsert({
+        customer_phone: customerPhone,
+        ...locationData,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'customer_phone' });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating customer location:', error);
+    return null;
+  }
+};
+
+// Get territory coverage for MR
+export const getMRTerritoryCoverage = async (mrName) => {
+  try {
+    const { data, error } = await supabase
+      .from('mr_territories')
+      .select(`
+        *,
+        area_master (*)
+      `)
+      .eq('mr_name', mrName)
+      .eq('is_active', true);
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting MR territory coverage:', error);
+    return [];
+  }
+};
+
+// Analytics for route optimization
+export const getRouteOptimizationAnalytics = async (mrName, month, year) => {
+  try {
+    const { data, error } = await supabase
+      .from('planned_visits')
+      .select(`
+        *,
+        daily_visit_plans!inner (
+          visit_date,
+          visit_plan_id,
+          visit_plans!inner (
+            mr_name,
+            plan_month,
+            plan_year
+          )
+        )
+      `)
+      .eq('daily_visit_plans.visit_plans.mr_name', mrName)
+      .eq('daily_visit_plans.visit_plans.plan_month', month)
+      .eq('daily_visit_plans.visit_plans.plan_year', year);
+
+    if (error) throw error;
+
+    // Calculate route analytics
+    const analytics = {
+      totalVisits: data.length,
+      uniqueAreas: new Set(data.map(v => v.area_name)).size,
+      avgVisitsPerArea: 0,
+      timeDistribution: {},
+      areaEfficiency: {}
+    };
+
+    if (analytics.uniqueAreas > 0) {
+      analytics.avgVisitsPerArea = analytics.totalVisits / analytics.uniqueAreas;
+    }
+
+    // Time distribution
+    data.forEach(visit => {
+      if (visit.scheduled_time) {
+        const hour = visit.scheduled_time.split(':')[0];
+        analytics.timeDistribution[hour] = (analytics.timeDistribution[hour] || 0) + 1;
+      }
+    });
+
+    // Area efficiency
+    data.forEach(visit => {
+      const area = visit.area_name || 'Unknown';
+      if (!analytics.areaEfficiency[area]) {
+        analytics.areaEfficiency[area] = { visits: 0, expectedRevenue: 0 };
+      }
+      analytics.areaEfficiency[area].visits += 1;
+      analytics.areaEfficiency[area].expectedRevenue += parseFloat(visit.expected_order_value) || 0;
+    });
+
+    return analytics;
+  } catch (error) {
+    console.error('Error getting route optimization analytics:', error);
+    return null;
+  }
+};
