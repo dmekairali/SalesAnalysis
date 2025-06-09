@@ -39,34 +39,43 @@ const VisitPlannerVerification = () => {
       updateTest('db_connection', 'error', `Connection failed: ${error.message}`);
     }
 
-    // Test 2: Check if tables exist
-    try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.REACT_APP_SUPABASE_URL,
-        process.env.REACT_APP_SUPABASE_ANON_KEY
-      );
+    -- Fix the table check query in the verification component
 
-      const { data, error } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .like('table_name', '%visit%');
+-- Replace the table check in VisitPlannerVerification.js with this:
 
-      if (error) throw error;
-      
-      const tableNames = data.map(row => row.table_name);
-      const requiredTables = ['visit_plans', 'daily_visit_plans', 'planned_visits', 'customer_visit_patterns'];
-      const missingTables = requiredTables.filter(table => !tableNames.includes(table));
-      
-      if (missingTables.length === 0) {
-        updateTest('tables_exist', 'success', `All tables exist: ${tableNames.join(', ')}`);
-      } else {
-        updateTest('tables_exist', 'warning', `Missing tables: ${missingTables.join(', ')}`);
-      }
-    } catch (error) {
-      updateTest('tables_exist', 'error', `Table check failed: ${error.message}`);
+// Test 2: Check if tables exist (FIXED VERSION)
+try {
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabase = createClient(
+    process.env.REACT_APP_SUPABASE_URL,
+    process.env.REACT_APP_SUPABASE_ANON_KEY
+  );
+
+  // Direct table checks instead of information_schema
+  const tableChecks = await Promise.all([
+    supabase.from('visit_plans').select('count').limit(1),
+    supabase.from('daily_visit_plans').select('count').limit(1), 
+    supabase.from('planned_visits').select('count').limit(1),
+    supabase.from('customer_visit_patterns').select('count').limit(1)
+  ]);
+
+  const failedTables = [];
+  const tableNames = ['visit_plans', 'daily_visit_plans', 'planned_visits', 'customer_visit_patterns'];
+  
+  tableChecks.forEach((result, index) => {
+    if (result.error) {
+      failedTables.push(tableNames[index]);
     }
+  });
+
+  if (failedTables.length === 0) {
+    updateTest('tables_exist', 'success', 'All visit planner tables exist and accessible');
+  } else {
+    updateTest('tables_exist', 'error', `Missing/inaccessible tables: ${failedTables.join(', ')}`);
+  }
+} catch (error) {
+  updateTest('tables_exist', 'error', `Table check failed: ${error.message}`);
+}
 
     // Test 3: Check if functions exist
     try {
