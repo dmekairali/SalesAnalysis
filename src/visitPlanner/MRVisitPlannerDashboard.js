@@ -352,7 +352,6 @@ const MRVisitPlannerDashboard = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-              //<Route className="h-6 w-6 mr-2 text-green-600" />
                <Map className="h-6 w-6 mr-2 text-green-600" />
               MR Visit Planner - AI-Powered Route Optimization
             </h1>
