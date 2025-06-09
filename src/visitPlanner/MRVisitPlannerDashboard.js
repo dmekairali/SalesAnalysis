@@ -1,146 +1,205 @@
-// Step 3: Create src/visitPlanner/MRVisitPlannerDashboard.js
+// Update MRVisitPlannerDashboard.js to use real data
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Route, Calendar as CalendarIcon } from 'lucide-react';
 
 // Import your existing components and utilities
-import { COLORS } from '../data.js';
+import { COLORS, getVisitPlanAPI } from '../data.js';
 import { SearchableDropdown } from '../enhancedFilters.js';
 
 const MRVisitPlannerDashboard = () => {
-  const [selectedMR, setSelectedMR] = useState('Rajesh Kumar');
+  const [selectedMR, setSelectedMR] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [visitPlan, setVisitPlan] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [activeView, setActiveView] = useState('overview'); // overview, calendar, analytics
+  const [activeView, setActiveView] = useState('overview');
   const [selectedDay, setSelectedDay] = useState(null);
+  const [mrList, setMrList] = useState([]);
+  const [loadingMRs, setLoadingMRs] = useState(true);
 
-  // Mock MR list - replace with actual data from your backend
-  const mrList = [
-    'Rajesh Kumar', 'Priya Sharma', 'Amit Patel', 'Sneha Reddy', 
-    'Vikram Singh', 'Anjali Gupta', 'Rohit Jain', 'Kavya Nair'
-  ];
+  // Import Supabase client
+  const { createClient } = require('@supabase/supabase-js');
+  const supabase = createClient(
+    process.env.REACT_APP_SUPABASE_URL,
+    process.env.REACT_APP_SUPABASE_ANON_KEY
+  );
 
-  // Mock function to simulate ML visit plan generation
+  // Fetch MR list from medical_representatives table
+  useEffect(() => {
+    const fetchMRs = async () => {
+      setLoadingMRs(true);
+      try {
+        const { data, error } = await supabase
+          .from('medical_representatives')
+          .select('employee_id, name, territory, is_active')
+          .eq('is_active', true)
+          .order('name');
+
+        if (error) {
+          console.error('Error fetching MRs:', error);
+          // Fallback to mr_visits table if medical_representatives doesn't have data
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('mr_visits')
+            .select('mr_name')
+            .not('mr_name', 'is', null);
+
+          if (!fallbackError && fallbackData) {
+            const uniqueMRs = [...new Set(fallbackData.map(item => item.mr_name))];
+            setMrList(uniqueMRs.sort());
+            if (uniqueMRs.length > 0 && !selectedMR) {
+              setSelectedMR(uniqueMRs[0]);
+            }
+          }
+        } else {
+          const mrNames = data.map(mr => mr.name);
+          setMrList(mrNames);
+          if (mrNames.length > 0 && !selectedMR) {
+            setSelectedMR(mrNames[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchMRs:', error);
+      }
+      setLoadingMRs(false);
+    };
+
+    fetchMRs();
+  }, []);
+
+  // Real function to generate visit plan using your API
   const generateVisitPlan = async () => {
+    if (!selectedMR) {
+      alert('Please select an MR first');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
       
-      // Mock visit plan data
-      const mockPlan = {
-        mrName: selectedMR,
-        month: selectedMonth,
-        year: selectedYear,
-        summary: {
-          totalWorkingDays: 26,
-          totalPlannedVisits: 234,
-          estimatedRevenue: 650000,
-          efficiencyScore: 90,
-          coverageScore: 92
-        },
-        weeklyBreakdown: generateMockWeeklyData(),
-        insights: [
-          {
-            type: 'optimization',
-            title: 'Route Efficiency',
-            value: '85%',
-            description: 'Optimal geographical clustering achieved',
-            recommendation: 'Focus on high-probability customers in Area 2'
-          },
-          {
-            type: 'revenue',
-            title: 'Revenue Potential',
-            value: '₹6.5L',
-            description: 'Expected monthly revenue target',
-            recommendation: 'Prioritize premium product customers'
-          },
-          {
-            type: 'risk',
-            title: 'Churn Prevention',
-            value: '12 customers',
-            description: 'High-risk customers requiring attention',
-            recommendation: 'Schedule retention visits immediately'
-          }
-        ]
-      };
+      // Use your real API function
+      const result = await getVisitPlanAPI(selectedMR, selectedMonth, selectedYear);
+      console.log('API Result:', result);
       
-      setVisitPlan(mockPlan);
+      if (result && result.success) {
+        // Transform the API result to match component expectations
+        const transformedPlan = {
+          mrName: selectedMR,
+          month: selectedMonth,
+          year: selectedYear,
+          summary: {
+            totalWorkingDays: result.summary?.total_working_days || 0,
+            totalPlannedVisits: result.summary?.total_planned_visits || 0,
+            estimatedRevenue: result.summary?.estimated_revenue || 0,
+            efficiencyScore: result.summary?.efficiency_score || 0,
+            coverageScore: 90 // Default for now
+          },
+          weeklyBreakdown: transformDailyPlansToWeekly(result.daily_plans || []),
+          insights: generateInsightsFromData(result)
+        };
+        
+        setVisitPlan(transformedPlan);
+      } else {
+        console.error('Plan generation failed:', result);
+        // Show user-friendly error
+        alert('Plan generation failed. Please check if customer patterns are calculated.');
+      }
     } catch (error) {
       console.error('Error generating visit plan:', error);
+      alert('Error generating visit plan. Please try again.');
     }
     setLoading(false);
   };
 
-  // Generate mock weekly data
-  const generateMockWeeklyData = () => {
+  // Transform daily plans from API to weekly breakdown for display
+  const transformDailyPlansToWeekly = (dailyPlans) => {
+    if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
+
     const weeks = [];
-    for (let week = 1; week <= 4; week++) {
-      const weekData = {
-        week,
-        days: [],
+    let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
+    let weekNumber = 1;
+
+    dailyPlans.forEach((dayPlan, index) => {
+      const dayData = {
+        date: dayPlan.date,
+        dayName: new Date(dayPlan.date).toLocaleDateString('en-US', { weekday: 'short' }),
+        visits: dayPlan.visits || [],
         summary: {
-          totalVisits: 0,
-          estimatedRevenue: 0,
-          areasVisited: new Set()
+          totalVisits: dayPlan.total_visits || 0,
+          estimatedRevenue: dayPlan.estimated_revenue || 0,
+          areasVisited: dayPlan.areas_count || 0,
+          highPriorityVisits: dayPlan.high_priority_visits || 0
         }
       };
 
-      for (let day = 1; day <= 6; day++) { // Monday to Saturday
-        const dayData = {
-          date: `2024-${selectedMonth.toString().padStart(2, '0')}-${((week-1)*7 + day).toString().padStart(2, '0')}`,
-          dayName: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day - 1],
-          visits: generateMockDayVisits(),
-          summary: {
-            totalVisits: Math.floor(Math.random() * 3) + 8, // 8-10 visits per day
-            estimatedRevenue: Math.floor(Math.random() * 10000) + 20000, // 20-30k per day
-            areasVisited: Math.floor(Math.random() * 2) + 2, // 2-3 areas per day
-            highPriorityVisits: Math.floor(Math.random() * 3) + 2 // 2-4 high priority
-          }
+      currentWeek.days.push(dayData);
+      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
+      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
+
+      // If we have 6 days (Mon-Sat) or it's the last day, close the week
+      if (currentWeek.days.length === 6 || index === dailyPlans.length - 1) {
+        weeks.push(currentWeek);
+        weekNumber++;
+        currentWeek = { 
+          week: weekNumber, 
+          days: [], 
+          summary: { totalVisits: 0, estimatedRevenue: 0 } 
         };
-        
-        weekData.days.push(dayData);
-        weekData.summary.totalVisits += dayData.summary.totalVisits;
-        weekData.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
       }
-      
-      weeks.push(weekData);
-    }
+    });
+
     return weeks;
   };
 
-  // Generate mock visits for a day
-  const generateMockDayVisits = () => {
-    const visits = [];
-    const customerTypes = ['Doctor', 'Retailer', 'Stockist'];
-    const areas = ['Bandra West', 'Andheri East', 'Juhu', 'Santacruz'];
-    const priorities = ['HIGH', 'MEDIUM', 'LOW'];
+  // Generate insights from API data
+  const generateInsightsFromData = (apiResult) => {
+    const summary = apiResult.summary || {};
+    const dailyPlans = apiResult.daily_plans || [];
     
-    const visitCount = Math.floor(Math.random() * 3) + 8;
+    const totalRevenue = summary.estimated_revenue || 0;
+    const totalVisits = summary.total_planned_visits || 0;
+    const workingDays = summary.total_working_days || 0;
     
-    for (let i = 0; i < visitCount; i++) {
-      visits.push({
-        id: `visit_${i}`,
-        customerName: `Customer ${i + 1}`,
-        customerType: customerTypes[Math.floor(Math.random() * customerTypes.length)],
-        area: areas[Math.floor(Math.random() * areas.length)],
-        scheduledTime: `${9 + Math.floor(i * 0.8)}:${['00', '30'][Math.floor(Math.random() * 2)]}`,
-        expectedRevenue: Math.floor(Math.random() * 5000) + 1000,
-        priority: priorities[Math.floor(Math.random() * priorities.length)],
-        orderProbability: Math.random() * 0.8 + 0.2,
-        lastVisitDays: Math.floor(Math.random() * 60) + 1,
-        isProspect: Math.random() > 0.8
-      });
-    }
-    
-    return visits.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+    const insights = [];
+
+    // Revenue insight
+    insights.push({
+      type: 'revenue',
+      title: 'Revenue Potential',
+      value: `₹${(totalRevenue / 100000).toFixed(1)}L`,
+      description: `Expected monthly revenue from ${totalVisits} visits`,
+      recommendation: totalRevenue > 500000 ? 'Excellent revenue potential' : 'Focus on high-value customers'
+    });
+
+    // Efficiency insight
+    const avgVisitsPerDay = workingDays > 0 ? (totalVisits / workingDays).toFixed(1) : 0;
+    insights.push({
+      type: 'optimization',
+      title: 'Visit Efficiency',
+      value: `${avgVisitsPerDay}/day`,
+      description: 'Average visits per working day',
+      recommendation: avgVisitsPerDay >= 8 ? 'Optimal visit distribution' : 'Consider increasing daily visits'
+    });
+
+    // Coverage insight
+    const highPriorityCount = dailyPlans.reduce((sum, day) => sum + (day.high_priority_visits || 0), 0);
+    insights.push({
+      type: 'risk',
+      title: 'Priority Customers',
+      value: `${highPriorityCount} visits`,
+      description: 'High-priority customer visits planned',
+      recommendation: 'Focus on retention and relationship building'
+    });
+
+    return insights;
   };
 
   // Generate plan on component mount and when parameters change
   useEffect(() => {
-    generateVisitPlan();
+    if (selectedMR && !loadingMRs) {
+      generateVisitPlan();
+    }
   }, [selectedMR, selectedMonth, selectedYear]);
 
   // Get month name
@@ -292,7 +351,7 @@ const MRVisitPlannerDashboard = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-              <Navigation className="h-6 w-6 mr-2 text-green-600" />
+              <Route className="h-6 w-6 mr-2 text-green-600" />
               MR Visit Planner - AI-Powered Route Optimization
             </h1>
             <p className="text-gray-600">
@@ -303,7 +362,7 @@ const MRVisitPlannerDashboard = () => {
           <div className="flex items-center space-x-4">
             <button
               onClick={generateVisitPlan}
-              disabled={loading}
+              disabled={loading || !selectedMR}
               className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -323,15 +382,22 @@ const MRVisitPlannerDashboard = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Medical Representative
             </label>
-            <select
-              value={selectedMR}
-              onChange={(e) => setSelectedMR(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            >
-              {mrList.map(mr => (
-                <option key={mr} value={mr}>{mr}</option>
-              ))}
-            </select>
+            {loadingMRs ? (
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                Loading MRs...
+              </div>
+            ) : (
+              <select
+                value={selectedMR}
+                onChange={(e) => setSelectedMR(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              >
+                <option value="">Select an MR...</option>
+                {mrList.map(mr => (
+                  <option key={mr} value={mr}>{mr}</option>
+                ))}
+              </select>
+            )}
           </div>
           
           <div>
@@ -379,8 +445,19 @@ const MRVisitPlannerDashboard = () => {
         </div>
       )}
 
+      {/* No MR Selected State */}
+      {!selectedMR && !loading && !loadingMRs && (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Select an MR to Generate Plan</h3>
+          <p className="text-gray-600">
+            Choose a medical representative from the dropdown above to start generating visit plans.
+          </p>
+        </div>
+      )}
+
       {/* Main Content */}
-      {visitPlan && !loading && (
+      {visitPlan && !loading && selectedMR && (
         <>
           {/* View Toggle */}
           <div className="bg-white rounded-lg shadow-md p-4">
@@ -409,14 +486,14 @@ const MRVisitPlannerDashboard = () => {
           {activeView === 'overview' && <OverviewComponent />}
           {activeView === 'analytics' && (
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold mb-4">Analytics Coming Soon</h3>
-              <p className="text-gray-600">Advanced analytics and performance metrics will be available here.</p>
+              <h3 className="text-lg font-semibold mb-4">Advanced Analytics Coming Soon</h3>
+              <p className="text-gray-600">Performance metrics, route analysis, and customer insights will be available here.</p>
             </div>
           )}
         </>
       )}
 
-      {/* Selected Day Detail Modal would go here */}
+      {/* Selected Day Detail Modal */}
       {selectedDay && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-2xl w-full max-h-96 overflow-y-auto">
@@ -432,23 +509,27 @@ const MRVisitPlannerDashboard = () => {
               </button>
             </div>
             <div className="space-y-3">
-              {selectedDay.visits.map((visit, index) => (
-                <div key={index} className="border rounded-lg p-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="font-medium">{visit.customerName}</h4>
-                      <p className="text-sm text-gray-600">{visit.customerType} • {visit.area}</p>
+              {selectedDay.visits && selectedDay.visits.length > 0 ? (
+                selectedDay.visits.map((visit, index) => (
+                  <div key={index} className="border rounded-lg p-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className="font-medium">{visit.customer_name}</h4>
+                        <p className="text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
+                        {visit.priority}
+                      </span>
                     </div>
-                    <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
-                      {visit.priority}
-                    </span>
+                    <div className="text-sm text-gray-600">
+                      <p>Time: {visit.scheduled_time} | Expected: ₹{visit.expected_order_value?.toLocaleString() || 0}</p>
+                      <p>Order Probability: {((visit.order_probability || 0) * 100).toFixed(0)}%</p>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">
-                    <p>Time: {visit.scheduledTime} | Expected: ₹{visit.expectedRevenue.toLocaleString()}</p>
-                    <p>Order Probability: {(visit.orderProbability * 100).toFixed(0)}% | Last visit: {visit.lastVisitDays} days ago</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-gray-500 text-center">No visits planned for this day</p>
+              )}
             </div>
           </div>
         </div>
