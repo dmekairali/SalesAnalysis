@@ -23,8 +23,7 @@ import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.j
 import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
 // Add this import at the top of App.js
 import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
-// In your App.js, temporarily add this for testing
-import VisitPlannerVerification from './visitPlanner/VisitPlannerVerification';
+
 
 const AyurvedicDashboard = () => {
   const [orderData, setOrderData] = useState([]);
@@ -1432,7 +1431,7 @@ const AyurvedicDashboard = () => {
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
-        {activeTab === 'visitplanner' && <MRVisitPlannerDashboard />}//{activeTab === 'visitplanner' && <VisitPlannerVerification />} 
+        {activeTab === 'visitplanner' && <MRVisitPlannerDashboard />}
       </div>
     </div>
   );
