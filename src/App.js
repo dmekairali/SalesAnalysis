@@ -1432,8 +1432,6 @@ const AyurvedicDashboard = () => {
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
-        //{activeTab === 'visitplanner' && <MRVisitPlannerDashboard />} {/* NEW TAB CONTENT */}
-        // In your render method, temporarily replace the visit planner with:
         {activeTab === 'visitplanner' && <VisitPlannerVerification />} 
       </div>
     </div>
