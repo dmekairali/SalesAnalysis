@@ -633,3 +633,370 @@ export const fetchFilteredOrderData = async (filters = {}) => {
     return [];
   }
 };
+
+//------------visits data
+
+// Step 4: Add to src/data.js - Visit Planner data fetching functions
+
+// Add these functions to your existing data.js file:
+
+// Fetch MR visit data
+export const fetchMRVisits = async () => {
+  let allItems = [];
+  let lastItemCount = 0;
+  let offset = 0;
+  const pageSize = 1000;
+
+  try {
+    do {
+      const { data: chunk, error: chunkError } = await supabase
+        .from('mr_visits')
+        .select('*')
+        .order('dcrDate', { ascending: false })
+        .range(offset, offset + pageSize - 1);
+
+      if (chunkError) {
+        console.error('Error fetching chunk of mr_visits:', chunkError);
+        throw chunkError;
+      }
+
+      if (chunk) {
+        allItems = allItems.concat(chunk);
+        lastItemCount = chunk.length;
+        offset += pageSize;
+      } else {
+        lastItemCount = 0;
+      }
+    } while (lastItemCount === pageSize);
+
+    return allItems.map(visit => ({
+      visitId: visit.visitId,
+      empId: visit.empId,
+      empName: visit.empName,
+      dcrDate: visit.dcrDate,
+      clientId: visit.clientId,
+      clientName: visit.clientName,
+      clientMobileNo: visit.clientMobileNo,
+      visitType: visit.visitType,
+      inTime: visit.inTime,
+      outTime: visit.outTime,
+      areaId: visit.areaId,
+      areaName: visit.areaName,
+      cityName: visit.cityName,
+      pinCode: visit.pinCode,
+      amountOfSale: parseFloat(visit.amountOfSale) || 0,
+      amountCollect: parseFloat(visit.amountCollect) || 0,
+      sampleValue: parseFloat(visit.sampleValue) || 0,
+      sampleGiven: visit.sampleGiven,
+      productSale: visit.productSale,
+      dcrStatus: visit.dcrStatus,
+      deviation: visit.deviation,
+      tpDeviationReason: visit.tpDeviationReason,
+      planedTP: visit.planedTP,
+      visitedArea: visit.visitedArea,
+      km: visit.km,
+      imageURL: visit.imageURL,
+      workType: visit.workType,
+      startTime: visit.startTime,
+      endTime: visit.endTime,
+      totalWorkTime: visit.totalWorkTime,
+      asmName: visit.asmName,
+      timeStamp: visit.timeStamp,
+      visitTime: visit.visitTime,
+      designationName: visit.designationName,
+      noOfPlanDoctors: visit.noOfPlanDoctors,
+      noOfPlanRetailers: visit.noOfPlanRetailers,
+      noOfPlanStockists: visit.noOfPlanStockists,
+      planDoctors: visit.planDoctors,
+      planRetailers: visit.planRetailers,
+      planStockists: visit.planStockists,
+      customerPhone: visit.customer_phone,
+      customerName: visit.customer_name,
+      mrName: visit.mr_name,
+      customerType: visit.customer_type
+    }));
+  } catch (error) {
+    console.error('Error in paginated fetchMRVisits:', error);
+    return [];
+  }
+};
+
+// Fetch customer patterns for visit planning
+export const fetchCustomerPatterns = async (mrName = null) => {
+  try {
+    let query = supabase
+      .from('customer_visit_patterns')
+      .select('*');
+    
+    if (mrName) {
+      query = query.eq('mr_name', mrName);
+    }
+    
+    const { data, error } = await query
+      .order('priority_score', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching customer patterns:', error);
+    return [];
+  }
+};
+
+// Get customer predictions for visit planning (calls the stored procedure)
+export const getCustomerPredictions = async (mrName, targetMonth, targetYear) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_customer_predictions', {
+        p_mr_name: mrName,
+        p_target_month: targetMonth,
+        p_target_year: targetYear
+      });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting customer predictions:', error);
+    return [];
+  }
+};
+
+// Create a visit plan (calls the stored procedure)
+export const createVisitPlan = async (mrName, month, year, maxVisitsPerDay = 10) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('create_visit_plan', {
+        p_mr_name: mrName,
+        p_month: month,
+        p_year: year,
+        p_max_visits_per_day: maxVisitsPerDay
+      });
+    
+    if (error) throw error;
+    return data; // Returns the UUID of the created plan
+  } catch (error) {
+    console.error('Error creating visit plan:', error);
+    return null;
+  }
+};
+
+// Get visit plan summary (calls the stored procedure)
+export const getVisitPlanSummary = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_visit_plan_summary', {
+        p_plan_id: planId
+      });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting visit plan summary:', error);
+    return [];
+  }
+};
+
+// Get visit plan API (comprehensive data)
+export const getVisitPlanAPI = async (mrName, month, year) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_visit_plan_api', {
+        p_mr_name: mrName,
+        p_month: month,
+        p_year: year
+      });
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error getting visit plan API:', error);
+    return null;
+  }
+};
+
+// Get ML recommendations for visit planning
+export const getMLVisitRecommendations = async (mrName, targetDate, maxVisits = 10) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('generate_ml_visit_recommendations', {
+        p_mr_name: mrName,
+        p_target_date: targetDate,
+        p_max_visits: maxVisits
+      });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting ML visit recommendations:', error);
+    return [];
+  }
+};
+
+// Calculate customer patterns (calls the stored procedure)
+export const calculateCustomerPatterns = async (mrName = null) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('calculate_customer_patterns', {
+        p_mr_name: mrName
+      });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error calculating customer patterns:', error);
+    return [];
+  }
+};
+
+// Track visit plan performance
+export const trackVisitPlanPerformance = async (planId, actualVisits) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('track_visit_plan_performance', {
+        p_plan_id: planId,
+        p_actual_visits: actualVisits
+      });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error tracking visit plan performance:', error);
+    return [];
+  }
+};
+
+// Fetch visit plans for a specific MR
+export const fetchVisitPlans = async (mrName = null, status = null) => {
+  try {
+    let query = supabase
+      .from('visit_plans')
+      .select('*');
+    
+    if (mrName) {
+      query = query.eq('mr_name', mrName);
+    }
+    
+    if (status) {
+      query = query.eq('plan_status', status);
+    }
+    
+    const { data, error } = await query
+      .order('plan_generated_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching visit plans:', error);
+    return [];
+  }
+};
+
+// Fetch daily visit plans for a specific plan
+export const fetchDailyVisitPlans = async (visitPlanId) => {
+  try {
+    const { data, error } = await supabase
+      .from('daily_visit_plans')
+      .select(`
+        *,
+        planned_visits (*)
+      `)
+      .eq('visit_plan_id', visitPlanId)
+      .order('visit_date', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching daily visit plans:', error);
+    return [];
+  }
+};
+
+// Update visit status
+export const updateVisitStatus = async (visitId, actualVisitTime, actualDuration, actualOrderValue, visitCompleted, feedback = null) => {
+  try {
+    const { data, error } = await supabase
+      .from('planned_visits')
+      .update({
+        actual_visit_time: actualVisitTime,
+        actual_duration_minutes: actualDuration,
+        actual_order_value: actualOrderValue,
+        visit_completed: visitCompleted,
+        visit_feedback: feedback
+      })
+      .eq('id', visitId);
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating visit status:', error);
+    return null;
+  }
+};
+
+// Fetch area master data for route optimization
+export const fetchAreaMaster = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('area_master')
+      .select('*')
+      .eq('is_active', true)
+      .order('area_name', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching area master:', error);
+    return [];
+  }
+};
+
+// Fetch MR territories
+export const fetchMRTerritories = async (mrName = null) => {
+  try {
+    let query = supabase
+      .from('mr_territories')
+      .select('*')
+      .eq('is_active', true);
+    
+    if (mrName) {
+      query = query.eq('mr_name', mrName);
+    }
+    
+    const { data, error } = await query
+      .order('priority_level', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching MR territories:', error);
+    return [];
+  }
+};
+
+// Cleanup route cache
+export const cleanupRouteCache = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('cleanup_route_cache');
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error cleaning up route cache:', error);
+    return 0;
+  }
+};
+
+// Auto update customer patterns
+export const autoUpdateCustomerPatterns = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('auto_update_customer_patterns');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error auto updating customer patterns:', error);
+    return [];
+  }
+};
