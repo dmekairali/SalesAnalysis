@@ -39,9 +39,7 @@ const VisitPlannerVerification = () => {
       updateTest('db_connection', 'error', `Connection failed: ${error.message}`);
     }
 
-    -- Fix the table check query in the verification component
-
--- Replace the table check in VisitPlannerVerification.js with this:
+   
 
 // Test 2: Check if tables exist (FIXED VERSION)
 try {
