@@ -2,9 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
-// Add this import at the top of App.js
-//import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard.js';
-
 // Import modules - Updated paths for Create React App
 import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData } from './data.js';
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
@@ -24,6 +21,8 @@ import {
 } from './components.js';
 import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
 import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
+// Add this import at the top of App.js
+import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
 
 const AyurvedicDashboard = () => {
   const [orderData, setOrderData] = useState([]);
