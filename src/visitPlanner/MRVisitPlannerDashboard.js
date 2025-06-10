@@ -68,6 +68,54 @@ const MRVisitPlannerDashboard = () => {
     fetchMRs();
   }, []);
 
+
+  // Calculate customer breakdown for the entire plan
+  const customerBreakdown = useMemo(() => {
+    if (!visitPlan?.weeklyBreakdown) return null;
+
+    const breakdown = {
+      doctors: 0,
+      retailers: 0,
+      stockists: 0,
+      distributors: 0,
+      prospects: 0,
+      total: 0
+    };
+
+    visitPlan.weeklyBreakdown.forEach(week => {
+      week.days.forEach(day => {
+        if (day.visits && Array.isArray(day.visits)) {
+          day.visits.forEach(visit => {
+            breakdown.total++;
+            if (visit.visit_purpose === 'NEW_BUSINESS_DEVELOPMENT') {
+              breakdown.prospects++;
+            } else {
+              switch (visit.customer_type?.toLowerCase()) {
+                case 'doctor':
+                  breakdown.doctors++;
+                  break;
+                case 'retailer':
+                  breakdown.retailers++;
+                  break;
+                case 'stockist':
+                  breakdown.stockists++;
+                  break;
+                case 'distributor':
+                  breakdown.distributors++;
+                  break;
+                default:
+                  break;
+              }
+            }
+          });
+        }
+      });
+    });
+
+    return breakdown;
+  }, [visitPlan]);
+
+  
   // Real function to generate visit plan using your API
   const generateVisitPlan = async () => {
   if (!selectedMR) {
@@ -255,6 +303,76 @@ insights.push({
 });
 
     return insights;
+  };
+
+
+  / Enhanced Customer Breakdown Cards Component
+  const CustomerBreakdownCards = () => {
+    if (!customerBreakdown) return null;
+
+    const cards = [
+      {
+        title: 'Doctors',
+        count: customerBreakdown.doctors,
+        icon: UserCheck,
+        color: 'bg-blue-50 border-blue-200 text-blue-700',
+        iconColor: 'text-blue-600'
+      },
+      {
+        title: 'Retailers',
+        count: customerBreakdown.retailers,
+        icon: Building2,
+        color: 'bg-green-50 border-green-200 text-green-700',
+        iconColor: 'text-green-600'
+      },
+      {
+        title: 'Stockists',
+        count: customerBreakdown.stockists,
+        icon: Users,
+        color: 'bg-purple-50 border-purple-200 text-purple-700',
+        iconColor: 'text-purple-600'
+      },
+      {
+        title: 'Distributors',
+        count: customerBreakdown.distributors,
+        icon: Building2,
+        color: 'bg-orange-50 border-orange-200 text-orange-700',
+        iconColor: 'text-orange-600'
+      },
+      {
+        title: 'NBD Prospects',
+        count: customerBreakdown.prospects,
+        icon: UserPlus,
+        color: 'bg-teal-50 border-teal-200 text-teal-700',
+        iconColor: 'text-teal-600'
+      }
+    ];
+
+    return (
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <Users className="h-5 w-5 mr-2 text-gray-600" />
+          Customer Distribution ({customerBreakdown.total} Total Visits)
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {cards.map((card, index) => {
+            const Icon = card.icon;
+            const percentage = customerBreakdown.total > 0 ? ((card.count / customerBreakdown.total) * 100).toFixed(1) : 0;
+            
+            return (
+              <div key={index} className={`p-4 rounded-lg border ${card.color}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <Icon className={`h-5 w-5 ${card.iconColor}`} />
+                  <span className="text-xs font-medium">{percentage}%</span>
+                </div>
+                <div className="text-2xl font-bold mb-1">{card.count}</div>
+                <div className="text-sm font-medium">{card.title}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   // Generate plan on component mount and when parameters change
