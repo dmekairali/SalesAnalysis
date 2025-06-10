@@ -118,7 +118,7 @@ const MRVisitPlannerDashboard = () => {
   )).size;
   const highPriorityCount = dailyPlans.reduce((sum, day) => {
     if (day.visits && Array.isArray(day.visits)) {
-      return sum + day.visits.filter(visit => visit.priority_level === 'HIGH').length;
+      return sum + day.visits.filter(visit => visit.priority === 'HIGH').length;
     }
     return sum + (day.high_priority_visits || 0);
   }, 0);
@@ -225,7 +225,7 @@ const MRVisitPlannerDashboard = () => {
     // Priority customers insight - count HIGH priority visits
 const highPriorityCount = dailyPlans.reduce((sum, day) => {
   if (day.visits && Array.isArray(day.visits)) {
-    return sum + day.visits.filter(visit => visit.priority_level === 'HIGH').length;
+    return sum + day.visits.filter(visit => visit.priority === 'HIGH').length;
   }
   return sum + (day.high_priority_visits || 0);
 }, 0);
