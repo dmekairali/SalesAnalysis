@@ -855,11 +855,15 @@ export const getVisitPlanAPI = async (mrName, month, year) => {
     return {
       success: true,
       summary: {
-        total_working_days: planData.total_working_days,
-        total_planned_visits: planData.total_planned_visits,
-        estimated_revenue: planData.estimated_revenue,
-        efficiency_score: planData.efficiency_score
-      },
+  totalWorkingDays: planData.total_working_days,        // Add camelCase
+  total_working_days: planData.total_working_days,      // Keep original
+  totalPlannedVisits: planData.total_planned_visits,    // Add camelCase  
+  total_planned_visits: planData.total_planned_visits,  // Keep original
+  estimatedRevenue: planData.estimated_revenue,         // Add camelCase
+  estimated_revenue: planData.estimated_revenue,        // Keep original
+  efficiencyScore: planData.efficiency_score,           // Add camelCase
+  efficiency_score: planData.efficiency_score           // Keep original
+},
       daily_plans: planData.daily_visit_plans.map(day => ({
         date: day.visit_date,
         total_visits: day.planned_visits_count,
