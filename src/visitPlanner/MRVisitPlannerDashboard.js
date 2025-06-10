@@ -1,7 +1,7 @@
 // Update MRVisitPlannerDashboard.js to use real data
 
 import React, { useState, useEffect, useMemo } from 'react';
-//import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Route, Calendar as CalendarIcon } from 'lucide-react';
+//import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Route, Calendar as CalendarIcon, UserCheck, Building2, UserPlus } from 'lucide-react';
 import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon } from 'lucide-react';
 
 // Import your existing components and utilities
@@ -26,50 +26,7 @@ const MRVisitPlannerDashboard = () => {
     process.env.REACT_APP_SUPABASE_ANON_KEY
   );
 
-  // Fetch MR list from medical_representatives table
-  useEffect(() => {
-    const fetchMRs = async () => {
-      setLoadingMRs(true);
-      try {
-        const { data, error } = await supabase
-          .from('medical_representatives')
-          .select('employee_id, name, territory, is_active')
-          .eq('is_active', true)
-          .order('name');
-
-        if (error) {
-          console.error('Error fetching MRs:', error);
-          // Fallback to mr_visits table if medical_representatives doesn't have data
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('mr_visits')
-            .select('mr_name')
-            .not('mr_name', 'is', null);
-
-          if (!fallbackError && fallbackData) {
-            const uniqueMRs = [...new Set(fallbackData.map(item => item.mr_name))];
-            setMrList(uniqueMRs.sort());
-            if (uniqueMRs.length > 0 && !selectedMR) {
-              setSelectedMR(uniqueMRs[0]);
-            }
-          }
-        } else {
-          const mrNames = data.map(mr => mr.name);
-          setMrList(mrNames);
-          if (mrNames.length > 0 && !selectedMR) {
-            setSelectedMR(mrNames[0]);
-          }
-        }
-      } catch (error) {
-        console.error('Error in fetchMRs:', error);
-      }
-      setLoadingMRs(false);
-    };
-
-    fetchMRs();
-  }, []);
-
-
-  // Calculate customer breakdown for the entire plan
+ // Calculate customer breakdown for the entire plan
   const customerBreakdown = useMemo(() => {
     if (!visitPlan?.weeklyBreakdown) return null;
 
@@ -116,6 +73,51 @@ const MRVisitPlannerDashboard = () => {
   }, [visitPlan]);
 
   
+  
+  // Fetch MR list from medical_representatives table
+  useEffect(() => {
+    const fetchMRs = async () => {
+      setLoadingMRs(true);
+      try {
+        const { data, error } = await supabase
+          .from('medical_representatives')
+          .select('employee_id, name, territory, is_active')
+          .eq('is_active', true)
+          .order('name');
+
+        if (error) {
+          console.error('Error fetching MRs:', error);
+          // Fallback to mr_visits table if medical_representatives doesn't have data
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('mr_visits')
+            .select('mr_name')
+            .not('mr_name', 'is', null);
+
+          if (!fallbackError && fallbackData) {
+            const uniqueMRs = [...new Set(fallbackData.map(item => item.mr_name))];
+            setMrList(uniqueMRs.sort());
+            if (uniqueMRs.length > 0 && !selectedMR) {
+              setSelectedMR(uniqueMRs[0]);
+            }
+          }
+        } else {
+          const mrNames = data.map(mr => mr.name);
+          setMrList(mrNames);
+          if (mrNames.length > 0 && !selectedMR) {
+            setSelectedMR(mrNames[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchMRs:', error);
+      }
+      setLoadingMRs(false);
+    };
+
+    fetchMRs();
+  }, []);
+
+
+ 
   // Real function to generate visit plan using your API
   const generateVisitPlan = async () => {
   if (!selectedMR) {
@@ -306,7 +308,34 @@ insights.push({
   };
 
 
-  // Enhanced Customer Breakdown Cards Component
+
+  // Generate plan on component mount and when parameters change
+  useEffect(() => {
+    if (selectedMR && !loadingMRs) {
+      generateVisitPlan();
+    }
+  }, [selectedMR, selectedMonth, selectedYear]);
+
+  // Get month name
+  const getMonthName = (month) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  };
+
+  // Get priority color
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'HIGH': return 'bg-red-100 text-red-800';
+      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
+      case 'LOW': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+    // Enhanced Customer Breakdown Cards Component
   const CustomerBreakdownCards = () => {
     if (!customerBreakdown) return null;
 
@@ -375,31 +404,6 @@ insights.push({
     );
   };
 
-  // Generate plan on component mount and when parameters change
-  useEffect(() => {
-    if (selectedMR && !loadingMRs) {
-      generateVisitPlan();
-    }
-  }, [selectedMR, selectedMonth, selectedYear]);
-
-  // Get month name
-  const getMonthName = (month) => {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month - 1];
-  };
-
-  // Get priority color
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'HIGH': return 'bg-red-100 text-red-800';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
-      case 'LOW': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   // Overview component
   const OverviewComponent = () => (
@@ -457,32 +461,38 @@ insights.push({
         </div>
       </div>
 
-      {/* AI Insights */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <Brain className="h-5 w-5 mr-2 text-purple-600" />
-          AI-Powered Insights & Recommendations
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {visitPlan?.insights?.map((insight, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">{insight.title}</h4>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  insight.type === 'risk' ? 'bg-red-100 text-red-800' :
-                  insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {insight.type.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-2xl font-bold text-gray-900 mb-2">{insight.value}</p>
-              <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
-              <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
-            </div>
-          )) || []}
+      {/* AI Insights and Customer Breakdown */}
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  {/* AI Insights */}
+  <div className="bg-white p-6 rounded-lg shadow-md">
+    <h3 className="text-lg font-semibold mb-4 flex items-center">
+      <Brain className="h-5 w-5 mr-2 text-purple-600" />
+      AI-Powered Insights & Recommendations
+    </h3>
+    <div className="space-y-4">
+      {visitPlan?.insights?.map((insight, index) => (
+        <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-gray-900">{insight.title}</h4>
+            <span className={`px-2 py-1 text-xs rounded-full ${
+              insight.type === 'risk' ? 'bg-red-100 text-red-800' :
+              insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
+              'bg-blue-100 text-blue-800'
+            }`}>
+              {insight.type.toUpperCase()}
+            </span>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 mb-2">{insight.value}</p>
+          <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
+          <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
         </div>
-      </div>
+      )) || []}
+    </div>
+  </div>
+
+  {/* NEW: Customer Breakdown Cards */}
+  <CustomerBreakdownCards />
+</div>
 
       {/* Weekly Calendar Overview */}
       <div className="bg-white p-6 rounded-lg shadow-md">
