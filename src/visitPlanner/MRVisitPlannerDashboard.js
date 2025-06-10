@@ -682,46 +682,84 @@ insights.push({
       )}
 
       {/* Selected Day Detail Modal */}
-      {selectedDay && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 m-4 max-w-2xl w-full max-h-96 overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
-                Visits for {selectedDay.date} ({selectedDay.dayName})
-              </h3>
-              <button
-                onClick={() => setSelectedDay(null)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="space-y-3">
-              {selectedDay.visits && selectedDay.visits.length > 0 ? (
-                selectedDay.visits.map((visit, index) => (
-                  <div key={index} className="border rounded-lg p-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-medium">{visit.customer_name}</h4>
-                        <p className="text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
-                        {visit.priority}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <p>Time: {visit.scheduled_time} | Expected: ₹{visit.expected_order_value?.toLocaleString() || 0}</p>
-                      <p>Order Probability: {((visit.order_probability || 0) * 100).toFixed(0)}%</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 text-center">No visits planned for this day</p>
-              )}
-            </div>
-          </div>
+      
+{selectedDay && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl" style={{ height: '85vh' }}>
+      {/* Modal Header */}
+      <div className="flex justify-between items-center p-6 border-b border-gray-200">
+        <div>
+          <h3 className="text-xl font-semibold">
+            Visits for {selectedDay.date} ({selectedDay.dayName})
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            {selectedDay.visits?.length || 0} visits planned
+          </p>
         </div>
-      )}
+        <button
+          onClick={() => setSelectedDay(null)}
+          className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Modal Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-6" style={{ height: 'calc(85vh - 140px)' }}>
+        <div className="space-y-3">
+          {selectedDay.visits && selectedDay.visits.length > 0 ? (
+            selectedDay.visits.map((visit, index) => (
+              <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="font-semibold text-lg">{visit.customer_name}</h4>
+                    <p className="text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
+                    {visit.priority}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                  <div>
+                    <span className="font-medium">Time:</span> {visit.scheduled_time}
+                  </div>
+                  <div>
+                    <span className="font-medium">Expected:</span> ₹{visit.expected_order_value?.toLocaleString() || 0}
+                  </div>
+                  <div>
+                    <span className="font-medium">Order Probability:</span> {((visit.order_probability || 0) * 100).toFixed(0)}%
+                  </div>
+                  <div>
+                    <span className="font-medium">Purpose:</span> {visit.visit_purpose?.replace('_', ' ') || 'Standard'}
+                  </div>
+                </div>
+                {visit.customer_phone && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <span className="text-sm text-gray-600">📞 {visit.customer_phone}</span>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500 text-center text-lg">No visits planned for this day</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal Footer */}
+      <div className="border-t border-gray-200 px-6 py-4">
+        <button
+          onClick={() => setSelectedDay(null)}
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors ml-auto block"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
