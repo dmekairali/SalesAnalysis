@@ -44,9 +44,7 @@ const MRVisitPlannerDashboard = () => {
         if (day.visits && Array.isArray(day.visits)) {
           day.visits.forEach(visit => {
             breakdown.total++;
-            if (visit.visit_purpose === 'NEW_BUSINESS_DEVELOPMENT') {
-              breakdown.prospects++;
-            } else {
+           
               switch (visit.customer_type?.toLowerCase()) {
                 case 'doctor':
                   breakdown.doctors++;
@@ -60,10 +58,13 @@ const MRVisitPlannerDashboard = () => {
                 case 'distributor':
                   breakdown.distributors++;
                   break;
+                case 'prospect':  
+                  breakdown.prospects++;
+                  break;
                 default:
                   break;
               }
-            }
+            
           });
         }
       });
