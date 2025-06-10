@@ -797,7 +797,7 @@ export const getVisitPlanSummary = async (planId) => {
 };
 
 // Get visit plan API (comprehensive data)
-export const getVisitPlanAPI = async (mrName, month, year) => {
+/*export const getVisitPlanAPI = async (mrName, month, year) => {
   try {
     const { data, error } = await supabase
       .rpc('get_visit_plan_api', {
@@ -811,6 +811,65 @@ export const getVisitPlanAPI = async (mrName, month, year) => {
   } catch (error) {
     console.error('Error getting visit plan API:', error);
     return null;
+  }
+};
+*/
+export const getVisitPlanAPI = async (mrName, month, year) => {
+  try {
+    console.log('Creating visit plan for:', { mrName, month, year });
+    
+    // Call your creation function directly
+    const { data: planId, error: createError } = await supabase
+      .rpc('create_route_optimized_visit_plan', {
+        p_mr_name: mrName,
+        p_month: month,  
+        p_year: year,
+        p_max_visits_per_day: 10,
+        p_min_nbd_per_area: 3
+      });
+
+    if (createError) {
+      console.error('Error creating plan:', createError);
+      return { success: false, error: createError.message };
+    }
+
+    // Now get the plan details
+    const { data: planData, error: fetchError } = await supabase
+      .from('visit_plans')
+      .select(`
+        *,
+        daily_visit_plans (
+          *,
+          planned_visits (*)
+        )
+      `)
+      .eq('id', planId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching plan:', fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    // Transform to expected format
+    return {
+      success: true,
+      summary: {
+        total_working_days: planData.total_working_days,
+        total_planned_visits: planData.total_planned_visits,
+        estimated_revenue: planData.estimated_revenue,
+        efficiency_score: planData.efficiency_score
+      },
+      daily_plans: planData.daily_visit_plans.map(day => ({
+        date: day.visit_date,
+        total_visits: day.planned_visits_count,
+        estimated_revenue: day.estimated_daily_revenue,
+        visits: day.planned_visits
+      }))
+    };
+  } catch (error) {
+    console.error('Error in getVisitPlanAPI:', error);
+    return { success: false, error: error.message };
   }
 };
 
