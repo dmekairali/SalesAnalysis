@@ -306,7 +306,7 @@ insights.push({
   };
 
 
-  / Enhanced Customer Breakdown Cards Component
+  // Enhanced Customer Breakdown Cards Component
   const CustomerBreakdownCards = () => {
     if (!customerBreakdown) return null;
 
