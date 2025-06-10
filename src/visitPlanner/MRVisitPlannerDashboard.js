@@ -70,48 +70,73 @@ const MRVisitPlannerDashboard = () => {
 
   // Real function to generate visit plan using your API
   const generateVisitPlan = async () => {
-    if (!selectedMR) {
-      alert('Please select an MR first');
+  if (!selectedMR) {
+    alert('Please select an MR first');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    console.log('Creating plan for:', { selectedMR, selectedMonth, selectedYear });
+    
+    // Step 1: Create the plan
+    const { error: createError } = await supabase.rpc('create_route_optimized_visit_plan', {
+      p_mr_name: selectedMR,
+      p_month: selectedMonth,
+      p_year: selectedYear,
+      p_max_visits_per_day: 10,
+      p_min_nbd_per_area: 3
+    });
+
+    if (createError) {
+      console.error('Error creating plan:', createError);
+      alert('Error creating visit plan: ' + createError.message);
       return;
     }
 
-    setLoading(true);
-    try {
-      console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
-      
-      // Use your real API function
-      const result = await getVisitPlanAPI(selectedMR, selectedMonth, selectedYear);
-      console.log('API Result:', result);
-      
-      if (result && result.success) {
-        // Transform the API result to match component expectations
-        const transformedPlan = {
-          mrName: selectedMR,
-          month: selectedMonth,
-          year: selectedYear,
-          summary: {
-            totalWorkingDays: result.summary?.total_working_days || 0,
-            totalPlannedVisits: result.summary?.total_planned_visits || 0,
-            estimatedRevenue: result.summary?.estimated_revenue || 0,
-            efficiencyScore: result.summary?.efficiency_score || 0,
-            coverageScore: 90 // Default for now
-          },
-          weeklyBreakdown: transformDailyPlansToWeekly(result.daily_plans || []),
-          insights: generateInsightsFromData(result)
-        };
-        
-        setVisitPlan(transformedPlan);
-      } else {
-        console.error('Plan generation failed:', result);
-        // Show user-friendly error
-        alert('Plan generation failed. Please check if customer patterns are calculated.');
-      }
-    } catch (error) {
-      console.error('Error generating visit plan:', error);
-      alert('Error generating visit plan. Please try again.');
+    // Step 2: Get the plan details
+    const { data, error: fetchError } = await supabase.rpc('get_visit_plan_api', {
+      p_mr_name: selectedMR,
+      p_month: selectedMonth,
+      p_year: selectedYear
+    });
+
+    if (fetchError) {
+      console.error('Error fetching plan:', fetchError);
+      alert('Error fetching visit plan: ' + fetchError.message);
+      return;
     }
-    setLoading(false);
-  };
+
+    console.log('API Result:', data);
+    
+    if (data && data.success) {
+      const transformedPlan = {
+        mrName: selectedMR,
+        month: selectedMonth,
+        year: selectedYear,
+        summary: {
+          totalWorkingDays: data.summary?.total_working_days || 0,  // This should fix the 0 working days
+          totalPlannedVisits: data.summary?.total_planned_visits || 0,
+          estimatedRevenue: data.summary?.estimated_revenue || 0,
+          efficiencyScore: data.summary?.efficiency_score || 0,
+          coverageScore: 90
+        },
+        weeklyBreakdown: transformDailyPlansToWeekly(data.daily_plans || []),
+        insights: generateInsightsFromData(data)
+      };
+      
+      setVisitPlan(transformedPlan);
+      console.log('Plan created successfully:', transformedPlan);
+    } else {
+      console.error('Plan generation failed:', data);
+      alert('Plan generation failed. Please try again.');
+    }
+  } catch (error) {
+    console.error('Error generating visit plan:', error);
+    alert('Error generating visit plan: ' + error.message);
+  }
+  setLoading(false);
+};
 
   // Transform daily plans from API to weekly breakdown for display
   const transformDailyPlansToWeekly = (dailyPlans) => {
