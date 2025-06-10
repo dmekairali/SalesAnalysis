@@ -1076,26 +1076,75 @@ export class VisitPlannerML {
   }
 
   // Generate visit plan using ML
-  async generateVisitPlan(mrName, month, year) {
-    try {
-      // First calculate customer patterns
-      await this.calculateCustomerPatterns(mrName);
-      
-      // Get visit plan from API
-      const { data, error } = await this.supabase
-        .rpc('get_visit_plan_api', {
-          p_mr_name: mrName,
-          p_month: month,
-          p_year: year
-        });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error generating visit plan:', error);
-      return null;
-    }
+  const generateVisitPlan = async () => {
+  if (!selectedMR) {
+    alert('Please select an MR first');
+    return;
   }
+
+  setLoading(true);
+  try {
+    console.log('Creating plan for:', { selectedMR, selectedMonth, selectedYear });
+    
+    // Step 1: Create the plan
+    const { error: createError } = await supabase.rpc('create_route_optimized_visit_plan', {
+      p_mr_name: selectedMR,
+      p_month: selectedMonth,
+      p_year: selectedYear,
+      p_max_visits_per_day: 10,
+      p_min_nbd_per_area: 3
+    });
+
+    if (createError) {
+      console.error('Error creating plan:', createError);
+      alert('Error creating visit plan: ' + createError.message);
+      return;
+    }
+
+    // Step 2: Get the plan details
+    const { data, error: fetchError } = await supabase.rpc('get_visit_plan_api', {
+      p_mr_name: selectedMR,
+      p_month: selectedMonth,
+      p_year: selectedYear
+    });
+
+    if (fetchError) {
+      console.error('Error fetching plan:', fetchError);
+      alert('Error fetching visit plan: ' + fetchError.message);
+      return;
+    }
+
+    console.log('API Result:', data);
+    
+    if (data && data.success) {
+      // Transform the API result to match component expectations
+      const transformedPlan = {
+        mrName: selectedMR,
+        month: selectedMonth,
+        year: selectedYear,
+        summary: {
+          totalWorkingDays: data.summary?.total_working_days || 0,
+          totalPlannedVisits: data.summary?.total_planned_visits || 0,
+          estimatedRevenue: data.summary?.estimated_revenue || 0,
+          efficiencyScore: data.summary?.efficiency_score || 0,
+          coverageScore: 90 // Default for now
+        },
+        weeklyBreakdown: transformDailyPlansToWeekly(data.daily_plans || []),
+        insights: generateInsightsFromData(data)
+      };
+      
+      setVisitPlan(transformedPlan);
+      console.log('Plan created successfully:', transformedPlan);
+    } else {
+      console.error('Plan generation failed:', data);
+      alert('Plan generation failed. Please try again.');
+    }
+  } catch (error) {
+    console.error('Error generating visit plan:', error);
+    alert('Error generating visit plan: ' + error.message);
+  }
+  setLoading(false);
+};
 
   // Calculate customer patterns
   async calculateCustomerPatterns(mrName) {
