@@ -119,7 +119,7 @@ const MRVisitPlannerDashboard = () => {
           totalPlannedVisits: data.summary?.total_planned_visits || 0,
           estimatedRevenue: data.summary?.estimated_revenue || 0,
           efficiencyScore: data.summary?.efficiency_score || 0,
-          coverageScore: 90
+          coverageScore: Math.min(100, (totalAreas * 4) + (highPriorityCount * 2) + (totalVisits > 180 ? 20 : 10))
         },
         weeklyBreakdown: transformDailyPlansToWeekly(data.daily_plans || []),
         insights: generateInsightsFromData(data)
@@ -209,14 +209,37 @@ const MRVisitPlannerDashboard = () => {
     });
 
     // Coverage insight
-    const highPriorityCount = dailyPlans.reduce((sum, day) => sum + (day.high_priority_visits || 0), 0);
-    insights.push({
-      type: 'risk',
-      title: 'Priority Customers',
-      value: `${highPriorityCount} visits`,
-      description: 'High-priority customer visits planned',
-      recommendation: 'Focus on retention and relationship building'
-    });
+    // Priority customers insight - count HIGH priority visits
+const highPriorityCount = dailyPlans.reduce((sum, day) => {
+  if (day.visits && Array.isArray(day.visits)) {
+    return sum + day.visits.filter(visit => visit.priority_level === 'HIGH').length;
+  }
+  return sum + (day.high_priority_visits || 0);
+}, 0);
+    
+    // Priority Customers insight
+insights.push({
+  type: 'risk',
+  title: 'Priority Customers',
+  value: `${highPriorityCount} visits`,
+  description: 'High-priority customer visits planned',
+  recommendation: highPriorityCount > 20 ? 'Excellent priority coverage' : 'Consider adding more high-priority visits'
+});
+
+// Dynamic Coverage Score based on areas and visit distribution
+const totalAreas = new Set(dailyPlans.flatMap(day => 
+  day.visits ? day.visits.map(v => v.area_name).filter(Boolean) : []
+)).size;
+
+const coverageScore = Math.min(100, (totalAreas * 4) + (highPriorityCount * 2) + (totalVisits > 180 ? 20 : 10));
+
+insights.push({
+  type: 'coverage',
+  title: 'Territory Coverage',
+  value: `${coverageScore}%`,
+  description: `Covering ${totalAreas} areas with ${totalVisits} total visits`,
+  recommendation: coverageScore > 85 ? 'Excellent territory coverage' : 'Consider expanding area coverage'
+});
 
     return insights;
   };
