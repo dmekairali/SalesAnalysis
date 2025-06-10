@@ -110,6 +110,19 @@ const MRVisitPlannerDashboard = () => {
     console.log('API Result:', data);
     
     if (data && data.success) {
+       // Calculate variables FIRST
+  const dailyPlans = data.daily_plans || [];
+  const totalVisits = data.summary?.total_planned_visits || 0;
+  const totalAreas = new Set(dailyPlans.flatMap(day => 
+    day.visits ? day.visits.map(v => v.area_name).filter(Boolean) : []
+  )).size;
+  const highPriorityCount = dailyPlans.reduce((sum, day) => {
+    if (day.visits && Array.isArray(day.visits)) {
+      return sum + day.visits.filter(visit => visit.priority_level === 'HIGH').length;
+    }
+    return sum + (day.high_priority_visits || 0);
+  }, 0);
+      
       const transformedPlan = {
         mrName: selectedMR,
         month: selectedMonth,
