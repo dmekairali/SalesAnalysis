@@ -1434,7 +1434,7 @@ const AyurvedicDashboard = () => {
         {activeTab === 'products' && <ProductsTab />}
         {activeTab === 'customers' && <CustomersTab />}
         {activeTab === 'visitplanner' && <MRVisitPlannerDashboard />}
-        {activeTab === 'gemini-setup' && <GeminiCoordinateIntegration />} // ADD THIS 
+        
       </div>
     </div>
   );
