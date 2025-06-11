@@ -1566,7 +1566,7 @@ export const getAreasNeedingCoordinates = async (mrName) => {
 export const saveGeminiCoordinates = async (mrName, areaData) => {
   try {
     const { data, error } = await supabase.rpc('save_gemini_coordinates', {
-       p_mr_name: mrName,
+      p_mr_name: mrName,
       p_area_name: areaData.area_name,
       p_city: areaData.city,
       p_state: areaData.state,
@@ -1584,7 +1584,9 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
       p_travel_notes: areaData.travel_notes,
       p_total_estimated_customers: areaData.total_estimated_customers,
       p_avg_order_value: areaData.avg_order_value,
-      p_total_revenue: areaData.total_revenue
+      p_total_revenue: areaData.total_revenue,
+      p_primary_city: areaData.primary_city,
+      p_primary_state: areaData.primary_state
     });
     if (error) throw error;
     return data;
@@ -2102,15 +2104,29 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
     console.log(`📍 Saving ${clusteringType} clustering data for MR:`, mrName);
     console.log('📊 Clustering data:', clusteringData);
 
-    if (!clusteringData || !clusteringData.clusters) {
-      throw new Error('Invalid clustering data - missing clusters array');
+    // Handle both array format and object format
+    let clusters = [];
+    if (Array.isArray(clusteringData)) {
+      // Direct array format (like your current response)
+      clusters = clusteringData;
+      console.log('📋 Detected array format - using directly');
+    } else if (clusteringData && clusteringData.clusters && Array.isArray(clusteringData.clusters)) {
+      // Object format with clusters property
+      clusters = clusteringData.clusters;
+      console.log('📋 Detected object format - extracting clusters array');
+    } else {
+      throw new Error('Invalid clustering data - must be an array or object with clusters array');
+    }
+
+    if (clusters.length === 0) {
+      throw new Error('No clusters found in clustering data');
     }
 
     const savePromises = [];
     let totalAreas = 0;
 
     // Process each cluster
-    clusteringData.clusters.forEach((cluster, clusterIndex) => {
+    clusters.forEach((cluster, clusterIndex) => {
       const clusterId = cluster.cluster_id || clusterIndex + 1;
       
       console.log(`🔄 Processing cluster ${clusterId}: ${cluster.cluster_name}`);
@@ -2156,6 +2172,10 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
           travel_notes: cluster.travel_notes || null,
           total_estimated_customers: cluster.total_estimated_customers || 0,
           
+          // Add primary city/state
+          primary_city: cluster.primary_city || city,
+          primary_state: cluster.primary_state || state,
+          
           // Default values for now
           avg_order_value: 0,
           total_revenue: 0
@@ -2196,8 +2216,8 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
 
     console.log(`📊 ${clusteringType} Save Summary: ${successCount} successful, ${errorCount} failed`);
     
-    // Log coverage summary if available
-    if (clusteringData.coverage_summary) {
+    // Log coverage summary if available (for object format)
+    if (!Array.isArray(clusteringData) && clusteringData.coverage_summary) {
       console.log('🌍 Coverage Summary:', clusteringData.coverage_summary);
     }
 
@@ -2207,8 +2227,8 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
       totalAreas,
       successfulSaves: successCount,
       failedSaves: errorCount,
-      totalClusters: clusteringData.clusters.length,
-      coverageSummary: clusteringData.coverage_summary || null
+      totalClusters: clusters.length,
+      coverageSummary: !Array.isArray(clusteringData) ? clusteringData.coverage_summary : null
     };
 
   } catch (error) {
