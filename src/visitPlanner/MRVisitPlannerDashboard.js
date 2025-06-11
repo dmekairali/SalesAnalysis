@@ -14,7 +14,10 @@ import { COLORS,
   runCompleteGeminiIntegration,
   createGeminiIntelligentClusters,
   getGeminiClusterResults,
-  createGeminiOptimizedVisitPlan } from '../data.js';
+  createGeminiOptimizedVisitPlan,
+  saveGeminiCoordinates, // Existing function
+  saveClusteringToAreaCoordinates // New unified function
+} from '../data.js';
 import { SearchableDropdown } from '../enhancedFilters.js';
 
 const MRVisitPlannerDashboard = () => {
