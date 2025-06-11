@@ -254,7 +254,7 @@ const generateVisitPlan = async () => {
       p_mr_name: selectedMR,
       p_month: selectedMonth,
       p_year: selectedYear,
-      p_max_visits_per_day: 50,
+      p_max_visits_per_day: 15,
       p_min_nbd_per_area: 2
     });
     
