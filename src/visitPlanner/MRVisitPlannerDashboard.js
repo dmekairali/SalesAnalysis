@@ -235,6 +235,7 @@ useEffect(() => {
   setLoading(false);
 };
 */
+  /*
 // Enhanced function with Gemini integration
 // Replace the existing generateVisitPlan function with this:
 const generateVisitPlan = async () => {
@@ -292,8 +293,93 @@ const generateVisitPlan = async () => {
   }
   setLoading(false);
 };
+*/
+const generateVisitPlan = async () => {
+  if (!selectedMR) {
+    alert('Please select an MR first');
+    return;
+  }
 
+  setLoading(true);
+  try {
+    console.log('🎯 Generating plan with clustering mode:', clusteringMode);
+    console.log('🎯 Parameters:', { selectedMR, selectedMonth, selectedYear });
+    
+    let planId;
+    
+    if (clusteringMode === 'gemini') {
+      console.log('🤖 Using Gemini AI clustering...');
+      
+      // Step 1: Create Gemini clusters
+      console.log('🤖 Creating Gemini intelligent clusters...');
+      const geminiClusterData = await createGeminiIntelligentClusters(selectedMR);
+      
+      if (geminiClusterData && geminiClusterData.clusters) {
+        // Step 2: Save Gemini clustering to area_coordinates
+        console.log('💾 Saving Gemini clustering to area_coordinates...');
+        const saveResult = await saveClusteringToAreaCoordinates(
+          selectedMR, 
+          geminiClusterData.clusters, 
+          'gemini'
+        );
+        console.log('✅ Gemini clustering saved:', saveResult);
+      }
+      
+      // Step 3: Create optimized visit plan
+      planId = await createGeminiOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
+      console.log('✅ Gemini AI clustering completed');
+      
+    } else {
+      console.log('📊 Using algorithm clustering...');
+      
+      // Step 1: Create algorithm-based clusters
+      // You might need to call your algorithm clustering function here
+      // const algorithmClusterData = await createAlgorithmClusters(selectedMR);
+      
+      // For now, using the existing area-optimized plan which should handle clustering
+      planId = await createAreaOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
+      console.log('✅ Algorithm clustering completed');
+    }
+    
+    if (planId) {
+      console.log('📋 Getting plan details for ID:', planId);
+      const planDetails = await getVisitPlanDetails(planId);
+      
+      if (planDetails) {
+        console.log('🔧 Getting daily breakdown...');
+        const dailyBreakdown = await getDailyBreakdown(planId);
+        
+        // Transform to component format
+        const transformedPlan = {
+          mrName: selectedMR,
+          month: selectedMonth,
+          year: selectedYear,
+          summary: {
+            totalWorkingDays: planDetails.total_working_days || 25,
+            totalPlannedVisits: planDetails.total_planned_visits || 0,
+            estimatedRevenue: planDetails.estimated_revenue || 0,
+            efficiencyScore: planDetails.efficiency_score || 0,
+            coverageScore: 90
+          },
+          weeklyBreakdown: dailyBreakdown,
+          insights: generateInsightsFromPlan(planDetails)
+        };
+        
+        console.log('✅ Transformed plan:', transformedPlan);
+        setVisitPlan(transformedPlan);
+        console.log('✅ Visit plan generated successfully');
+      }
+    } else {
+      console.error('❌ No plan ID returned');
+    }
+  } catch (error) {
+    console.error('💥 Error generating visit plan:', error);
+    alert('Error generating visit plan. Check console for details.');
+  }
+  setLoading(false);
+};
 
+  
   // Add this function inside your MRVisitPlannerDashboard component
 const generateInsightsFromPlan = (planDetails) => {
   const insights = [];
