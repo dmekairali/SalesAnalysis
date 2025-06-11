@@ -1836,9 +1836,7 @@ export const createGeminiIntelligentClusters = async (mrName, apiKey = null) => 
     const areaList = areas.map(a => a.area_name).join(', ');
     
     // Step 2: Create Gemini prompt for intelligent clustering
-    const prompt = `
-I have an MR (Medical Representative) named "${mrName}" who needs to visit customers in these areas around Ghaziabad, Uttar Pradesh, India:
-
+   const prompt = `I have an MR (Medical Representative) named ${mrName} who needs to visit customers in these areas in India:
 ${areaList}
 
 Please create 3-4 optimal geographic clusters for visit planning based on:
@@ -1848,8 +1846,8 @@ Please create 3-4 optimal geographic clusters for visit planning based on:
 4. Logical route optimization for daily visits
 
 For each cluster, provide:
-- Cluster name (geographic description)
-- Areas included in the cluster
+- Cluster name (geographic description including city/state)
+- Areas included in the cluster with their city and state
 - Recommended visit sequence within cluster
 - Estimated travel time between areas
 - Best day(s) of week to focus on this cluster
@@ -1859,18 +1857,36 @@ Return ONLY a valid JSON object in this exact format:
   "clusters": [
     {
       "cluster_id": 1,
-      "cluster_name": "Central Ghaziabad Cluster",
-      "areas": ["AREA1", "AREA2", "AREA3"],
-      "visit_sequence": ["AREA1", "AREA2", "AREA3"],
+      "cluster_name": "Central Delhi Business Cluster",
+      "areas": [
+        {
+          "area_name": "AREA1",
+          "city": "Delhi",
+          "state": "Delhi"
+        },
+        {
+          "area_name": "AREA2", 
+          "city": "Delhi",
+          "state": "Delhi"
+        }
+      ],
+      "visit_sequence": ["AREA1", "AREA2"],
       "estimated_travel_time_minutes": 45,
       "recommended_days": ["Monday", "Wednesday"],
       "travel_notes": "Well connected areas with good road network",
       "business_density": "High",
-      "total_estimated_customers": 0
+      "total_estimated_customers": 0,
+      "primary_city": "Delhi",
+      "primary_state": "Delhi"
     }
   ],
   "optimization_notes": "Overall clustering strategy explanation",
-  "total_clusters": 3
+  "total_clusters": 3,
+  "coverage_summary": {
+    "total_areas": 0,
+    "cities_covered": [],
+    "states_covered": []
+  }
 }
 
 No additional text, just the JSON.`;
@@ -2081,96 +2097,80 @@ export const createGeminiOptimizedVisitPlan = async (mrName, month, year, target
 //-------------------unified
 
 // Unified function to save clustering data to area_coordinates using existing RPC
-// Updated unified function to save clustering data with all cluster information
 export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, clusteringType = 'algorithm') => {
   try {
     console.log(`📍 Saving ${clusteringType} clustering data for MR:`, mrName);
     console.log('📊 Clustering data:', clusteringData);
 
-    if (!clusteringData || !Array.isArray(clusteringData)) {
-      throw new Error('Invalid clustering data - must be an array');
+    if (!clusteringData || !clusteringData.clusters) {
+      throw new Error('Invalid clustering data - missing clusters array');
     }
 
     const savePromises = [];
     let totalAreas = 0;
 
     // Process each cluster
-    clusteringData.forEach((cluster, clusterIndex) => {
+    clusteringData.clusters.forEach((cluster, clusterIndex) => {
       const clusterId = cluster.cluster_id || clusterIndex + 1;
       
-      console.log(`🔄 Processing cluster ${clusterId}:`, cluster);
+      console.log(`🔄 Processing cluster ${clusterId}: ${cluster.cluster_name}`);
 
-      // Get areas from cluster
-      let areas = [];
-      if (cluster.areas && Array.isArray(cluster.areas)) {
-        areas = cluster.areas;
-      } else if (cluster.areas_data && Array.isArray(cluster.areas_data)) {
-        areas = cluster.areas_data.map(area => area.area_name);
-      } else if (cluster.area_names && Array.isArray(cluster.area_names)) {
-        areas = cluster.area_names;
-      }
-
-      if (areas.length === 0) {
-        console.warn(`⚠️ No areas found in cluster ${clusterId}`);
+      if (!cluster.areas || !Array.isArray(cluster.areas)) {
+        console.warn(`⚠️ No areas array found in cluster ${clusterId}`);
         return;
       }
 
       // Save each area in this cluster
-      areas.forEach((areaName, areaIndex) => {
-        if (typeof areaName === 'object' && areaName.area_name) {
-          areaName = areaName.area_name;
-        }
+      cluster.areas.forEach((areaObj, areaIndex) => {
+        const areaName = areaObj.area_name;
+        const city = areaObj.city || cluster.primary_city || 'Unknown';
+        const state = areaObj.state || cluster.primary_state || 'Unknown';
         
-        const cleanAreaName = areaName.toString().trim();
-        if (!cleanAreaName) return;
+        if (!areaName) {
+          console.warn('⚠️ Skipping area with missing name:', areaObj);
+          return;
+        }
 
-        console.log(`📍 Saving area: ${cleanAreaName} → Cluster ${clusterId} (${cluster.cluster_name})`);
-
-        // Find area-specific data
-        const areaSpecificData = cluster.areas_data?.find(
-          area => area.area_name === cleanAreaName
-        ) || {};
+        console.log(`📍 Saving area: ${areaName} (${city}, ${state}) → Cluster ${clusterId}`);
 
         // Get visit sequence order
-        const visitSequenceOrder = cluster.visit_sequence?.indexOf(cleanAreaName) + 1 || areaIndex + 1;
+        const visitSequenceOrder = cluster.visit_sequence?.indexOf(areaName) + 1 || areaIndex + 1;
 
-        // Prepare comprehensive data for saveGeminiCoordinates function
+        // Prepare comprehensive data
         const areaData = {
-          area_name: cleanAreaName,
-          city: areaSpecificData.city || cluster.city || 'Unknown',
-          state: areaSpecificData.state || cluster.state || 'Unknown',
-          latitude: areaSpecificData.latitude || cluster.latitude || null,
-          longitude: areaSpecificData.longitude || cluster.longitude || null,
+          area_name: areaName,
+          city: city,
+          state: state,
+          latitude: areaObj.latitude || null,
+          longitude: areaObj.longitude || null,
           confidence: 0.75,
           business_density: cluster.business_density || 'Medium',
-          nearby_areas: cluster.nearby_areas || [],
+          nearby_areas: [], // Can be populated later if needed
           
           // Cluster-specific data
           cluster_id: clusterId,
-          cluster_name: cluster.cluster_name || `Cluster ${clusterId}`,
+          cluster_name: cluster.cluster_name,
           visit_sequence_order: visitSequenceOrder,
           estimated_travel_time_minutes: cluster.estimated_travel_time_minutes || null,
           recommended_days: cluster.recommended_days || null,
           travel_notes: cluster.travel_notes || null,
-          total_estimated_customers: cluster.total_estimated_customers || null,
+          total_estimated_customers: cluster.total_estimated_customers || 0,
           
-          // Area-specific data
-          avg_order_value: areaSpecificData.avg_order_value || 0,
-          total_revenue: areaSpecificData.total_revenue || 0
+          // Default values for now
+          avg_order_value: 0,
+          total_revenue: 0
         };
 
         // Adjust confidence based on clustering type
         if (clusteringType === 'gemini') {
-          areaData.confidence = cluster.confidence || cluster.priority_score ? 
-            (cluster.priority_score / 100) : 0.75;
+          areaData.confidence = cluster.confidence || 0.75;
         } else {
           areaData.confidence = cluster.efficiency_score ? 
             (cluster.efficiency_score / 100) : 0.80;
         }
 
-        console.log(`📊 Area data for ${cleanAreaName}:`, areaData);
+        console.log(`📊 Enhanced area data for ${areaName}:`, areaData);
 
-        // Use existing saveGeminiCoordinates function
         const savePromise = saveGeminiCoordinates(mrName, areaData);
         savePromises.push(savePromise);
         totalAreas++;
@@ -2195,6 +2195,11 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
     });
 
     console.log(`📊 ${clusteringType} Save Summary: ${successCount} successful, ${errorCount} failed`);
+    
+    // Log coverage summary if available
+    if (clusteringData.coverage_summary) {
+      console.log('🌍 Coverage Summary:', clusteringData.coverage_summary);
+    }
 
     return {
       success: true,
@@ -2202,7 +2207,8 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
       totalAreas,
       successfulSaves: successCount,
       failedSaves: errorCount,
-      totalClusters: clusteringData.length
+      totalClusters: clusteringData.clusters.length,
+      coverageSummary: clusteringData.coverage_summary || null
     };
 
   } catch (error) {
