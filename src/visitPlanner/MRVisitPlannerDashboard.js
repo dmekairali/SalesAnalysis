@@ -765,7 +765,33 @@ insights.push({
             </select>
           </div>
         </div>
-      </div>
+
+              {/* ADD THE CLUSTERING MODE BUTTONS HERE */}
+<div className="flex items-center space-x-4 mt-4">
+  <div className="flex bg-gray-100 rounded-lg p-1">
+    <button 
+      onClick={() => setClusteringMode('gemini')} 
+      className={`px-4 py-2 text-sm rounded-md transition-colors ${
+        clusteringMode === 'gemini' 
+          ? 'bg-purple-600 text-white shadow-sm' 
+          : 'text-gray-600 hover:text-gray-900'
+      }`}
+    > 
+      🤖 Gemini AI Clustering 
+    </button>
+    <button 
+      onClick={() => setClusteringMode('algorithm')} 
+      className={`px-4 py-2 text-sm rounded-md transition-colors ${
+        clusteringMode === 'algorithm' 
+          ? 'bg-blue-600 text-white shadow-sm' 
+          : 'text-gray-600 hover:text-gray-900'
+      }`}
+    > 
+      📊 Algorithm Clustering 
+    </button>
+  </div>
+</div>
+     
 
       {/* Loading State */}
       {loading && (
