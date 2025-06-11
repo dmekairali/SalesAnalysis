@@ -1471,3 +1471,247 @@ export const getRouteOptimizationAnalytics = async (mrName, month, year) => {
     return null;
   }
 };
+
+
+//-----------new optimized with area cluestring
+
+// Add these functions to your existing src/data.js file
+
+// Gemini AI API integration for coordinates using pin_code
+export const getAreaCoordinatesFromGemini = async (areaName, city, pinCode, apiKey) => {
+  // Default to Uttar Pradesh since most areas are likely there, but Gemini will correct if wrong
+  const state = 'Uttar Pradesh';
+  
+  const prompt = `
+  Get the exact latitude and longitude coordinates for "${areaName}" in ${city}, PIN: ${pinCode}, India.
+  Use the PIN code ${pinCode} for precise location identification.
+  Also suggest 3 nearby areas within 15km radius.
+  
+  Return ONLY a valid JSON object in this exact format:
+  {
+    "area_name": "${areaName}",
+    "city": "${city}",
+    "pin_code": "${pinCode}",
+    "state": "[actual state name from PIN code]",
+    "latitude": [decimal number],
+    "longitude": [decimal number],
+    "confidence": [0.0 to 1.0],
+    "nearby_areas": [
+      {"name": "Area Name 1", "distance": "X.X km", "pin_code": "XXXXXX"},
+      {"name": "Area Name 2", "distance": "X.X km", "pin_code": "XXXXXX"},
+      {"name": "Area Name 3", "distance": "X.X km", "pin_code": "XXXXXX"}
+    ],
+    "business_density": "High|Medium|Low"
+  }
+  
+  No additional text, just the JSON.`;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const textResponse = data.candidates[0].content.parts[0].text;
+    
+    // Extract JSON from response
+    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in Gemini response');
+    }
+
+    const coordinateData = JSON.parse(jsonMatch[0]);
+    
+    // Validate required fields
+    if (!coordinateData.latitude || !coordinateData.longitude) {
+      throw new Error('Missing latitude or longitude in response');
+    }
+
+    return coordinateData;
+
+  } catch (error) {
+    console.error('Gemini API Error:', error);
+    throw new Error(`Gemini API failed: ${error.message}`);
+  }
+};
+
+// Get areas needing coordinate updates
+export const getAreasNeedingCoordinates = async (mrName) => {
+  try {
+    const { data, error } = await supabase.rpc('get_areas_needing_coordinates', {
+      p_mr_name: mrName
+    });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting areas needing coordinates:', error);
+    return [];
+  }
+};
+
+// Save Gemini coordinates to Supabase with pin_code
+export const saveGeminiCoordinates = async (mrName, areaData) => {
+  try {
+    const { data, error } = await supabase.rpc('save_gemini_coordinates', {
+      p_mr_name: mrName,
+      p_area_name: areaData.area_name,
+      p_city: areaData.city,
+      p_state: areaData.state,
+      p_pin_code: areaData.pin_code,
+      p_latitude: areaData.latitude,
+      p_longitude: areaData.longitude,
+      p_confidence: areaData.confidence,
+      p_business_density: areaData.business_density,
+      p_nearby_areas_json: areaData.nearby_areas
+    });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error saving coordinates:', error);
+    throw error;
+  }
+};
+
+// Enhanced Gemini integration with environment API key
+export const runCompleteGeminiIntegration = async (mrName, apiKey = null) => {
+  // Use provided API key or fall back to environment variable
+  const geminiApiKey = apiKey || process.env.REACT_APP_GEMINI_API_KEY;
+  
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key not found. Please set REACT_APP_GEMINI_API_KEY in environment variables.');
+  }
+
+  try {
+    // Step 1: Initialize areas from customer data
+    const { data: initData, error: initError } = await supabase.rpc('auto_populate_areas_from_customers', {
+      p_mr_name: mrName
+    });
+    if (initError) throw initError;
+
+    // Step 2: Get areas needing coordinates
+    const areasToProcess = await getAreasNeedingCoordinates(mrName);
+    console.log(`Found ${areasToProcess.length} areas needing coordinates`);
+
+    // Step 3: Process each area with Gemini
+    const results = [];
+    for (const area of areasToProcess.filter(a => a.needs_update)) {
+      try {
+        console.log(`Processing: ${area.area_name}, ${area.city}`);
+        
+        const coordinates = await getAreaCoordinatesFromGemini(
+          area.area_name, 
+          area.city, 
+          area.pin_code,
+          geminiApiKey
+        );
+        
+        await saveGeminiCoordinates(mrName, coordinates);
+        
+        results.push({
+          area_name: area.area_name,
+          status: 'success',
+          coordinates: coordinates
+        });
+        
+        // Delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+      } catch (error) {
+        console.error(`Failed to process ${area.area_name}:`, error);
+        results.push({
+          area_name: area.area_name,
+          status: 'error',
+          error: error.message
+        });
+      }
+    }
+
+    // Step 4: Create optimized clusters with new coordinates
+    await createGeographicClusters(mrName);
+
+    return {
+      success: true,
+      processed: results.length,
+      successful: results.filter(r => r.status === 'success').length,
+      failed: results.filter(r => r.status === 'error').length,
+      results: results
+    };
+
+  } catch (error) {
+    console.error('Gemini integration failed:', error);
+    throw error;
+  }
+};
+
+// Get Gemini integration statistics
+export const getGeminiIntegrationStats = async (mrName) => {
+  try {
+    const { data, error } = await supabase.rpc('get_gemini_integration_stats', {
+      p_mr_name: mrName
+    });
+    if (error) throw error;
+    return data?.[0] || {};
+  } catch (error) {
+    console.error('Error getting integration stats:', error);
+    return {};
+  }
+};
+
+// Validate coordinate quality
+export const validateCoordinateQuality = async (mrName) => {
+  try {
+    const { data, error } = await supabase.rpc('validate_coordinate_quality', {
+      p_mr_name: mrName
+    });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error validating coordinates:', error);
+    return [];
+  }
+};
+
+// Enhanced geographic clustering with real coordinates
+export const createGeographicClusters = async (mrName) => {
+  try {
+    const { data, error } = await supabase.rpc('create_geographic_clusters_simple', {
+      p_mr_name: mrName
+    });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error creating clusters:', error);
+    return [];
+  }
+};
+
+// Create optimized visit plan with Gemini-enhanced coordinates
+export const createOptimizedVisitPlan = async (mrName, month, year, targetVisitsPerDay = 10) => {
+  try {
+    const { data, error } = await supabase.rpc('create_area_optimized_visit_plan', {
+      p_mr_name: mrName,
+      p_month: month,
+      p_year: year,
+      p_target_visits_per_day: targetVisitsPerDay
+    });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating visit plan:', error);
+    throw error;
+  }
+};
