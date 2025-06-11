@@ -1713,3 +1713,93 @@ export const createOptimizedVisitPlan = async (mrName, month, year, targetVisits
     throw error;
   }
 };
+
+
+// Get visit plan details
+export const getVisitPlanDetails = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .from('visit_plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error getting visit plan details:', error);
+    return null;
+  }
+};
+
+// Get daily breakdown for weekly view
+export const getDailyBreakdown = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .from('daily_visit_plans')
+      .select(`
+        *,
+        planned_visits (*)
+      `)
+      .eq('visit_plan_id', planId)
+      .order('visit_date');
+    
+    if (error) throw error;
+    
+    // Group by weeks
+    const weeks = [];
+    let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
+    let weekNumber = 1;
+
+    data.forEach((dayPlan, index) => {
+      const dayData = {
+        date: dayPlan.visit_date,
+        dayName: new Date(dayPlan.visit_date).toLocaleDateString('en-US', { weekday: 'short' }),
+        visits: dayPlan.planned_visits || [],
+        summary: {
+          totalVisits: dayPlan.planned_visits_count || 0,
+          estimatedRevenue: parseFloat(dayPlan.estimated_daily_revenue) || 0,
+          areasVisited: new Set(dayPlan.planned_visits?.map(v => v.area_name) || []).size,
+          highPriorityVisits: dayPlan.planned_visits?.filter(v => v.priority_level === 'HIGH').length || 0
+        }
+      };
+
+      currentWeek.days.push(dayData);
+      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
+      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
+
+      // Close week after 6 days or at end
+      if (currentWeek.days.length === 6 || index === data.length - 1) {
+        weeks.push(currentWeek);
+        weekNumber++;
+        currentWeek = { 
+          week: weekNumber, 
+          days: [], 
+          summary: { totalVisits: 0, estimatedRevenue: 0 } 
+        };
+      }
+    });
+
+    return weeks;
+  } catch (error) {
+    console.error('Error getting daily breakdown:', error);
+    return [];
+  }
+};
+
+// Use the new area-optimized planning function
+export const createAreaOptimizedVisitPlan = async (mrName, month, year, targetVisitsPerDay = 10) => {
+  try {
+    const { data, error } = await supabase.rpc('create_area_optimized_visit_plan', {
+      p_mr_name: mrName,
+      p_month: month,
+      p_year: year,
+      p_target_visits_per_day: targetVisitsPerDay
+    });
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating area-optimized visit plan:', error);
+    throw error;
+  }
+};
