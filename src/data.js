@@ -1475,6 +1475,7 @@ export const getRouteOptimizationAnalytics = async (mrName, month, year) => {
 
 //-----------new optimized with area cluestring
 // Add these functions to your existing src/data.js file
+// Add these functions to your existing src/data.js file
 
 // Gemini AI API integration for coordinates using pin_code
 export const getAreaCoordinatesFromGemini = async (areaName, city, pinCode, apiKey) => {
@@ -1490,15 +1491,14 @@ export const getAreaCoordinatesFromGemini = async (areaName, city, pinCode, apiK
   {
     "area_name": "${areaName}",
     "city": "${city}",
-    "pin_code": "${pinCode}",
     "state": "[actual state name from PIN code]",
     "latitude": [decimal number],
     "longitude": [decimal number],
     "confidence": [0.0 to 1.0],
     "nearby_areas": [
-      {"name": "Area Name 1", "distance": "X.X km", "pin_code": "XXXXXX"},
-      {"name": "Area Name 2", "distance": "X.X km", "pin_code": "XXXXXX"},
-      {"name": "Area Name 3", "distance": "X.X km", "pin_code": "XXXXXX"}
+      {"name": "Area Name 1", "distance": "X.X km"},
+      {"name": "Area Name 2", "distance": "X.X km"},
+      {"name": "Area Name 3", "distance": "X.X km"}
     ],
     "business_density": "High|Medium|Low"
   }
@@ -1506,7 +1506,7 @@ export const getAreaCoordinatesFromGemini = async (areaName, city, pinCode, apiK
   No additional text, just the JSON.`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1562,13 +1562,9 @@ export const getAreasNeedingCoordinates = async (mrName) => {
   }
 };
 
-// Save Gemini coordinates to Supabase with pin_code
-// In data.js, update saveGeminiCoordinates function:
+// Save Gemini coordinates to Supabase - pin_code from existing data
 export const saveGeminiCoordinates = async (mrName, areaData) => {
   try {
-    console.log('Saving coordinates for:', areaData.area_name);
-    console.log('Full areaData:', areaData);
-    
     const { data, error } = await supabase.rpc('save_gemini_coordinates', {
       p_mr_name: mrName,
       p_area_name: areaData.area_name,
@@ -1577,15 +1573,10 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
       p_latitude: areaData.latitude,
       p_longitude: areaData.longitude,
       p_confidence: areaData.confidence,
-      p_pin_code: areaData.pin_code,
       p_business_density: areaData.business_density,
       p_nearby_areas_json: areaData.nearby_areas
     });
-    
-    if (error) {
-      console.error('Supabase RPC error:', error);
-      throw error;
-    }
+    if (error) throw error;
     return data;
   } catch (error) {
     console.error('Error saving coordinates:', error);
