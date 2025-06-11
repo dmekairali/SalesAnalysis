@@ -24,7 +24,6 @@ const MRVisitPlannerDashboard = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [mrList, setMrList] = useState([]);
   const [loadingMRs, setLoadingMRs] = useState(true);
-  // Add state for Gemini integration
   const [geminiStatus, setGeminiStatus] = useState(null);
   const [autoCoordinates, setAutoCoordinates] = useState(false);
   
@@ -287,7 +286,44 @@ const generateVisitPlan = async () => {
 };
 
 
+  // Add this function inside your MRVisitPlannerDashboard component
+const generateInsightsFromPlan = (planDetails) => {
+  const insights = [];
   
+  const totalRevenue = parseFloat(planDetails.estimated_revenue) || 0;
+  const totalVisits = planDetails.total_planned_visits || 0;
+  const workingDays = planDetails.total_working_days || 25;
+  
+  // Revenue insight
+  insights.push({
+    type: 'revenue',
+    title: 'Revenue Potential',
+    value: `₹${(totalRevenue / 100000).toFixed(1)}L`,
+    description: `Expected monthly revenue from ${totalVisits} visits`,
+    recommendation: totalRevenue > 500000 ? 'Excellent revenue potential' : 'Focus on high-value customers'
+  });
+
+  // Efficiency insight
+  const avgVisitsPerDay = workingDays > 0 ? (totalVisits / workingDays).toFixed(1) : 0;
+  insights.push({
+    type: 'optimization',
+    title: 'Visit Efficiency',
+    value: `${avgVisitsPerDay}/day`,
+    description: 'Average visits per working day',
+    recommendation: avgVisitsPerDay >= 8 ? 'Optimal visit distribution' : 'Consider increasing daily visits'
+  });
+
+  // Area coverage insight
+  insights.push({
+    type: 'coverage',
+    title: 'Area Coverage',
+    value: 'Multi-Area',
+    description: 'Optimized geographic clustering',
+    recommendation: 'All customers visited when MR is in area'
+  });
+
+  return insights;
+};
   
   // Transform daily plans from API to weekly breakdown for display
   const transformDailyPlansToWeekly = (dailyPlans) => {
