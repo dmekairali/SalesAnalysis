@@ -23,8 +23,7 @@ import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.j
 import { MedicineWiseAnalytics, PackWiseAnalytics } from './analytics_components.js';
 // Add this import at the top of App.js
 import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
-// Add to your imports at the top of App.js
-import GeminiCoordinateIntegration from './visitPlanner/GeminiCoordinateIntegration';
+
 
 
 const AyurvedicDashboard = () => {
