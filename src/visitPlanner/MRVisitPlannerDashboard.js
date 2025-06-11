@@ -11,7 +11,10 @@ import { COLORS,
   getVisitPlanDetails,
   getDailyBreakdown,
   getGeminiIntegrationStats,
-  runCompleteGeminiIntegration  } from '../data.js';
+  runCompleteGeminiIntegration,
+  createGeminiIntelligentClusters,
+  getGeminiClusterResults,
+  createGeminiOptimizedVisitPlan } from '../data.js';
 import { SearchableDropdown } from '../enhancedFilters.js';
 
 const MRVisitPlannerDashboard = () => {
@@ -26,7 +29,12 @@ const MRVisitPlannerDashboard = () => {
   const [loadingMRs, setLoadingMRs] = useState(true);
   const [geminiStatus, setGeminiStatus] = useState(null);
   const [autoCoordinates, setAutoCoordinates] = useState(false);
+
   
+// Add state for Gemini clusters
+const [geminiClusters, setGeminiClusters] = useState(null);
+const [clusteringMode, setClusteringMode] = useState('gemini'); // 'gemini' or 'algorithm'
+
   // Import Supabase client
   const { createClient } = require('@supabase/supabase-js');
   const supabase = createClient(
@@ -241,17 +249,17 @@ const generateVisitPlan = async () => {
     
     // Step 1: Auto-run Gemini if coordinates incomplete (optional background process)
     try {
-      const stats = await getGeminiIntegrationStats(selectedMR);
-      if (stats.integration_completeness_percent < 80) {
-        console.log('Running background coordinate enhancement...');
-        runCompleteGeminiIntegration(selectedMR).catch(console.warn);
-      }
-    } catch (error) {
-      console.warn('Gemini check failed, continuing with existing data:', error);
-    }
+      let planId;
     
-    // Step 2: Use the NEW area-optimized visit planning
-    const planId = await createAreaOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
+    if (clusteringMode === 'gemini') {
+      // Use Gemini AI clustering
+      planId = await createGeminiOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
+      console.log('✅ Gemini AI clustering completed');
+    } else {
+      // Use algorithm clustering
+      planId = await createAreaOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
+      console.log('✅ Algorithm clustering completed');
+    }
     
     if (planId) {
       // Step 3: Get the plan details
