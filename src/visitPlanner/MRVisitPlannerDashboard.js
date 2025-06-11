@@ -765,6 +765,7 @@ insights.push({
             </select>
           </div>
         </div>
+</div>
 
               {/* ADD THE CLUSTERING MODE BUTTONS HERE */}
 <div className="flex items-center space-x-4 mt-4">
