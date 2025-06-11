@@ -1565,6 +1565,13 @@ export const getAreasNeedingCoordinates = async (mrName) => {
 // Save Gemini coordinates to Supabase - pin_code from existing data
 export const saveGeminiCoordinates = async (mrName, areaData) => {
   try {
+    // 🔍 DEBUG: Check what we're about to send
+    console.log(`🔍 About to save ${areaData.area_name} with cluster_id:`, {
+      cluster_id: areaData.cluster_id,
+      cluster_id_type: typeof areaData.cluster_id,
+      cluster_id_value: JSON.stringify(areaData.cluster_id)
+    });
+
     const { data, error } = await supabase.rpc('save_gemini_coordinates', {
       p_mr_name: mrName,
       p_area_name: areaData.area_name,
