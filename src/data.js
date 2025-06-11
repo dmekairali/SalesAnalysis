@@ -2164,7 +2164,7 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
           nearby_areas: [], // Can be populated later if needed
           
           // Cluster-specific data
-          cluster_id: clusterId,
+          cluster_id: cluster.cluster_id,
           cluster_name: cluster.cluster_name,
           visit_sequence_order: visitSequenceOrder,
           estimated_travel_time_minutes: cluster.estimated_travel_time_minutes || null,
