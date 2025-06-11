@@ -1888,13 +1888,13 @@ No additional text, just the JSON.`;
     }
  
     // 🔍 FIXED DEBUG LOGGING - Convert to JSON first!
-    console.log('🤖 RAW Gemini Response Status:', geminiResponse.status);
-    console.log('🤖 RAW Gemini Response OK:', geminiResponse.ok);
+    console.log('🤖 RAW Gemini Response Status:', response.status);
+    console.log('🤖 RAW Gemini Response OK:', response.ok);
     
     const data = await response.json();
     const textResponse = data.candidates[0].content.parts[0].text;
     
-    console.log('🤖 RAW Gemini Response Data (PARSED):', responseData);
+    console.log('🤖 RAW Gemini Response Data (PARSED):', textResponse);
 
     // Step 4: Extract and parse JSON
     const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
@@ -1904,6 +1904,7 @@ No additional text, just the JSON.`;
 
     const clusterData = JSON.parse(jsonMatch[0]);
     
+    console.log('🤖 clusterData (PARSED):', clusterData);
     // Step 5: Enhance clusters with actual customer counts
     const enhancedClusters = clusterData.clusters.map(cluster => {
       const customerCount = areas
