@@ -52,6 +52,7 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
               { id: 'products', label: 'Product Predictions', icon: Box },
               { id: 'customers', label: 'Customer Intelligence', icon: Users },
               { id: 'visitplanner', label: 'Visit Planner', icon: MapPin } // NEW TAB
+              { id: 'gemini-setup', label: 'Gemini Setup', icon: Brain }
             ].map(tab => (
               <button
                 key={tab.id}
