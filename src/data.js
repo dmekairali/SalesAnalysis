@@ -1886,10 +1886,16 @@ No additional text, just the JSON.`;
     if (!response.ok) {
       throw new Error(`Gemini API error: ${response.status}`);
     }
- console.log('🤖 RAW Gemini Response Data:', response);
+ 
+    // 🔍 FIXED DEBUG LOGGING - Convert to JSON first!
+    console.log('🤖 RAW Gemini Response Status:', geminiResponse.status);
+    console.log('🤖 RAW Gemini Response OK:', geminiResponse.ok);
+    
     const data = await response.json();
     const textResponse = data.candidates[0].content.parts[0].text;
     
+    console.log('🤖 RAW Gemini Response Data (PARSED):', responseData);
+
     // Step 4: Extract and parse JSON
     const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
