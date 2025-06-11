@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus  } from 'lucide-react';
 
 // Import your existing components and utilities
-import { COLORS, getVisitPlanAPI } from '../data.js';
+import { COLORS, getVisitPlanAPI, runCompleteGeminiIntegration, getGeminiIntegrationStats } from '../data.js';
 import { SearchableDropdown } from '../enhancedFilters.js';
 
 const MRVisitPlannerDashboard = () => {
@@ -18,7 +18,10 @@ const MRVisitPlannerDashboard = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [mrList, setMrList] = useState([]);
   const [loadingMRs, setLoadingMRs] = useState(true);
-
+  // Add state for Gemini integration
+  const [geminiStatus, setGeminiStatus] = useState(null);
+  const [autoCoordinates, setAutoCoordinates] = useState(false);
+  
   // Import Supabase client
   const { createClient } = require('@supabase/supabase-js');
   const supabase = createClient(
@@ -26,6 +29,23 @@ const MRVisitPlannerDashboard = () => {
     process.env.REACT_APP_SUPABASE_ANON_KEY
   );
 
+  // Add useEffect to check Gemini status
+useEffect(() => {
+  const checkGeminiStatus = async () => {
+    try {
+      const stats = await getGeminiIntegrationStats(selectedMR);
+      setGeminiStatus(stats);
+      setAutoCoordinates(stats.integration_completeness_percent >= 80);
+    } catch (error) {
+      console.error('Error checking Gemini status:', error);
+    }
+  };
+  
+  if (selectedMR) {
+    checkGeminiStatus();
+  }
+}, [selectedMR]);
+  
  // Calculate customer breakdown for the entire plan
   const customerBreakdown = useMemo(() => {
     if (!visitPlan?.weeklyBreakdown) return null;
@@ -119,7 +139,7 @@ const MRVisitPlannerDashboard = () => {
 
 
  
-  // Real function to generate visit plan using your API
+ /* // Real function to generate visit plan using your API
   const generateVisitPlan = async () => {
   if (!selectedMR) {
     alert('Please select an MR first');
@@ -201,7 +221,106 @@ const MRVisitPlannerDashboard = () => {
   }
   setLoading(false);
 };
+*/
+// Enhanced function with Gemini integration
+const generateVisitPlan = async () => {
+  if (!selectedMR) {
+    alert('Please select an MR first');
+    return;
+  }
 
+  setLoading(true);
+  try {
+    // Step 1: Check and run Gemini integration if needed
+    if (!autoCoordinates && geminiStatus?.integration_completeness_percent < 80) {
+      console.log('Running Gemini coordinate integration for:', selectedMR);
+      try {
+        await runCompleteGeminiIntegration(selectedMR);
+        console.log('Gemini integration completed');
+        
+        // Refresh Gemini status after integration
+        const updatedStats = await getGeminiIntegrationStats(selectedMR);
+        setGeminiStatus(updatedStats);
+        setAutoCoordinates(updatedStats.integration_completeness_percent >= 80);
+      } catch (error) {
+        console.warn('Gemini integration failed, continuing with existing coordinates:', error);
+      }
+    }
+
+    console.log('Creating plan for:', { selectedMR, selectedMonth, selectedYear });
+    
+    // Step 2: Create the plan (your existing code)
+    const { error: createError } = await supabase.rpc('create_route_optimized_visit_plan', {
+      p_mr_name: selectedMR,
+      p_month: selectedMonth,
+      p_year: selectedYear,
+      p_max_visits_per_day: 50,
+      p_min_nbd_per_area: 2
+    });
+    
+    if (createError) {
+      console.error('Error creating plan:', createError);
+      alert('Error creating visit plan: ' + createError.message);
+      return;
+    }
+
+    // Step 3: Get the plan details (your existing code)
+    const { data, error: fetchError } = await supabase.rpc('get_visit_plan_api', {
+      p_mr_name: selectedMR,
+      p_month: selectedMonth,
+      p_year: selectedYear
+    });
+    
+    if (fetchError) {
+      console.error('Error fetching plan:', fetchError);
+      alert('Error fetching visit plan: ' + fetchError.message);
+      return;
+    }
+    
+    console.log('API Result:', data);
+    
+    if (data && data.success) {
+      // Calculate variables FIRST (your existing code)
+      const dailyPlans = data.daily_plans || [];
+      const totalVisits = data.summary?.total_planned_visits || 0;
+      const totalAreas = new Set(dailyPlans.flatMap(day => 
+        day.visits ? day.visits.map(v => v.area_name).filter(Boolean) : []
+      )).size;
+      const highPriorityCount = dailyPlans.reduce((sum, day) => {
+        if (day.visits && Array.isArray(day.visits)) {
+          return sum + day.visits.filter(visit => visit.priority === 'HIGH').length;
+        }
+        return sum + (day.high_priority_visits || 0);
+      }, 0);
+      
+      const transformedPlan = {
+        mrName: selectedMR,
+        month: selectedMonth,
+        year: selectedYear,
+        summary: {
+          totalWorkingDays: data.summary?.total_working_days || 0,
+          totalPlannedVisits: data.summary?.total_planned_visits || 0,
+          estimatedRevenue: data.summary?.estimated_revenue || 0,
+          efficiencyScore: data.summary?.efficiency_score || 0,
+          coverageScore: Math.min(100, (totalAreas * 4) + (highPriorityCount * 2) + (totalVisits > 180 ? 20 : 10))
+        },
+        weeklyBreakdown: transformDailyPlansToWeekly(data.daily_plans || []),
+        insights: generateInsightsFromData(data)
+      };
+      
+      setVisitPlan(transformedPlan);
+      console.log('Plan created successfully:', transformedPlan);
+    } else {
+      console.error('Plan generation failed:', data);
+      alert('Plan generation failed. Please try again.');
+    }
+  } catch (error) {
+    console.error('Error generating visit plan:', error);
+    alert('Error generating visit plan: ' + error.message);
+  }
+  setLoading(false);
+};
+  
   // Transform daily plans from API to weekly breakdown for display
   const transformDailyPlansToWeekly = (dailyPlans) => {
     if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
