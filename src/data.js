@@ -1636,7 +1636,7 @@ export const runCompleteGeminiIntegration = async (mrName, apiKey = null) => {
           geminiApiKey
         );
         
-        await saveGeminiCoordinates(mrName, coordinates);
+       // await saveGeminiCoordinates(mrName, coordinates);
         
         results.push({
           area_name: area.area_name,
