@@ -1819,11 +1819,7 @@ export const createGeminiIntelligentClusters = async (mrName, apiKey = null) => 
   try {
     // Step 1: Get all areas for the MR
     const { data: areas, error } = await supabase
-      .from('customer_predictions_cache')
-      .select('area_name, city, COUNT(*) as customer_count')
-      .eq('mr_name', mrName)
-      .group('area_name, city')
-      .order('customer_count', { ascending: false });
+      .rpc('get_clustered_customers', { p_mr_name: mrName });
 
     if (error) throw error;
 
