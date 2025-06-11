@@ -2065,3 +2065,118 @@ export const createGeminiOptimizedVisitPlan = async (mrName, month, year, target
     throw error;
   }
 };
+
+
+
+//-------------------unified
+
+// Unified function to save clustering data to area_coordinates using existing RPC
+export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, clusteringType = 'algorithm') => {
+  try {
+    console.log(`📍 Saving ${clusteringType} clustering data for MR:`, mrName);
+    console.log('📊 Clustering data:', clusteringData);
+
+    if (!clusteringData || !Array.isArray(clusteringData)) {
+      throw new Error('Invalid clustering data - must be an array');
+    }
+
+    const savePromises = [];
+    let totalAreas = 0;
+
+    // Process each cluster
+    clusteringData.forEach((cluster, clusterIndex) => {
+      const clusterId = cluster.cluster_id || clusterIndex + 1;
+      
+      console.log(`🔄 Processing cluster ${clusterId}:`, cluster);
+
+      // Get areas from cluster (handle different data structures)
+      let areas = [];
+      if (cluster.areas && Array.isArray(cluster.areas)) {
+        areas = cluster.areas;
+      } else if (cluster.area_names && Array.isArray(cluster.area_names)) {
+        areas = cluster.area_names;
+      } else if (typeof cluster.areas === 'string') {
+        areas = cluster.areas.split(',').map(a => a.trim());
+      }
+
+      if (areas.length === 0) {
+        console.warn(`⚠️ No areas found in cluster ${clusterId}`);
+        return;
+      }
+
+      // Save each area in this cluster
+      areas.forEach((areaName) => {
+        if (typeof areaName === 'object' && areaName.area_name) {
+          areaName = areaName.area_name; // Handle object format
+        }
+        
+        const cleanAreaName = areaName.toString().trim();
+        if (!cleanAreaName) return;
+
+        console.log(`📍 Saving area: ${cleanAreaName} → Cluster ${clusterId}`);
+
+        // Prepare data for saveGeminiCoordinates function
+        const areaData = {
+          area_name: cleanAreaName,
+          city: cluster.city || 'Unknown', // You might need to get this from existing data
+          state: cluster.state || 'Unknown', // You might need to get this from existing data
+          latitude: cluster.latitude || null,
+          longitude: cluster.longitude || null,
+          confidence: 0.75, // Default confidence
+          business_density: 'Medium', // Default business density
+          nearby_areas: [] // Default empty array
+        };
+
+        // Adjust data based on clustering type
+        if (clusteringType === 'gemini') {
+          areaData.confidence = cluster.confidence || cluster.priority_score ? 
+            (cluster.priority_score / 100) : 0.75;
+          areaData.business_density = cluster.business_density || 'Medium';
+          areaData.nearby_areas = cluster.nearby_areas || [];
+        } else {
+          areaData.confidence = cluster.efficiency_score ? 
+            (cluster.efficiency_score / 100) : 0.80;
+          areaData.business_density = cluster.business_density || 'Medium';
+          areaData.nearby_areas = cluster.nearby_areas || [];
+        }
+
+        // Use existing saveGeminiCoordinates function
+        const savePromise = saveGeminiCoordinates(mrName, areaData);
+        savePromises.push(savePromise);
+        totalAreas++;
+      });
+    });
+
+    console.log(`🚀 Executing ${savePromises.length} area saves...`);
+    const results = await Promise.allSettled(savePromises);
+
+    // Analyze results
+    let successCount = 0;
+    let errorCount = 0;
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        console.log(`✅ Save ${index + 1} successful`);
+        successCount++;
+      } else {
+        console.error(`❌ Save ${index + 1} failed:`, result.reason);
+        errorCount++;
+      }
+    });
+
+    console.log(`📊 ${clusteringType} Save Summary: ${successCount} successful, ${errorCount} failed`);
+
+    return {
+      success: true,
+      clusteringType,
+      totalAreas,
+      successfulSaves: successCount,
+      failedSaves: errorCount,
+      totalClusters: clusteringData.length
+    };
+
+  } catch (error) {
+    console.error(`💥 Error saving ${clusteringType} clustering:`, error);
+    throw error;
+  }
+};
