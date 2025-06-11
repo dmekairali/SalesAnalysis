@@ -82,15 +82,7 @@ const GeminiCoordinateIntegration = () => {
       // Get areas without coordinates from your existing data
       const areasToProcess = [
         { name: 'GOVIND PURI', city: 'GHAZIABAD' },
-        { name: 'CROSSING REPUBLIK', city: 'GHAZIABAD' },
-        { name: 'KAUSHAMBI', city: 'GHAZIABAD' },
-        { name: 'VAISHALI', city: 'GHAZIABAD' },
-        { name: 'INDIRAPURAM', city: 'GHAZIABAD' },
-        { name: 'RAJENDRA NAGAR', city: 'GHAZIABAD' },
-        { name: 'SAHIBABAD', city: 'GHAZIABAD' },
-        { name: 'GREATER NOIDA', city: 'GREATER NOIDA' },
-        { name: 'MODINAGAR', city: 'GHAZIABAD' },
-        { name: 'MURADNAGAR', city: 'GHAZIABAD' }
+        { name: 'CROSSING REPUBLIK', city: 'GHAZIABAD' }
       ];
 
       const enrichedAreas = [];
