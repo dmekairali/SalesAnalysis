@@ -1865,6 +1865,9 @@ Return ONLY a valid JSON object in this exact format:
 
 No additional text, just the JSON.`;
 
+    console.log('🤖 Starting Gemini clustering for MR:', mrName);
+    console.log('📊 Input areaList data:', areaList);
+
     // Step 3: Call Gemini API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
@@ -1883,7 +1886,7 @@ No additional text, just the JSON.`;
     if (!response.ok) {
       throw new Error(`Gemini API error: ${response.status}`);
     }
-
+ console.log('🤖 RAW Gemini Response Data:', response);
     const data = await response.json();
     const textResponse = data.candidates[0].content.parts[0].text;
     
