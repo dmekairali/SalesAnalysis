@@ -664,6 +664,20 @@ insights.push({
             <p className="text-gray-600">
               Generate intelligent visit plans based on customer behavior, route optimization, and revenue potential
             </p>
+
+    {/* ADD THIS HERE */}
+  {geminiStatus && (
+    <div className={`mt-2 flex items-center text-sm ${
+      geminiStatus.integration_completeness_percent >= 80 ? 'text-green-600' : 'text-orange-600'
+    }`}>
+      <MapPin className="h-4 w-4 mr-1" />
+      Coordinates: {geminiStatus.integration_completeness_percent}% complete 
+      ({geminiStatus.areas_with_coordinates}/{geminiStatus.total_areas} areas)
+      {geminiStatus.integration_completeness_percent >= 80 && (
+        <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
+      )}
+    </div>
+  )}
           </div>
           
           <div className="flex items-center space-x-4">
