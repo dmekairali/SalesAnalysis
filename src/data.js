@@ -1474,7 +1474,6 @@ export const getRouteOptimizationAnalytics = async (mrName, month, year) => {
 
 
 //-----------new optimized with area cluestring
-
 // Add these functions to your existing src/data.js file
 
 // Gemini AI API integration for coordinates using pin_code
@@ -1571,10 +1570,10 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
       p_area_name: areaData.area_name,
       p_city: areaData.city,
       p_state: areaData.state,
-      p_pin_code: areaData.pin_code,
       p_latitude: areaData.latitude,
       p_longitude: areaData.longitude,
       p_confidence: areaData.confidence,
+      p_pin_code: areaData.pin_code,
       p_business_density: areaData.business_density,
       p_nearby_areas_json: areaData.nearby_areas
     });
