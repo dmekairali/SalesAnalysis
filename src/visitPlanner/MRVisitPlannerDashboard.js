@@ -248,7 +248,7 @@ const generateVisitPlan = async () => {
     console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
     
     // Step 1: Auto-run Gemini if coordinates incomplete (optional background process)
-    try {
+    
       let planId;
     
     if (clusteringMode === 'gemini') {
