@@ -100,7 +100,8 @@ const GeminiCoordinateIntegration = () => {
         
         try {
           const coordinates = await getAreaCoordinatesFromGemini(area.name, area.city);
-          
+          console.log('✅ Gemini returned coordinates:', coordinates); // ADD THIS
+    
           enrichedAreas.push({
             ...area,
             ...coordinates,
@@ -143,6 +144,7 @@ const GeminiCoordinateIntegration = () => {
   // SQL function to save coordinates to Supabase
   const saveCoordinatesToSupabase = async (enrichedAreas) => {
     addLog('💾 Saving coordinates to Supabase...');
+    console.log('✅ Successfully saved to database'); // ADD THIS
     
     const { createClient } = require('@supabase/supabase-js');
     const supabase = createClient(
@@ -172,6 +174,7 @@ const GeminiCoordinateIntegration = () => {
 
           if (error) {
             addLog(`❌ Database error for ${area.area_name}: ${error.message}`);
+             console.error('❌ Error in processing loop:', error); // ENHANCE THIS
           } else {
             addLog(`✅ Saved: ${area.area_name} to database`);
           }
