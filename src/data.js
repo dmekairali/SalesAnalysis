@@ -1803,3 +1803,259 @@ export const createAreaOptimizedVisitPlan = async (mrName, month, year, targetVi
     throw error;
   }
 };
+
+//------------Ai for cluestring
+
+// Add to your data.js file
+
+// Gemini AI Intelligent Clustering
+export const createGeminiIntelligentClusters = async (mrName, apiKey = null) => {
+  const geminiApiKey = apiKey || process.env.REACT_APP_GEMINI_API_KEY;
+  
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key not found');
+  }
+
+  try {
+    // Step 1: Get all areas for the MR
+    const { data: areas, error } = await supabase
+      .from('customer_predictions_cache')
+      .select('area_name, city, COUNT(*) as customer_count')
+      .eq('mr_name', mrName)
+      .group('area_name, city')
+      .order('customer_count', { ascending: false });
+
+    if (error) throw error;
+
+    const areaList = areas.map(a => a.area_name).join(', ');
+    
+    // Step 2: Create Gemini prompt for intelligent clustering
+    const prompt = `
+I have an MR (Medical Representative) named "${mrName}" who needs to visit customers in these areas around Ghaziabad, Uttar Pradesh, India:
+
+${areaList}
+
+Please create 3-4 optimal geographic clusters for visit planning based on:
+1. Geographic proximity and travel efficiency
+2. Area connectivity and road networks  
+3. Business density and commercial importance
+4. Logical route optimization for daily visits
+
+For each cluster, provide:
+- Cluster name (geographic description)
+- Areas included in the cluster
+- Recommended visit sequence within cluster
+- Estimated travel time between areas
+- Best day(s) of week to focus on this cluster
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "clusters": [
+    {
+      "cluster_id": 1,
+      "cluster_name": "Central Ghaziabad Cluster",
+      "areas": ["AREA1", "AREA2", "AREA3"],
+      "visit_sequence": ["AREA1", "AREA2", "AREA3"],
+      "estimated_travel_time_minutes": 45,
+      "recommended_days": ["Monday", "Wednesday"],
+      "travel_notes": "Well connected areas with good road network",
+      "business_density": "High",
+      "total_estimated_customers": 0
+    }
+  ],
+  "optimization_notes": "Overall clustering strategy explanation",
+  "total_clusters": 3
+}
+
+No additional text, just the JSON.`;
+
+    // Step 3: Call Gemini API
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const textResponse = data.candidates[0].content.parts[0].text;
+    
+    // Step 4: Extract and parse JSON
+    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in Gemini response');
+    }
+
+    const clusterData = JSON.parse(jsonMatch[0]);
+    
+    // Step 5: Enhance clusters with actual customer counts
+    const enhancedClusters = clusterData.clusters.map(cluster => {
+      const customerCount = areas
+        .filter(area => cluster.areas.includes(area.area_name))
+        .reduce((sum, area) => sum + area.customer_count, 0);
+      
+      return {
+        ...cluster,
+        total_estimated_customers: customerCount,
+        areas_data: areas.filter(area => cluster.areas.includes(area.area_name))
+      };
+    });
+
+    // Step 6: Save to database
+    await saveGeminiClustersToDatabase(mrName, enhancedClusters);
+
+    return {
+      success: true,
+      clusters: enhancedClusters,
+      optimization_notes: clusterData.optimization_notes,
+      total_clusters: clusterData.total_clusters
+    };
+
+  } catch (error) {
+    console.error('Gemini clustering failed:', error);
+    throw error;
+  }
+};
+
+// Save Gemini clusters to database
+export const saveGeminiClustersToDatabase = async (mrName, clusters) => {
+  try {
+    // Step 1: Reset existing clusters
+    const { error: resetError } = await supabase
+      .from('area_coordinates')
+      .update({ cluster_id: null, updated_at: new Date().toISOString() })
+      .eq('mr_name', mrName);
+
+    if (resetError) throw resetError;
+
+    // Step 2: Apply new Gemini clusters
+    for (const cluster of clusters) {
+      for (const areaName of cluster.areas) {
+        const { error: updateError } = await supabase
+          .from('area_coordinates')
+          .update({ 
+            cluster_id: cluster.cluster_id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('mr_name', mrName)
+          .eq('area_name', areaName);
+
+        if (updateError) {
+          console.warn(`Failed to update cluster for ${areaName}:`, updateError);
+        }
+      }
+    }
+
+    // Step 3: Save cluster metadata
+    const { error: metadataError } = await supabase
+      .from('gemini_cluster_metadata')
+      .upsert({
+        mr_name: mrName,
+        clusters_data: clusters,
+        created_at: new Date().toISOString(),
+        total_clusters: clusters.length
+      }, { onConflict: 'mr_name' });
+
+    if (metadataError) {
+      console.warn('Failed to save cluster metadata:', metadataError);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error saving Gemini clusters:', error);
+    throw error;
+  }
+};
+
+// Get Gemini cluster results
+export const getGeminiClusterResults = async (mrName) => {
+  try {
+    // Get cluster assignments
+    const { data: clusterData, error: clusterError } = await supabase
+      .from('area_coordinates')
+      .select('area_name, city, cluster_id, customer_count, latitude, longitude')
+      .eq('mr_name', mrName)
+      .not('cluster_id', 'is', null)
+      .order('cluster_id');
+
+    if (clusterError) throw clusterError;
+
+    // Get metadata
+    const { data: metadata, error: metaError } = await supabase
+      .from('gemini_cluster_metadata')
+      .select('*')
+      .eq('mr_name', mrName)
+      .single();
+
+    if (metaError) {
+      console.warn('No cluster metadata found:', metaError);
+    }
+
+    // Group by clusters
+    const clusteredResults = clusterData.reduce((acc, area) => {
+      if (!acc[area.cluster_id]) {
+        acc[area.cluster_id] = {
+          cluster_id: area.cluster_id,
+          areas: [],
+          total_customers: 0,
+          area_count: 0
+        };
+      }
+      
+      acc[area.cluster_id].areas.push({
+        area_name: area.area_name,
+        city: area.city,
+        customer_count: area.customer_count,
+        latitude: area.latitude,
+        longitude: area.longitude
+      });
+      
+      acc[area.cluster_id].total_customers += area.customer_count || 0;
+      acc[area.cluster_id].area_count += 1;
+      
+      return acc;
+    }, {});
+
+    return {
+      clusters: Object.values(clusteredResults),
+      metadata: metadata?.clusters_data || null,
+      optimization_notes: metadata?.optimization_notes || 'No optimization notes available'
+    };
+
+  } catch (error) {
+    console.error('Error getting Gemini cluster results:', error);
+    return { clusters: [], metadata: null, optimization_notes: '' };
+  }
+};
+
+// Enhanced area-optimized visit plan with Gemini clusters
+export const createGeminiOptimizedVisitPlan = async (mrName, month, year, targetVisitsPerDay = 10) => {
+  try {
+    // Step 1: Ensure Gemini clusters exist
+    const clusterResults = await getGeminiClusterResults(mrName);
+    
+    if (clusterResults.clusters.length === 0) {
+      console.log('No Gemini clusters found, creating them...');
+      await createGeminiIntelligentClusters(mrName);
+    }
+
+    // Step 2: Create visit plan using existing function with Gemini clusters
+    const planId = await createAreaOptimizedVisitPlan(mrName, month, year, targetVisitsPerDay);
+    
+    return planId;
+  } catch (error) {
+    console.error('Error creating Gemini-optimized visit plan:', error);
+    throw error;
+  }
+};
