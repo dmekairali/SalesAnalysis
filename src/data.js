@@ -1566,7 +1566,7 @@ export const getAreasNeedingCoordinates = async (mrName) => {
 export const saveGeminiCoordinates = async (mrName, areaData) => {
   try {
     const { data, error } = await supabase.rpc('save_gemini_coordinates', {
-      p_mr_name: mrName,
+       p_mr_name: mrName,
       p_area_name: areaData.area_name,
       p_city: areaData.city,
       p_state: areaData.state,
@@ -1574,7 +1574,17 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
       p_longitude: areaData.longitude,
       p_confidence: areaData.confidence,
       p_business_density: areaData.business_density,
-      p_nearby_areas_json: areaData.nearby_areas
+      p_nearby_areas_json: areaData.nearby_areas,
+      // Add new parameters
+      p_cluster_id: areaData.cluster_id,
+      p_cluster_name: areaData.cluster_name,
+      p_visit_sequence_order: areaData.visit_sequence_order,
+      p_estimated_travel_time_minutes: areaData.estimated_travel_time_minutes,
+      p_recommended_days: areaData.recommended_days,
+      p_travel_notes: areaData.travel_notes,
+      p_total_estimated_customers: areaData.total_estimated_customers,
+      p_avg_order_value: areaData.avg_order_value,
+      p_total_revenue: areaData.total_revenue
     });
     if (error) throw error;
     return data;
@@ -2071,6 +2081,7 @@ export const createGeminiOptimizedVisitPlan = async (mrName, month, year, target
 //-------------------unified
 
 // Unified function to save clustering data to area_coordinates using existing RPC
+// Updated unified function to save clustering data with all cluster information
 export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, clusteringType = 'algorithm') => {
   try {
     console.log(`📍 Saving ${clusteringType} clustering data for MR:`, mrName);
@@ -2089,14 +2100,14 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
       
       console.log(`🔄 Processing cluster ${clusterId}:`, cluster);
 
-      // Get areas from cluster (handle different data structures)
+      // Get areas from cluster
       let areas = [];
       if (cluster.areas && Array.isArray(cluster.areas)) {
         areas = cluster.areas;
+      } else if (cluster.areas_data && Array.isArray(cluster.areas_data)) {
+        areas = cluster.areas_data.map(area => area.area_name);
       } else if (cluster.area_names && Array.isArray(cluster.area_names)) {
         areas = cluster.area_names;
-      } else if (typeof cluster.areas === 'string') {
-        areas = cluster.areas.split(',').map(a => a.trim());
       }
 
       if (areas.length === 0) {
@@ -2105,40 +2116,59 @@ export const saveClusteringToAreaCoordinates = async (mrName, clusteringData, cl
       }
 
       // Save each area in this cluster
-      areas.forEach((areaName) => {
+      areas.forEach((areaName, areaIndex) => {
         if (typeof areaName === 'object' && areaName.area_name) {
-          areaName = areaName.area_name; // Handle object format
+          areaName = areaName.area_name;
         }
         
         const cleanAreaName = areaName.toString().trim();
         if (!cleanAreaName) return;
 
-        console.log(`📍 Saving area: ${cleanAreaName} → Cluster ${clusterId}`);
+        console.log(`📍 Saving area: ${cleanAreaName} → Cluster ${clusterId} (${cluster.cluster_name})`);
 
-        // Prepare data for saveGeminiCoordinates function
+        // Find area-specific data
+        const areaSpecificData = cluster.areas_data?.find(
+          area => area.area_name === cleanAreaName
+        ) || {};
+
+        // Get visit sequence order
+        const visitSequenceOrder = cluster.visit_sequence?.indexOf(cleanAreaName) + 1 || areaIndex + 1;
+
+        // Prepare comprehensive data for saveGeminiCoordinates function
         const areaData = {
           area_name: cleanAreaName,
-          city: cluster.city || 'Unknown', // You might need to get this from existing data
-          state: cluster.state || 'Unknown', // You might need to get this from existing data
-          latitude: cluster.latitude || null,
-          longitude: cluster.longitude || null,
-          confidence: 0.75, // Default confidence
-          business_density: 'Medium', // Default business density
-          nearby_areas: [] // Default empty array
+          city: areaSpecificData.city || cluster.city || 'Unknown',
+          state: areaSpecificData.state || cluster.state || 'Unknown',
+          latitude: areaSpecificData.latitude || cluster.latitude || null,
+          longitude: areaSpecificData.longitude || cluster.longitude || null,
+          confidence: 0.75,
+          business_density: cluster.business_density || 'Medium',
+          nearby_areas: cluster.nearby_areas || [],
+          
+          // Cluster-specific data
+          cluster_id: clusterId,
+          cluster_name: cluster.cluster_name || `Cluster ${clusterId}`,
+          visit_sequence_order: visitSequenceOrder,
+          estimated_travel_time_minutes: cluster.estimated_travel_time_minutes || null,
+          recommended_days: cluster.recommended_days || null,
+          travel_notes: cluster.travel_notes || null,
+          total_estimated_customers: cluster.total_estimated_customers || null,
+          
+          // Area-specific data
+          avg_order_value: areaSpecificData.avg_order_value || 0,
+          total_revenue: areaSpecificData.total_revenue || 0
         };
 
-        // Adjust data based on clustering type
+        // Adjust confidence based on clustering type
         if (clusteringType === 'gemini') {
           areaData.confidence = cluster.confidence || cluster.priority_score ? 
             (cluster.priority_score / 100) : 0.75;
-          areaData.business_density = cluster.business_density || 'Medium';
-          areaData.nearby_areas = cluster.nearby_areas || [];
         } else {
           areaData.confidence = cluster.efficiency_score ? 
             (cluster.efficiency_score / 100) : 0.80;
-          areaData.business_density = cluster.business_density || 'Medium';
-          areaData.nearby_areas = cluster.nearby_areas || [];
         }
+
+        console.log(`📊 Area data for ${cleanAreaName}:`, areaData);
 
         // Use existing saveGeminiCoordinates function
         const savePromise = saveGeminiCoordinates(mrName, areaData);
