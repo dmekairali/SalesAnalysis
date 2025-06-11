@@ -1583,7 +1583,7 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
       p_business_density: areaData.business_density,
       p_nearby_areas_json: areaData.nearby_areas,
       // Add new parameters
-      p_cluster_id: areaData.cluster_id,
+      p_cluster_id: 1,//areaData.cluster_id,
       p_cluster_name: areaData.cluster_name,
       p_visit_sequence_order: areaData.visit_sequence_order,
       p_estimated_travel_time_minutes: areaData.estimated_travel_time_minutes,
