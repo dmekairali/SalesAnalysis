@@ -170,13 +170,6 @@ const generateVisitPlan = async () => {
   
  
 
-  // Generate plan on component mount and when parameters change
-  useEffect(() => {
-    if (selectedMR && !loadingMRs) {
-      generateVisitPlan();
-    }
-  }, [selectedMR, selectedMonth, selectedYear]);
-
   // Get month name
   const getMonthName = (month) => {
     const months = [
@@ -510,18 +503,29 @@ const generateVisitPlan = async () => {
       )}
 
       {/* No MR Selected State */}
-      {!selectedMR && !loading && !loadingMRs && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Select an MR to Generate Plan</h3>
-          <p className="text-gray-600">
-            Choose a medical representative from the dropdown above to start generating visit plans.
-          </p>
-        </div>
-      )}
+      {(!visitPlan && !loading) && (
+  <div className="bg-white rounded-lg shadow-md p-12 text-center">
+    <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+    <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Generate Visit Plan</h3>
+    <p className="text-gray-600 mb-4">
+      {selectedMR ? 
+        `Click "Generate Plan" to create an AI-optimized visit plan for ${selectedMR}` :
+        'Select a medical representative and click "Generate Plan" to start'
+      }
+    </p>
+    {selectedMR && (
+      <button
+        onClick={generateVisitPlan}
+        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+      >
+        🤖 Generate AI Visit Plan
+      </button>
+    )}
+  </div>
+)}
 
       {/* Main Content */}
-      {visitPlan && !loading && selectedMR && (
+      {visitPlan && !loading && (
         <>
           {/* View Toggle */}
           <div className="bg-white rounded-lg shadow-md p-4">
