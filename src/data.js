@@ -815,7 +815,7 @@ export const saveClusterAssignments = async (mrName, clusters) => {
         };
 
         // Save using your existing RPC
-        const { error } = await supabase.rpc('save_gemini_coordinates_test', {
+        const { error } = await supabase.rpc('save_gemini_coordinates', {
           p_mr_name: String(mrName),
           p_area_name: String(areaData.area_name),
           p_city: String(areaData.city),
