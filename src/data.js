@@ -658,27 +658,15 @@ export const getCustomerAreasForClustering = async (mrName) => {
 // =============================================================================
 // 2. GEMINI AI CLUSTERING (CORE FUNCTION)
 // =============================================================================
+// Improved createGeminiClusters function with better prompting
 
-export const createGeminiClusters = async (mrName, apiKey = null) => {
-  const geminiApiKey = apiKey || process.env.REACT_APP_GEMINI_API_KEY;
-  
-  if (!geminiApiKey) {
-    throw new Error('Gemini API key not found');
-  }
-
+export const createGeminiClusters = async (mrName, areas) => {
   try {
-    console.log('🤖 Starting Gemini clustering for MR:', mrName);
+    console.log('Creating Gemini clusters for:', mrName, 'Areas:', areas);
     
-    // Step 1: Get customer areas
-    const areas = await getCustomerAreasForClustering(mrName);
+    // Build area list with better formatting
+    const areaList = areas.map(area => `- ${area}`).join('\n');
     
-    if (areas.length === 0) {
-      throw new Error('No customer areas found for this MR');
-    }
-
-    const areaList = areas.map(a => a.area_name).join(', ');
-    console.log('📊 Areas to cluster:', areaList);
-     
     const improvedPrompt = `I have a Medical Representative named ${mrName} who needs to visit customers in these areas in India:
 ${areaList}
 
@@ -804,6 +792,7 @@ Guidelines:
     throw new Error(`Failed to create Gemini clusters: ${error.message}`);
   }
 };
+
 // =============================================================================
 // 3. SAVE CLUSTER ASSIGNMENTS
 // =============================================================================
