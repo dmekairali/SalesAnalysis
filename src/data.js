@@ -1572,7 +1572,7 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
       cluster_id_value: JSON.stringify(areaData.cluster_id)
     });
 
-    const { data, error } = await supabase.rpc('save_gemini_coordinates', {
+    const { data, error } = await supabase.rpc('save_gemini_coordinates_test', {
       p_mr_name: String(mrName),
   p_area_name: String(areaData.area_name),
   p_city: String(areaData.city),
