@@ -6,18 +6,13 @@ import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target
 
 // Import your existing components and utilities
 import { COLORS, 
-  getVisitPlanAPI, 
-  createAreaOptimizedVisitPlan,
+  generateCompleteVisitPlan,
+  getExistingClusters,
+  createGeminiClusters,
   getVisitPlanDetails,
-  getDailyBreakdown,
-  getGeminiIntegrationStats,
-  runCompleteGeminiIntegration,
-  createGeminiIntelligentClusters,
-  getGeminiClusterResults,
-  createGeminiOptimizedVisitPlan,
-  saveGeminiCoordinates, // Existing function
-  saveClusteringToAreaCoordinates // New unified function
+  getDailyBreakdown
 } from '../data.js';
+
 import { SearchableDropdown } from '../enhancedFilters.js';
 
 const MRVisitPlannerDashboard = () => {
@@ -30,14 +25,9 @@ const MRVisitPlannerDashboard = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [mrList, setMrList] = useState([]);
   const [loadingMRs, setLoadingMRs] = useState(true);
-  const [geminiStatus, setGeminiStatus] = useState(null);
-  const [autoCoordinates, setAutoCoordinates] = useState(false);
-
+ 
+  const [clusterStatus, setClusterStatus] = useState(null);
   
-// Add state for Gemini clusters
-const [geminiClusters, setGeminiClusters] = useState(null);
-const [clusteringMode, setClusteringMode] = useState('gemini'); // 'gemini' or 'algorithm'
-
   // Import Supabase client
   const { createClient } = require('@supabase/supabase-js');
   const supabase = createClient(
@@ -45,21 +35,24 @@ const [clusteringMode, setClusteringMode] = useState('gemini'); // 'gemini' or '
     process.env.REACT_APP_SUPABASE_ANON_KEY
   );
 
-  // Add useEffect to check Gemini status
-useEffect(() => {
-  const checkGeminiStatus = async () => {
+  useEffect(() => {
+  const checkClusterStatus = async () => {
+    if (!selectedMR) return;
+    
     try {
-      const stats = await getGeminiIntegrationStats(selectedMR);
-      setGeminiStatus(stats);
-      setAutoCoordinates(stats.integration_completeness_percent >= 80);
+      const clusters = await getExistingClusters(selectedMR);
+      setClusterStatus({
+        hasExistingClusters: clusters.length > 0,
+        clusterCount: clusters.length,
+        totalAreas: clusters.reduce((sum, cluster) => sum + cluster.areas.length, 0)
+      });
     } catch (error) {
-      console.error('Error checking Gemini status:', error);
+      console.error('Error checking cluster status:', error);
+      setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0 });
     }
   };
   
-  if (selectedMR) {
-    checkGeminiStatus();
-  }
+  checkClusterStatus();
 }, [selectedMR]);
   
  // Calculate customer breakdown for the entire plan
@@ -153,10 +146,7 @@ useEffect(() => {
     fetchMRs();
   }, []);
 
-
- 
- /* // Real function to generate visit plan using your API
-  const generateVisitPlan = async () => {
+const generateVisitPlan = async () => {
   if (!selectedMR) {
     alert('Please select an MR first');
     return;
@@ -164,371 +154,21 @@ useEffect(() => {
 
   setLoading(true);
   try {
-    console.log('Creating plan for:', { selectedMR, selectedMonth, selectedYear });
+    console.log('🎯 Generating complete visit plan...');
     
-    // Step 1: Create the plan
-    const { error: createError } = await supabase.rpc('create_route_optimized_visit_plan', {
-      p_mr_name: selectedMR,
-      p_month: selectedMonth,
-      p_year: selectedYear,
-      p_max_visits_per_day: 50,
-      p_min_nbd_per_area: 2
-    });
-
-    if (createError) {
-      console.error('Error creating plan:', createError);
-      alert('Error creating visit plan: ' + createError.message);
-      return;
-    }
-
-    // Step 2: Get the plan details
-    const { data, error: fetchError } = await supabase.rpc('get_visit_plan_api', {
-      p_mr_name: selectedMR,
-      p_month: selectedMonth,
-      p_year: selectedYear
-    });
-
-    if (fetchError) {
-      console.error('Error fetching plan:', fetchError);
-      alert('Error fetching visit plan: ' + fetchError.message);
-      return;
-    }
-
-    console.log('API Result:', data);
+    const completePlan = await generateCompleteVisitPlan(selectedMR, selectedMonth, selectedYear);
     
-    if (data && data.success) {
-       // Calculate variables FIRST
-  const dailyPlans = data.daily_plans || [];
-  const totalVisits = data.summary?.total_planned_visits || 0;
-  const totalAreas = new Set(dailyPlans.flatMap(day => 
-    day.visits ? day.visits.map(v => v.area_name).filter(Boolean) : []
-  )).size;
-  const highPriorityCount = dailyPlans.reduce((sum, day) => {
-    if (day.visits && Array.isArray(day.visits)) {
-      return sum + day.visits.filter(visit => visit.priority === 'HIGH').length;
-    }
-    return sum + (day.high_priority_visits || 0);
-  }, 0);
-      
-      const transformedPlan = {
-        mrName: selectedMR,
-        month: selectedMonth,
-        year: selectedYear,
-        summary: {
-          totalWorkingDays: data.summary?.total_working_days || 0,  // This should fix the 0 working days
-          totalPlannedVisits: data.summary?.total_planned_visits || 0,
-          estimatedRevenue: data.summary?.estimated_revenue || 0,
-          efficiencyScore: data.summary?.efficiency_score || 0,
-          coverageScore: Math.min(100, (totalAreas * 4) + (highPriorityCount * 2) + (totalVisits > 180 ? 20 : 10))
-        },
-        weeklyBreakdown: transformDailyPlansToWeekly(data.daily_plans || []),
-        insights: generateInsightsFromData(data)
-      };
-      
-      setVisitPlan(transformedPlan);
-      console.log('Plan created successfully:', transformedPlan);
-    } else {
-      console.error('Plan generation failed:', data);
-      alert('Plan generation failed. Please try again.');
-    }
+    setVisitPlan(completePlan);
+    console.log('✅ Visit plan generated successfully');
+    
   } catch (error) {
-    console.error('Error generating visit plan:', error);
+    console.error('💥 Error generating visit plan:', error);
     alert('Error generating visit plan: ' + error.message);
   }
   setLoading(false);
 };
-*/
-  /*
-// Enhanced function with Gemini integration
-// Replace the existing generateVisitPlan function with this:
-const generateVisitPlan = async () => {
-  if (!selectedMR) {
-    alert('Please select an MR first');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
-    
-    // Step 1: Auto-run Gemini if coordinates incomplete (optional background process)
-    
-      let planId;
-    
-    if (clusteringMode === 'gemini') {
-      // Use Gemini AI clustering
-      planId = await createGeminiOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
-      console.log('✅ Gemini AI clustering completed');
-    } else {
-      // Use algorithm clustering
-      planId = await createAreaOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
-      console.log('✅ Algorithm clustering completed');
-    }
-    
-    if (planId) {
-      // Step 3: Get the plan details
-      const planDetails = await getVisitPlanDetails(planId);
-      
-      if (planDetails) {
-        // Transform to component format
-        const transformedPlan = {
-          mrName: selectedMR,
-          month: selectedMonth,
-          year: selectedYear,
-          summary: {
-            totalWorkingDays: planDetails.total_working_days || 25,
-            totalPlannedVisits: planDetails.total_planned_visits || 0,
-            estimatedRevenue: planDetails.estimated_revenue || 0,
-            efficiencyScore: planDetails.efficiency_score || 0,
-            coverageScore: 90
-          },
-          weeklyBreakdown: await getDailyBreakdown(planId),
-          insights: generateInsightsFromPlan(planDetails)
-        };
-        
-        setVisitPlan(transformedPlan);
-        console.log('✅ Area-optimized visit plan generated successfully');
-      }
-    }
-  } catch (error) {
-    console.error('Error generating visit plan:', error);
-    alert('Error generating visit plan. Please try again.');
-  }
-  setLoading(false);
-};
-*/
-const generateVisitPlan = async () => {
-  if (!selectedMR) {
-    alert('Please select an MR first');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    console.log('🎯 Generating plan with clustering mode:', clusteringMode);
-    console.log('🎯 Parameters:', { selectedMR, selectedMonth, selectedYear });
-    
-    let planId;
-    
-    if (clusteringMode === 'gemini') {
-      console.log('🤖 Using Gemini AI clustering...');
-      
-      // Step 1: Create Gemini clusters
-      console.log('🤖 Creating Gemini intelligent clusters...');
-      const geminiClusterData = await createGeminiIntelligentClusters(selectedMR);
-      
-      if (geminiClusterData && geminiClusterData.clusters) {
-        // Step 2: Save Gemini clustering to area_coordinates
-        console.log('💾 Saving Gemini clustering to area_coordinates...');
-        const saveResult = await saveClusteringToAreaCoordinates(
-          selectedMR, 
-          geminiClusterData.clusters, 
-          'gemini'
-        );
-        console.log('✅ Gemini clustering saved:', saveResult);
-      }
-      
-      // Step 3: Create optimized visit plan
-      planId = await createGeminiOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
-      console.log('✅ Gemini AI clustering completed');
-      
-    } else {
-      console.log('📊 Using algorithm clustering...');
-      
-      // Step 1: Create algorithm-based clusters
-      // You might need to call your algorithm clustering function here
-      // const algorithmClusterData = await createAlgorithmClusters(selectedMR);
-      
-      // For now, using the existing area-optimized plan which should handle clustering
-      planId = await createAreaOptimizedVisitPlan(selectedMR, selectedMonth, selectedYear, 10);
-      console.log('✅ Algorithm clustering completed');
-    }
-    
-    if (planId) {
-      console.log('📋 Getting plan details for ID:', planId);
-      const planDetails = await getVisitPlanDetails(planId);
-      
-      if (planDetails) {
-        console.log('🔧 Getting daily breakdown...');
-        const dailyBreakdown = await getDailyBreakdown(planId);
-        
-        // Transform to component format
-        const transformedPlan = {
-          mrName: selectedMR,
-          month: selectedMonth,
-          year: selectedYear,
-          summary: {
-            totalWorkingDays: planDetails.total_working_days || 25,
-            totalPlannedVisits: planDetails.total_planned_visits || 0,
-            estimatedRevenue: planDetails.estimated_revenue || 0,
-            efficiencyScore: planDetails.efficiency_score || 0,
-            coverageScore: 90
-          },
-          weeklyBreakdown: dailyBreakdown,
-          insights: generateInsightsFromPlan(planDetails)
-        };
-        
-        console.log('✅ Transformed plan:', transformedPlan);
-        setVisitPlan(transformedPlan);
-        console.log('✅ Visit plan generated successfully');
-      }
-    } else {
-      console.error('❌ No plan ID returned');
-    }
-  } catch (error) {
-    console.error('💥 Error generating visit plan:', error);
-    alert('Error generating visit plan. Check console for details.');
-  }
-  setLoading(false);
-};
-
   
-  // Add this function inside your MRVisitPlannerDashboard component
-const generateInsightsFromPlan = (planDetails) => {
-  const insights = [];
-  
-  const totalRevenue = parseFloat(planDetails.estimated_revenue) || 0;
-  const totalVisits = planDetails.total_planned_visits || 0;
-  const workingDays = planDetails.total_working_days || 25;
-  
-  // Revenue insight
-  insights.push({
-    type: 'revenue',
-    title: 'Revenue Potential',
-    value: `₹${(totalRevenue / 100000).toFixed(1)}L`,
-    description: `Expected monthly revenue from ${totalVisits} visits`,
-    recommendation: totalRevenue > 500000 ? 'Excellent revenue potential' : 'Focus on high-value customers'
-  });
-
-  // Efficiency insight
-  const avgVisitsPerDay = workingDays > 0 ? (totalVisits / workingDays).toFixed(1) : 0;
-  insights.push({
-    type: 'optimization',
-    title: 'Visit Efficiency',
-    value: `${avgVisitsPerDay}/day`,
-    description: 'Average visits per working day',
-    recommendation: avgVisitsPerDay >= 8 ? 'Optimal visit distribution' : 'Consider increasing daily visits'
-  });
-
-  // Area coverage insight
-  insights.push({
-    type: 'coverage',
-    title: 'Area Coverage',
-    value: 'Multi-Area',
-    description: 'Optimized geographic clustering',
-    recommendation: 'All customers visited when MR is in area'
-  });
-
-  return insights;
-};
-  
-  // Transform daily plans from API to weekly breakdown for display
-  const transformDailyPlansToWeekly = (dailyPlans) => {
-    if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
-
-    const weeks = [];
-    let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
-    let weekNumber = 1;
-
-    dailyPlans.forEach((dayPlan, index) => {
-      const dayData = {
-        date: dayPlan.date,
-        dayName: new Date(dayPlan.date).toLocaleDateString('en-US', { weekday: 'short' }),
-        visits: dayPlan.visits || [],
-        summary: {
-          totalVisits: dayPlan.total_visits || 0,
-          estimatedRevenue: dayPlan.estimated_revenue || 0,
-          areasVisited: dayPlan.areas_count || 0,
-          highPriorityVisits: dayPlan.high_priority_visits || 0
-        }
-      };
-
-      currentWeek.days.push(dayData);
-      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
-      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
-
-      // If we have 6 days (Mon-Sat) or it's the last day, close the week
-      if (currentWeek.days.length === 6 || index === dailyPlans.length - 1) {
-        weeks.push(currentWeek);
-        weekNumber++;
-        currentWeek = { 
-          week: weekNumber, 
-          days: [], 
-          summary: { totalVisits: 0, estimatedRevenue: 0 } 
-        };
-      }
-    });
-
-    return weeks;
-  };
-
-  // Generate insights from API data
-  const generateInsightsFromData = (apiResult) => {
-    const summary = apiResult.summary || {};
-    const dailyPlans = apiResult.daily_plans || [];
-    
-    const totalRevenue = summary.estimated_revenue || 0;
-    const totalVisits = summary.total_planned_visits || 0;
-    const workingDays = summary.total_working_days || 0;
-    
-    const insights = [];
-
-    // Revenue insight
-    insights.push({
-      type: 'revenue',
-      title: 'Revenue Potential',
-      value: `₹${(totalRevenue / 100000).toFixed(1)}L`,
-      description: `Expected monthly revenue from ${totalVisits} visits`,
-      recommendation: totalRevenue > 500000 ? 'Excellent revenue potential' : 'Focus on high-value customers'
-    });
-
-    // Efficiency insight
-    const avgVisitsPerDay = workingDays > 0 ? (totalVisits / workingDays).toFixed(1) : 0;
-    insights.push({
-      type: 'optimization',
-      title: 'Visit Efficiency',
-      value: `${avgVisitsPerDay}/day`,
-      description: 'Average visits per working day',
-      recommendation: avgVisitsPerDay >= 8 ? 'Optimal visit distribution' : 'Consider increasing daily visits'
-    });
-
-    // Coverage insight
-    // Priority customers insight - count HIGH priority visits
-const highPriorityCount = dailyPlans.reduce((sum, day) => {
-  if (day.visits && Array.isArray(day.visits)) {
-    return sum + day.visits.filter(visit => visit.priority === 'HIGH').length;
-  }
-  return sum + (day.high_priority_visits || 0);
-}, 0);
-    
-    // Priority Customers insight
-insights.push({
-  type: 'risk',
-  title: 'Priority Customers',
-  value: `${highPriorityCount} visits`,
-  description: 'High-priority customer visits planned',
-  recommendation: highPriorityCount > 20 ? 'Excellent priority coverage' : 'Consider adding more high-priority visits'
-});
-
-// Dynamic Coverage Score based on areas and visit distribution
-const totalAreas = new Set(dailyPlans.flatMap(day => 
-  day.visits ? day.visits.map(v => v.area_name).filter(Boolean) : []
-)).size;
-
-const coverageScore = Math.min(100, (totalAreas * 4) + (highPriorityCount * 2) + (totalVisits > 180 ? 20 : 10));
-
-insights.push({
-  type: 'coverage',
-  title: 'Territory Coverage',
-  value: `${coverageScore}%`,
-  description: `Covering ${totalAreas} areas with ${totalVisits} total visits`,
-  recommendation: coverageScore > 85 ? 'Excellent territory coverage' : 'Consider expanding area coverage'
-});
-
-    return insights;
-  };
-
-
+ 
 
   // Generate plan on component mount and when parameters change
   useEffect(() => {
@@ -767,18 +407,17 @@ insights.push({
             </p>
 
     {/* ADD THIS HERE */}
-  {geminiStatus && (
-    <div className={`mt-2 flex items-center text-sm ${
-      geminiStatus.integration_completeness_percent >= 80 ? 'text-green-600' : 'text-orange-600'
-    }`}>
-      <MapPin className="h-4 w-4 mr-1" />
-      Coordinates: {geminiStatus.integration_completeness_percent}% complete 
-      ({geminiStatus.areas_with_coordinates}/{geminiStatus.total_areas} areas)
-      {geminiStatus.integration_completeness_percent >= 80 && (
-        <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
-      )}
-    </div>
-  )}
+  {clusterStatus && (
+  <div className={`mt-2 flex items-center text-sm ${
+    clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-600'
+  }`}>
+    <Brain className="h-4 w-4 mr-1" />
+    Clusters: {clusterStatus.hasExistingClusters ? `${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas` : 'No clusters created'}
+    {clusterStatus.hasExistingClusters && (
+      <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
+    )}
+  </div>
+)}
           </div>
           
           <div className="flex items-center space-x-4">
@@ -856,31 +495,7 @@ insights.push({
         </div>
 </div>
 
-              {/* ADD THE CLUSTERING MODE BUTTONS HERE */}
-<div className="flex items-center space-x-4 mt-4">
-  <div className="flex bg-gray-100 rounded-lg p-1">
-    <button 
-      onClick={() => setClusteringMode('gemini')} 
-      className={`px-4 py-2 text-sm rounded-md transition-colors ${
-        clusteringMode === 'gemini' 
-          ? 'bg-purple-600 text-white shadow-sm' 
-          : 'text-gray-600 hover:text-gray-900'
-      }`}
-    > 
-      🤖 Gemini AI Clustering 
-    </button>
-    <button 
-      onClick={() => setClusteringMode('algorithm')} 
-      className={`px-4 py-2 text-sm rounded-md transition-colors ${
-        clusteringMode === 'algorithm' 
-          ? 'bg-blue-600 text-white shadow-sm' 
-          : 'text-gray-600 hover:text-gray-900'
-      }`}
-    > 
-      📊 Algorithm Clustering 
-    </button>
-  </div>
-</div>
+            
      
 
       {/* Loading State */}
