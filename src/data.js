@@ -959,7 +959,12 @@ export const saveClusterAssignments = async (mrName, clusters) => {
           cluster_id: cluster.cluster_id,
           cluster_name: cluster.cluster_name,
           visit_sequence_order: visitSequenceOrder,
-          estimated_travel_time_minutes: cluster.estimated_travel_time_minutes || null,
+          estimated_travel_time_minutes: typeof cluster.estimated_travel_time_minutes === 'number' 
+    ? cluster.estimated_travel_time_minutes.toString() 
+    : cluster.estimated_travel_time_minutes || null',
+          detailed_travel_route: typeof cluster.estimated_travel_time_minutes === 'string' 
+    ? cluster.estimated_travel_time_minutes 
+    : null,
           recommended_days: cluster.recommended_days || null,
           travel_notes: cluster.travel_notes || null,
           total_estimated_customers: cluster.total_estimated_customers || 0,
