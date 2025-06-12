@@ -1666,7 +1666,7 @@ export const saveClusterAssignments = async (mrName, clusters) => {
           const { error } = await supabase
             .from('area_coordinates')
             .upsert(areaData, {
-              onConflict: 'mr_name,area_name,city',
+              onConflict: 'area_name,city,mr_name',
               ignoreDuplicates: false
             });
 
