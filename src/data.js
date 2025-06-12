@@ -1189,7 +1189,7 @@ export const createGeminiVisitPlan = async (mrName, month, year) => {
 
     // Step 2: Create visit plan using existing RPC
     //const { data: planId, error } = await supabase.rpc('create_area_optimized_visit_plan', {
-    const { data: planId, error } = await supabase.rpc('create_smart_revisit_visit_plan', {
+    const { data: planId, error } = await supabase.rpc('create_clustered_visit_plan', {
       p_mr_name: mrName,
       p_month: month,
       p_year: year,
