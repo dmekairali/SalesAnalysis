@@ -658,7 +658,7 @@ export const getCustomerAreasForClustering = async (mrName) => {
 // =============================================================================
 // 2. GEMINI AI CLUSTERING (CORE FUNCTION)
 // =============================================================================
-
+/*
 export const createGeminiClusters = async (mrName, apiKey = null) => {
   const geminiApiKey = apiKey || process.env.REACT_APP_GEMINI_API_KEY;
   
@@ -780,11 +780,168 @@ Use EXACT area names: Bhopal, Vidisha, Sagar (not "Bhopal City" or "Vidisha City
     throw error;
   }
 };
+*/
 
+export const createGeminiClusters = async (mrName, apiKey = null) => {
+  const geminiApiKey = apiKey || process.env.REACT_APP_GEMINI_API_KEY;
+  
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key not found');
+  }
+
+  try {
+    console.log('🤖 Starting Gemini clustering for MR:', mrName);
+    
+    // Step 1: Get customer areas
+    const areas = await getCustomerAreasForClustering(mrName);
+    
+    if (areas.length === 0) {
+      throw new Error('No customer areas found for this MR');
+    }
+
+    const areaList = areas.map(a => a.area_name).join(', ');
+    console.log('📊 Areas to cluster:', areaList);
+    
+    // Step 2: Create Gemini prompt
+    const prompt = `I have a Medical Representative named ${mrName} who needs to visit customers in these areas in India:
+${areaList}
+
+IMPORTANT: Use the EXACT area names provided above. Do not add words like "City" or modify the names.
+
+Please create 3-4 optimal geographic clusters for visit planning based on:
+1. Geographic proximity and travel efficiency
+2. Area connectivity and road networks  
+3. Business density and commercial importance
+4. Logical route optimization for daily visits
+
+For each cluster, provide:
+- cluster_id: Unique number
+- cluster_name: Geographic description
+- areas: Array of area objects with EXACT names (format: { "area_name": "Name", "city": "City", "state": "State" })
+- visit_sequence: Recommended visit order
+- estimated_travel_times: Key-value pairs of "From -> To": "time"
+- best_days: Recommended days to visit
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "clusters": [
+    {
+      "cluster_id": 1,
+      "cluster_name": "Central Business Cluster",
+      "areas": [
+        { "area_name": "Bhopal", "city": "Bhopal", "state": "Madhya Pradesh" }
+      ],
+      "visit_sequence": ["Bhopal"],
+      "estimated_travel_times": {},
+      "best_days": ["Monday"]
+    }
+  ]
+}`;
+
+    // Step 3: Call Gemini API
+    console.log('🤖 Calling Gemini API...');
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Gemini API error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    const textResponse = data.candidates[0].content.parts[0].text;
+    console.log('🤖 Gemini raw response:', textResponse);
+
+    // Step 4: Extract and parse JSON
+    let jsonString = textResponse.trim();
+    // Remove markdown code blocks if present
+    if (jsonString.startsWith('```json')) {
+      jsonString = jsonString.slice(7, -3).trim();
+    } else if (jsonString.startsWith('```')) {
+      jsonString = jsonString.slice(3, -3).trim();
+    }
+
+    let clusterData;
+    try {
+      clusterData = JSON.parse(jsonString);
+      if (!clusterData.clusters || !Array.isArray(clusterData.clusters)) {
+        throw new Error('Invalid cluster data structure - missing clusters array');
+      }
+    } catch (e) {
+      console.error('Failed to parse JSON:', e);
+      console.error('Original response:', textResponse);
+      throw new Error('Invalid JSON response from Gemini');
+    }
+
+    // Step 5: Normalize and enhance data
+    const enhancedClusters = clusterData.clusters.map(cluster => {
+      // Normalize areas to always be objects
+      const normalizedAreas = cluster.areas.map(area => {
+        if (typeof area === 'string') {
+          return {
+            area_name: area,
+            city: cluster.primary_city || 'Unknown',
+            state: cluster.primary_state || 'Unknown'
+          };
+        }
+        return area;
+      });
+
+      // Transform travel times to single string
+      const travelTimes = cluster.estimated_travel_times || {};
+      const estimated_travel_time_minutes = Object.entries(travelTimes)
+        .map(([route, time]) => `${route}: ${time}`)
+        .join('; ');
+
+      // Calculate customer count
+      const customerCount = areas
+        .filter(area => normalizedAreas.some(a => a.area_name === area.area_name))
+        .reduce((sum, area) => sum + (area.customer_count || 0), 0);
+
+      return {
+        ...cluster,
+        areas: normalizedAreas,
+        estimated_travel_time_minutes,
+        recommended_days: cluster.best_days || cluster.recommended_days || [],
+        total_estimated_customers: customerCount,
+        primary_city: cluster.primary_city || normalizedAreas[0]?.city || 'Unknown',
+        primary_state: cluster.primary_state || normalizedAreas[0]?.state || 'Unknown'
+      };
+    });
+
+    console.log('✅ Gemini clustering completed:', enhancedClusters.length, 'clusters');
+    
+    return {
+      success: true,
+      clusters: enhancedClusters,
+      optimization_notes: clusterData.optimization_notes || 'Generated by Gemini AI',
+      total_clusters: clusterData.total_clusters || enhancedClusters.length
+    };
+
+  } catch (error) {
+    console.error('💥 Gemini clustering failed:', error);
+    throw error;
+  }
+};
 // =============================================================================
 // 3. SAVE CLUSTER ASSIGNMENTS
 // =============================================================================
-
+/*
 export const saveClusterAssignments = async (mrName, clusters) => {
   try {
     console.log('💾 Saving cluster assignments for:', mrName);
@@ -851,7 +1008,110 @@ export const saveClusterAssignments = async (mrName, clusters) => {
     throw error;
   }
 };
+*/
 
+export const saveClusterAssignments = async (mrName, clusters) => {
+  try {
+    console.log('💾 Saving cluster assignments for:', mrName);
+    
+    if (!clusters || !Array.isArray(clusters)) {
+      throw new Error('Invalid clusters data');
+    }
+
+    let totalSaved = 0;
+    const errors = [];
+    
+    // Process clusters sequentially
+    for (const [clusterIndex, cluster] of clusters.entries()) {
+      console.log(`📦 Processing cluster ${cluster.cluster_id}: ${cluster.cluster_name}`);
+      
+      // Process areas in parallel with error handling
+      const savePromises = cluster.areas.map(async (areaObj) => {
+        try {
+          const visitSequenceOrder = cluster.visit_sequence?.indexOf(areaObj.area_name) + 1 || 1;
+          
+          const areaData = {
+            area_name: areaObj.area_name,
+            city: areaObj.city || cluster.primary_city || 'Unknown',
+            state: areaObj.state || cluster.primary_state || 'Unknown',
+            cluster_id: cluster.cluster_id,
+            cluster_name: cluster.cluster_name,
+            visit_sequence_order: visitSequenceOrder,
+            estimated_travel_time_minutes: cluster.estimated_travel_time_minutes || '',
+            recommended_days: cluster.recommended_days?.join(', ') || '',
+            total_estimated_customers: cluster.total_estimated_customers || 0,
+            primary_city: cluster.primary_city || areaObj.city || 'Unknown',
+            primary_state: cluster.primary_state || areaObj.state || 'Unknown'
+          };
+
+          // Validate required fields
+          if (!areaData.area_name || !areaData.city || !areaData.state) {
+            throw new Error(`Missing required fields for area: ${JSON.stringify(areaData)}`);
+          }
+
+          // Save using Supabase RPC
+          const { error } = await supabase.rpc('save_gemini_coordinates', {
+            p_mr_name: String(mrName),
+            p_area_name: String(areaData.area_name),
+            p_city: String(areaData.city),
+            p_state: String(areaData.state),
+            p_latitude: 0.0,
+            p_longitude: 0.0,
+            p_confidence: 0.85,
+            p_business_density: cluster.business_density || 'Medium',
+            p_nearby_areas_json: null,
+            p_cluster_id: Number(areaData.cluster_id),
+            p_cluster_name: String(areaData.cluster_name),
+            p_visit_sequence_order: Number(areaData.visit_sequence_order),
+            p_estimated_travel_time_minutes: String(areaData.estimated_travel_time_minutes),
+            p_recommended_days: String(areaData.recommended_days),
+            p_travel_notes: cluster.travel_notes || '',
+            p_total_estimated_customers: Number(areaData.total_estimated_customers),
+            p_avg_order_value: 0,
+            p_total_revenue: 0,
+            p_primary_city: String(areaData.primary_city),
+            p_primary_state: String(areaData.primary_state)
+          });
+
+          if (error) throw error;
+          
+          console.log(`✅ Saved ${areaData.area_name} to cluster ${cluster.cluster_id}`);
+          return true;
+        } catch (error) {
+          console.error(`❌ Failed to save area in cluster ${cluster.cluster_id}:`, error);
+          errors.push({
+            cluster: cluster.cluster_id,
+            area: areaObj.area_name,
+            error: error.message
+          });
+          return false;
+        }
+      });
+
+      // Wait for all areas in current cluster to process
+      const results = await Promise.all(savePromises);
+      totalSaved += results.filter(Boolean).length;
+    }
+
+    console.log(`💾 Cluster assignments saved: ${totalSaved} areas`);
+    
+    if (errors.length > 0) {
+      console.warn(`⚠️ Completed with ${errors.length} errors`);
+      return {
+        success: true,
+        totalSaved,
+        totalErrors: errors.length,
+        errors
+      };
+    }
+    
+    return { success: true, totalSaved };
+
+  } catch (error) {
+    console.error('💥 Error saving cluster assignments:', error);
+    throw error;
+  }
+};
 // =============================================================================
 // 4. GET EXISTING CLUSTERS
 // =============================================================================
