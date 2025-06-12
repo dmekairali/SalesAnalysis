@@ -1590,7 +1590,7 @@ Return ONLY a valid JSON object in this exact format:
 };
 
 // Fix 2: Updated saveClusterAssignments - FIXED DATA TYPES for your schema
-export const saveClusterAssignments = async (mrName, clusters) => {
+export const saveClusterAssignments_stopped = async (mrName, clusters) => {
   try {
     console.log('💾 Saving cluster assignments for:', mrName);
     
@@ -1692,6 +1692,145 @@ export const saveClusterAssignments = async (mrName, clusters) => {
     }
 
     console.log(`💾 Cluster assignments saved: ${totalSaved} areas`);
+    
+    if (errors.length > 0) {
+      console.warn(`⚠️ Completed with ${errors.length} errors`, errors);
+      return {
+        success: true,
+        totalSaved,
+        totalErrors: errors.length,
+        errors
+      };
+    }
+    
+    return { success: true, totalSaved };
+
+  } catch (error) {
+    console.error('💥 Error saving cluster assignments:', error);
+    throw error;
+  }
+};
+
+//------------new with customer data updation
+export const saveClusterAssignments = async (mrName, clusters) => {
+  try {
+    console.log('💾 Saving cluster assignments for:', mrName);
+    
+    if (!clusters || !Array.isArray(clusters)) {
+      throw new Error('Invalid clusters data');
+    }
+
+    let totalSaved = 0;
+    const errors = [];
+    
+    // Process clusters sequentially
+    for (const [clusterIndex, cluster] of clusters.entries()) {
+      console.log(`📦 Processing cluster ${cluster.cluster_id}: ${cluster.cluster_name}`);
+      
+      // Process areas in parallel with error handling
+      const savePromises = cluster.areas.map(async (areaObj) => {
+        try {
+          const visitSequenceOrder = cluster.visit_sequence?.indexOf(areaObj.area_name) + 1 || 1;
+          
+          // FIXED: Proper data type mapping for your schema
+          const areaData = {
+            // Required fields - VARCHAR/TEXT
+            mr_name: String(mrName),
+            area_name: String(areaObj.area_name),
+            city: String(areaObj.city || 'Unknown'),
+            state: String(areaObj.state || 'Unknown'),
+            
+            // Coordinates - NUMERIC (using 0 as placeholder)
+            latitude: 0.0,
+            longitude: 0.0,
+            
+            // Cluster info - INTEGER and VARCHAR
+            cluster_id: parseInt(cluster.cluster_id) || null,
+            cluster_name: String(cluster.cluster_name || ''),
+            
+            // Visit planning - INTEGER
+            visit_sequence_order: parseInt(visitSequenceOrder) || 1,
+            estimated_travel_time_minutes: parseInt(cluster.estimated_travel_time_minutes) || 0,
+            total_estimated_customers: parseInt(cluster.total_estimated_customers) || 0,
+            customer_count: 0, // Will be updated by the customer data function
+            
+            // Arrays and JSON - proper format
+            recommended_days: cluster.recommended_days || [], // ARRAY type
+            
+            // Text fields
+            travel_notes: String(cluster.travel_notes || ''),
+            detailed_travel_route: String(cluster.detailed_travel_route || ''),
+            business_density: String(cluster.business_density || 'Medium'),
+            primary_city: String(cluster.primary_city || areaObj.city || 'Unknown'),
+            primary_state: String(cluster.primary_state || areaObj.state || 'Unknown'),
+            
+            // Gemini specific - BOOLEAN and NUMERIC
+            gemini_processed: true,
+            gemini_confidence: 0.85,
+            
+            // Status - BOOLEAN
+            is_active: true,
+            
+            // Revenue fields - NUMERIC with proper formatting
+            avg_order_value: 0.00, // Will be updated by the customer data function
+            total_revenue: 0.00, // Will be updated by the customer data function
+            
+            // Timestamps
+            last_gemini_update: new Date().toISOString()
+          };
+
+          // Validate required fields
+          if (!areaData.area_name) {
+            throw new Error(`Missing area_name for cluster ${cluster.cluster_id}`);
+          }
+
+          // Use direct upsert instead of RPC for better error handling
+          const { error } = await supabase
+            .from('area_coordinates')
+            .upsert(areaData, {
+              onConflict: 'area_name,city,mr_name',
+              ignoreDuplicates: false
+            });
+
+          if (error) throw error;
+          
+          console.log(`✅ Saved ${areaData.area_name} to cluster ${cluster.cluster_id}`);
+          return true;
+          
+        } catch (error) {
+          console.error(`❌ Failed to save area in cluster ${cluster.cluster_id}:`, error);
+          errors.push({
+            cluster: cluster.cluster_id,
+            area: areaObj.area_name,
+            error: error.message
+          });
+          return false;
+        }
+      });
+
+      // Wait for all areas in current cluster to process
+      const results = await Promise.all(savePromises);
+      totalSaved += results.filter(Boolean).length;
+    }
+
+    console.log(`💾 Cluster assignments saved: ${totalSaved} areas`);
+
+    // NEW: Update customer data after saving clusters
+    try {
+      console.log('📊 Updating customer data for all areas...');
+      const { data: updateResult, error: updateError } = await supabase.rpc('update_customer_data_for_mr', {
+        p_mr_name: mrName
+      });
+
+      if (updateError) {
+        console.error('⚠️ Customer data update failed:', updateError);
+      } else {
+        console.log('✅ Customer data updated:', updateResult);
+      }
+    } catch (updateError) {
+      console.error('⚠️ Customer data update failed:', updateError);
+      // Don't fail the whole operation if customer data update fails
+    }
     
     if (errors.length > 0) {
       console.warn(`⚠️ Completed with ${errors.length} errors`, errors);
