@@ -1138,18 +1138,3 @@ const calculateCoverageScore = (weeklyBreakdown) => {
   return Math.min(100, (totalAreas * 4) + (totalVisits > 150 ? 20 : 10));
 };
 
-export {
-  // Core functions
-  getCustomerAreasForClustering,
-  createGeminiClusters,
-  saveClusterAssignments,
-  getExistingClusters,
-  createGeminiVisitPlan,
-  
-  // Plan details
-  getVisitPlanDetails,
-  getDailyBreakdown,
-  
-  // Main workflow
-  generateCompleteVisitPlan
-};
