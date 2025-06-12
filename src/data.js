@@ -678,109 +678,132 @@ export const createGeminiClusters = async (mrName, apiKey = null) => {
 
     const areaList = areas.map(a => a.area_name).join(', ');
     console.log('📊 Areas to cluster:', areaList);
-    
-    // Step 2: Create Gemini prompt for intelligent clustering
-   // In createGeminiClusters function, modify the prompt:
-const prompt = `I have a Medical Representative named ${mrName} who needs to visit customers in these areas in India:
+     
+    const improvedPrompt = `I have a Medical Representative named ${mrName} who needs to visit customers in these areas in India:
 ${areaList}
 
-IMPORTANT: Use the EXACT area names provided above. Do not add words like "City" or modify the names.
+Please analyze these areas and create 3-4 optimal geographic clusters for visit planning. 
 
-Please create 3-4 optimal geographic clusters for visit planning based on:
-1. Geographic proximity and travel efficiency
-2. Area connectivity and road networks  
-3. Business density and commercial importance
-4. Logical route optimization for daily visits
+IMPORTANT REQUIREMENTS:
+1. Use EXACT area names as provided (do not modify them)
+2. Identify the correct city and state for each area in India
+3. Provide complete travel and scheduling information
+4. Consider geographic proximity and business efficiency
 
 For each cluster, provide:
-- Cluster name (geographic description)
-- Areas included in the cluster with EXACT names (do not modify area names)
-- Recommended visit sequence within cluster
-- Estimated travel time between areas
-- Best day(s) of week to focus on this cluster
+- Cluster name (descriptive geographic name)
+- Areas with correct city/state identification
+- Visit sequence optimization
+- Travel time estimates between areas
+- Recommended visit days
+- Practical travel notes
 
-Return ONLY a valid JSON object in this exact format:
+Return ONLY a valid JSON object in this EXACT format (no markdown, no extra text):
+
 {
   "clusters": [
     {
       "cluster_id": 1,
-      "cluster_name": "Central Business Cluster",
+      "cluster_name": "Central Delhi Business Hub",
+      "primary_city": "New Delhi",
+      "primary_state": "Delhi",
       "areas": [
         {
-          "area_name": "Bhopal",
-          "city": "Bhopal",
-          "state": "Madhya Pradesh"
+          "area_name": "MALVIYA NAGAR",
+          "city": "New Delhi", 
+          "state": "Delhi",
+          "visit_sequence_order": 1,
+          "estimated_travel_time_minutes": 30
+        },
+        {
+          "area_name": "CHATTARPUR NEB SARAI",
+          "city": "New Delhi",
+          "state": "Delhi", 
+          "visit_sequence_order": 2,
+          "estimated_travel_time_minutes": 45
         }
       ],
-      "visit_sequence": ["Bhopal", "Vidisha"],
-      // ... rest of the fields
+      "recommended_days": ["Monday", "Tuesday", "Wednesday"],
+      "total_travel_time_minutes": 120,
+      "travel_notes": "Start early from central Delhi. Traffic is heavy during peak hours. Plan visits between 10 AM - 5 PM for optimal connectivity.",
+      "business_density": "High",
+      "cluster_priority": "High"
     }
   ]
 }
 
-Use EXACT area names: Bhopal, Vidisha, Sagar (not "Bhopal City" or "Vidisha City")`;
+Guidelines:
+- For Delhi areas: Use "New Delhi" as city, "Delhi" as state
+- For Mumbai areas: Use "Mumbai" as city, "Maharashtra" as state  
+- For Bangalore areas: Use "Bangalore" as city, "Karnataka" as state
+- Always provide realistic travel times (15-90 minutes between areas)
+- Recommend 2-4 days per week per cluster
+- Include practical travel advice in travel_notes
+- Ensure all fields are filled with meaningful data`;
 
-    // Step 3: Call Gemini API
-    console.log('🤖 Calling Gemini API...');
-    
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      })
+    const result = await window.ai.languageModel.create({
+      systemPrompt: "You are a geographic clustering expert for medical sales territory planning in India. Provide accurate, practical recommendations based on Indian geography and business travel patterns."
     });
 
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+    const response = await result.prompt(improvedPrompt);
+    console.log('Gemini raw response:', response);
+
+    // Parse and validate response
+    let parsedResponse;
+    try {
+      // Clean response (remove any markdown formatting)
+      const cleanResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      parsedResponse = JSON.parse(cleanResponse);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      throw new Error('Invalid JSON response from Gemini');
     }
 
-    const data = await response.json();
-    const textResponse = data.candidates[0].content.parts[0].text;
-    
-    console.log('🤖 Gemini raw response:', textResponse);
-
-    // Step 4: Extract and parse JSON
-    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No valid JSON found in Gemini response');
+    // Validate and enhance the response
+    if (!parsedResponse.clusters || !Array.isArray(parsedResponse.clusters)) {
+      throw new Error('Invalid clusters structure in response');
     }
 
-    const clusterData = JSON.parse(jsonMatch[0]);
-    
-    // Step 5: Enhance with customer counts
-    const enhancedClusters = clusterData.clusters.map(cluster => {
-      const customerCount = areas
-        .filter(area => cluster.areas.some(clusterArea => clusterArea.area_name === area.area_name))
-        .reduce((sum, area) => sum + (area.customer_count || 0), 0);
-      
-      return {
-        ...cluster,
-        total_estimated_customers: customerCount
+    // Process each cluster to ensure all fields are present
+    const processedClusters = parsedResponse.clusters.map((cluster, index) => {
+      // Ensure required cluster fields
+      const processedCluster = {
+        cluster_id: cluster.cluster_id || (index + 1),
+        cluster_name: cluster.cluster_name || `Cluster ${index + 1}`,
+        primary_city: cluster.primary_city || 'Unknown City',
+        primary_state: cluster.primary_state || 'Unknown State',
+        recommended_days: cluster.recommended_days || ['Monday', 'Tuesday', 'Wednesday'],
+        total_travel_time_minutes: cluster.total_travel_time_minutes || 60,
+        travel_notes: cluster.travel_notes || 'Plan visits during business hours. Consider traffic conditions.',
+        business_density: cluster.business_density || 'Medium',
+        cluster_priority: cluster.cluster_priority || 'Medium',
+        areas: []
       };
+
+      // Process areas within cluster
+      if (cluster.areas && Array.isArray(cluster.areas)) {
+        processedCluster.areas = cluster.areas.map((area, areaIndex) => ({
+          area_name: area.area_name || areas[areaIndex] || `Area ${areaIndex + 1}`,
+          city: area.city || processedCluster.primary_city,
+          state: area.state || processedCluster.primary_state,
+          visit_sequence_order: area.visit_sequence_order || (areaIndex + 1),
+          estimated_travel_time_minutes: area.estimated_travel_time_minutes || 30
+        }));
+      }
+
+      return processedCluster;
     });
 
-    console.log('✅ Gemini clustering completed:', enhancedClusters.length, 'clusters');
-    
-    return {
-      success: true,
-      clusters: enhancedClusters,
-      optimization_notes: clusterData.optimization_notes,
-      total_clusters: clusterData.total_clusters || enhancedClusters.length
-    };
+    console.log('Processed clusters:', processedClusters);
+    return { clusters: processedClusters };
 
   } catch (error) {
-    console.error('💥 Gemini clustering failed:', error);
-    throw error;
+    console.error('Error in createGeminiClusters:', error);
+    
+    // No fallback - only save data from Gemini
+    throw new Error(`Failed to create Gemini clusters: ${error.message}`);
   }
 };
-
 // =============================================================================
 // 3. SAVE CLUSTER ASSIGNMENTS
 // =============================================================================
