@@ -1573,27 +1573,26 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
     });
 
     const { data, error } = await supabase.rpc('save_gemini_coordinates', {
-      p_mr_name: mrName,
-      p_area_name: areaData.area_name,
-      p_city: areaData.city,
-      p_state: areaData.state,
-      p_latitude: areaData.latitude,
-      p_longitude: areaData.longitude,
-      p_confidence: areaData.confidence,
-      p_business_density: areaData.business_density,
-      p_nearby_areas_json: areaData.nearby_areas,
-      // Add new parameters
-      p_cluster_id: 1,//areaData.cluster_id,
-      p_cluster_name: areaData.cluster_name,
-      p_visit_sequence_order: areaData.visit_sequence_order,
-      p_estimated_travel_time_minutes: areaData.estimated_travel_time_minutes,
-      p_recommended_days: areaData.recommended_days,
-      p_travel_notes: areaData.travel_notes,
-      p_total_estimated_customers: areaData.total_estimated_customers,
-      p_avg_order_value: areaData.avg_order_value,
-      p_total_revenue: areaData.total_revenue,
-      p_primary_city: areaData.primary_city,
-      p_primary_state: areaData.primary_state
+      p_mr_name: String(mrName),
+  p_area_name: String(areaData.area_name),
+  p_city: String(areaData.city),
+  p_state: String(areaData.state),
+  p_latitude: areaData.latitude ? Number(areaData.latitude) : null,
+  p_longitude: areaData.longitude ? Number(areaData.longitude) : null,
+  p_confidence: areaData.confidence ? Number(areaData.confidence) : null,
+  p_business_density: areaData.business_density ? String(areaData.business_density) : null,
+  p_nearby_areas_json: areaData.nearby_areas || null,
+  p_cluster_id: areaData.cluster_id ? Number(areaData.cluster_id) : null,  // ✅ Explicit Number conversion
+  p_cluster_name: areaData.cluster_name ? String(areaData.cluster_name) : null,
+  p_visit_sequence_order: areaData.visit_sequence_order ? Number(areaData.visit_sequence_order) : null,
+  p_estimated_travel_time_minutes: areaData.estimated_travel_time_minutes ? Number(areaData.estimated_travel_time_minutes) : null,
+  p_recommended_days: areaData.recommended_days || null,
+  p_travel_notes: areaData.travel_notes ? String(areaData.travel_notes) : null,
+  p_total_estimated_customers: areaData.total_estimated_customers ? Number(areaData.total_estimated_customers) : null,
+  p_avg_order_value: areaData.avg_order_value ? Number(areaData.avg_order_value) : null,
+  p_total_revenue: areaData.total_revenue ? Number(areaData.total_revenue) : null,
+  p_primary_city: areaData.primary_city ? String(areaData.primary_city) : null,
+  p_primary_state: areaData.primary_state ? String(areaData.primary_state) : null
     });
     if (error) throw error;
     return data;
