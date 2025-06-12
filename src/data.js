@@ -1584,7 +1584,7 @@ export const saveGeminiCoordinates = async (mrName, areaData) => {
   p_nearby_areas_json: areaData.nearby_areas || null,
   p_cluster_id: areaData.cluster_id ? Number(areaData.cluster_id) : null,  // ✅ Explicit Number conversion
   p_cluster_name: areaData.cluster_name ? String(areaData.cluster_name) : null,
-  p_visit_sequence_order: areaData.visit_sequence_order ? Number(areaData.visit_sequence_order) : null,
+  p_visit_sequence_order: areaData.cluster_id ? Number(areaData.cluster_id) : null,  // ✅ Explicit Number conversion//areaData.visit_sequence_order ? Number(areaData.visit_sequence_order) : null,
   p_estimated_travel_time_minutes: areaData.estimated_travel_time_minutes ? Number(areaData.estimated_travel_time_minutes) : null,
   p_recommended_days: areaData.recommended_days || null,
   p_travel_notes: areaData.travel_notes ? String(areaData.travel_notes) : null,
