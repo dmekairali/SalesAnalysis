@@ -680,8 +680,11 @@ export const createGeminiClusters = async (mrName, apiKey = null) => {
     console.log('📊 Areas to cluster:', areaList);
     
     // Step 2: Create Gemini prompt for intelligent clustering
-    const prompt = `I have a Medical Representative named ${mrName} who needs to visit customers in these areas in India:
+   // In createGeminiClusters function, modify the prompt:
+const prompt = `I have a Medical Representative named ${mrName} who needs to visit customers in these areas in India:
 ${areaList}
+
+IMPORTANT: Use the EXACT area names provided above. Do not add words like "City" or modify the names.
 
 Please create 3-4 optimal geographic clusters for visit planning based on:
 1. Geographic proximity and travel efficiency
@@ -691,7 +694,7 @@ Please create 3-4 optimal geographic clusters for visit planning based on:
 
 For each cluster, provide:
 - Cluster name (geographic description)
-- Areas included in the cluster with their city and state
+- Areas included in the cluster with EXACT names (do not modify area names)
 - Recommended visit sequence within cluster
 - Estimated travel time between areas
 - Best day(s) of week to focus on this cluster
@@ -701,28 +704,21 @@ Return ONLY a valid JSON object in this exact format:
   "clusters": [
     {
       "cluster_id": 1,
-      "cluster_name": "Central Business District",
+      "cluster_name": "Central Business Cluster",
       "areas": [
         {
-          "area_name": "AREA1",
-          "city": "CityName",
-          "state": "StateName"
+          "area_name": "Bhopal",
+          "city": "Bhopal",
+          "state": "Madhya Pradesh"
         }
       ],
-      "visit_sequence": ["AREA1", "AREA2"],
-      "estimated_travel_time_minutes": 45,
-      "recommended_days": ["Monday", "Wednesday"],
-      "travel_notes": "Well connected areas with good road network",
-      "business_density": "High",
-      "primary_city": "MainCity",
-      "primary_state": "MainState"
+      "visit_sequence": ["Bhopal", "Vidisha"],
+      // ... rest of the fields
     }
-  ],
-  "optimization_notes": "Overall clustering strategy explanation",
-  "total_clusters": 3
+  ]
 }
 
-No additional text, just the JSON.`;
+Use EXACT area names: Bhopal, Vidisha, Sagar (not "Bhopal City" or "Vidisha City")`;
 
     // Step 3: Call Gemini API
     console.log('🤖 Calling Gemini API...');
