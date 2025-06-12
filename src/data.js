@@ -636,3 +636,520 @@ export const fetchFilteredOrderData = async (filters = {}) => {
 
 //------------visits data
 
+
+// =============================================================================
+// 1. GET CUSTOMER AREAS FOR CLUSTERING
+// =============================================================================
+
+export const getCustomerAreasForClustering = async (mrName) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_clustered_customers', { p_mr_name: mrName });
+
+    if (error) throw error;
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error getting customer areas:', error);
+    return [];
+  }
+};
+
+// =============================================================================
+// 2. GEMINI AI CLUSTERING (CORE FUNCTION)
+// =============================================================================
+
+export const createGeminiClusters = async (mrName, apiKey = null) => {
+  const geminiApiKey = apiKey || process.env.REACT_APP_GEMINI_API_KEY;
+  
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key not found');
+  }
+
+  try {
+    console.log('🤖 Starting Gemini clustering for MR:', mrName);
+    
+    // Step 1: Get customer areas
+    const areas = await getCustomerAreasForClustering(mrName);
+    
+    if (areas.length === 0) {
+      throw new Error('No customer areas found for this MR');
+    }
+
+    const areaList = areas.map(a => a.area_name).join(', ');
+    console.log('📊 Areas to cluster:', areaList);
+    
+    // Step 2: Create Gemini prompt for intelligent clustering
+    const prompt = `I have a Medical Representative named ${mrName} who needs to visit customers in these areas in India:
+${areaList}
+
+Please create 3-4 optimal geographic clusters for visit planning based on:
+1. Geographic proximity and travel efficiency
+2. Area connectivity and road networks  
+3. Business density and commercial importance
+4. Logical route optimization for daily visits
+
+For each cluster, provide:
+- Cluster name (geographic description)
+- Areas included in the cluster with their city and state
+- Recommended visit sequence within cluster
+- Estimated travel time between areas
+- Best day(s) of week to focus on this cluster
+
+Return ONLY a valid JSON object in this exact format:
+{
+  "clusters": [
+    {
+      "cluster_id": 1,
+      "cluster_name": "Central Business District",
+      "areas": [
+        {
+          "area_name": "AREA1",
+          "city": "CityName",
+          "state": "StateName"
+        }
+      ],
+      "visit_sequence": ["AREA1", "AREA2"],
+      "estimated_travel_time_minutes": 45,
+      "recommended_days": ["Monday", "Wednesday"],
+      "travel_notes": "Well connected areas with good road network",
+      "business_density": "High",
+      "primary_city": "MainCity",
+      "primary_state": "MainState"
+    }
+  ],
+  "optimization_notes": "Overall clustering strategy explanation",
+  "total_clusters": 3
+}
+
+No additional text, just the JSON.`;
+
+    // Step 3: Call Gemini API
+    console.log('🤖 Calling Gemini API...');
+    
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const textResponse = data.candidates[0].content.parts[0].text;
+    
+    console.log('🤖 Gemini raw response:', textResponse);
+
+    // Step 4: Extract and parse JSON
+    const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON found in Gemini response');
+    }
+
+    const clusterData = JSON.parse(jsonMatch[0]);
+    
+    // Step 5: Enhance with customer counts
+    const enhancedClusters = clusterData.clusters.map(cluster => {
+      const customerCount = areas
+        .filter(area => cluster.areas.some(clusterArea => clusterArea.area_name === area.area_name))
+        .reduce((sum, area) => sum + (area.customer_count || 0), 0);
+      
+      return {
+        ...cluster,
+        total_estimated_customers: customerCount
+      };
+    });
+
+    console.log('✅ Gemini clustering completed:', enhancedClusters.length, 'clusters');
+    
+    return {
+      success: true,
+      clusters: enhancedClusters,
+      optimization_notes: clusterData.optimization_notes,
+      total_clusters: clusterData.total_clusters || enhancedClusters.length
+    };
+
+  } catch (error) {
+    console.error('💥 Gemini clustering failed:', error);
+    throw error;
+  }
+};
+
+// =============================================================================
+// 3. SAVE CLUSTER ASSIGNMENTS
+// =============================================================================
+
+export const saveClusterAssignments = async (mrName, clusters) => {
+  try {
+    console.log('💾 Saving cluster assignments for:', mrName);
+    
+    let totalSaved = 0;
+    
+    for (const cluster of clusters) {
+      for (const areaObj of cluster.areas) {
+        const visitSequenceOrder = cluster.visit_sequence?.indexOf(areaObj.area_name) + 1 || 1;
+        
+        const areaData = {
+          area_name: areaObj.area_name,
+          city: areaObj.city || cluster.primary_city || 'Unknown',
+          state: areaObj.state || cluster.primary_state || 'Unknown',
+          cluster_id: cluster.cluster_id,
+          cluster_name: cluster.cluster_name,
+          visit_sequence_order: visitSequenceOrder,
+          estimated_travel_time_minutes: cluster.estimated_travel_time_minutes || null,
+          recommended_days: cluster.recommended_days || null,
+          travel_notes: cluster.travel_notes || null,
+          total_estimated_customers: cluster.total_estimated_customers || 0,
+          primary_city: cluster.primary_city || areaObj.city,
+          primary_state: cluster.primary_state || areaObj.state
+        };
+
+        // Save using your existing RPC
+        const { error } = await supabase.rpc('save_gemini_coordinates_test', {
+          p_mr_name: String(mrName),
+          p_area_name: String(areaData.area_name),
+          p_city: String(areaData.city),
+          p_state: String(areaData.state),
+          p_latitude: null, // Not needed for clustering
+          p_longitude: null, // Not needed for clustering
+          p_confidence: 0.85, // Default confidence for Gemini clustering
+          p_business_density: cluster.business_density || 'Medium',
+          p_nearby_areas_json: null,
+          p_cluster_id: Number(areaData.cluster_id),
+          p_cluster_name: String(areaData.cluster_name),
+          p_visit_sequence_order: Number(areaData.visit_sequence_order),
+          p_estimated_travel_time_minutes: areaData.estimated_travel_time_minutes,
+          p_recommended_days: areaData.recommended_days,
+          p_travel_notes: areaData.travel_notes,
+          p_total_estimated_customers: Number(areaData.total_estimated_customers),
+          p_avg_order_value: 0,
+          p_total_revenue: 0,
+          p_primary_city: String(areaData.primary_city),
+          p_primary_state: String(areaData.primary_state)
+        });
+
+        if (error) {
+          console.error(`❌ Failed to save ${areaData.area_name}:`, error);
+        } else {
+          console.log(`✅ Saved ${areaData.area_name} to cluster ${cluster.cluster_id}`);
+          totalSaved++;
+        }
+      }
+    }
+
+    console.log(`💾 Cluster assignments saved: ${totalSaved} areas`);
+    return { success: true, totalSaved };
+
+  } catch (error) {
+    console.error('💥 Error saving cluster assignments:', error);
+    throw error;
+  }
+};
+
+// =============================================================================
+// 4. GET EXISTING CLUSTERS
+// =============================================================================
+
+export const getExistingClusters = async (mrName) => {
+  try {
+    const { data, error } = await supabase
+      .from('area_coordinates')
+      .select('area_name, city, state, cluster_id, cluster_name, visit_sequence_order, estimated_travel_time_minutes, recommended_days, travel_notes')
+      .eq('mr_name', mrName)
+      .not('cluster_id', 'is', null)
+      .order('cluster_id');
+
+    if (error) throw error;
+
+    // Group by clusters
+    const clusteredResults = data.reduce((acc, area) => {
+      if (!acc[area.cluster_id]) {
+        acc[area.cluster_id] = {
+          cluster_id: area.cluster_id,
+          cluster_name: area.cluster_name,
+          areas: [],
+          estimated_travel_time_minutes: area.estimated_travel_time_minutes,
+          recommended_days: area.recommended_days,
+          travel_notes: area.travel_notes
+        };
+      }
+      
+      acc[area.cluster_id].areas.push({
+        area_name: area.area_name,
+        city: area.city,
+        state: area.state
+      });
+      
+      return acc;
+    }, {});
+
+    return Object.values(clusteredResults);
+
+  } catch (error) {
+    console.error('Error getting existing clusters:', error);
+    return [];
+  }
+};
+
+// =============================================================================
+// 5. CREATE VISIT PLAN
+// =============================================================================
+
+export const createGeminiVisitPlan = async (mrName, month, year) => {
+  try {
+    console.log('🎯 Creating visit plan for:', { mrName, month, year });
+    
+    // Step 1: Ensure clusters exist
+    let clusters = await getExistingClusters(mrName);
+    
+    if (clusters.length === 0) {
+      console.log('🤖 No clusters found, creating Gemini clusters...');
+      const clusterResult = await createGeminiClusters(mrName);
+      
+      if (clusterResult.success) {
+        await saveClusterAssignments(mrName, clusterResult.clusters);
+        clusters = clusterResult.clusters;
+      } else {
+        throw new Error('Failed to create clusters');
+      }
+    } else {
+      console.log('✅ Using existing clusters:', clusters.length);
+    }
+
+    // Step 2: Create visit plan using existing RPC
+    const { data: planId, error } = await supabase.rpc('create_area_optimized_visit_plan', {
+      p_mr_name: mrName,
+      p_month: month,
+      p_year: year,
+      p_target_visits_per_day: 10
+    });
+
+    if (error) throw error;
+
+    console.log('✅ Visit plan created with ID:', planId);
+    return planId;
+
+  } catch (error) {
+    console.error('💥 Error creating visit plan:', error);
+    throw error;
+  }
+};
+
+// =============================================================================
+// 6. GET VISIT PLAN DETAILS
+// =============================================================================
+
+export const getVisitPlanDetails = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .from('visit_plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error getting visit plan details:', error);
+    return null;
+  }
+};
+
+// =============================================================================
+// 7. GET DAILY BREAKDOWN
+// =============================================================================
+
+export const getDailyBreakdown = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .from('daily_visit_plans')
+      .select(`
+        *,
+        planned_visits (*)
+      `)
+      .eq('visit_plan_id', planId)
+      .order('visit_date');
+    
+    if (error) throw error;
+    
+    // Transform to weekly format
+    const weeks = [];
+    let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
+    let weekNumber = 1;
+
+    data.forEach((dayPlan, index) => {
+      const dayData = {
+        date: dayPlan.visit_date,
+        dayName: new Date(dayPlan.visit_date).toLocaleDateString('en-US', { weekday: 'short' }),
+        visits: dayPlan.planned_visits || [],
+        summary: {
+          totalVisits: dayPlan.planned_visits_count || 0,
+          estimatedRevenue: parseFloat(dayPlan.estimated_daily_revenue) || 0,
+          areasVisited: new Set(dayPlan.planned_visits?.map(v => v.area_name) || []).size,
+          highPriorityVisits: dayPlan.planned_visits?.filter(v => v.priority_level === 'HIGH').length || 0
+        }
+      };
+
+      currentWeek.days.push(dayData);
+      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
+      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
+
+      // Close week after 6 days (Mon-Sat) or at end
+      if (currentWeek.days.length === 6 || index === data.length - 1) {
+        weeks.push(currentWeek);
+        weekNumber++;
+        currentWeek = { 
+          week: weekNumber, 
+          days: [], 
+          summary: { totalVisits: 0, estimatedRevenue: 0 } 
+        };
+      }
+    });
+
+    return weeks;
+  } catch (error) {
+    console.error('Error getting daily breakdown:', error);
+    return [];
+  }
+};
+
+// =============================================================================
+// 8. COMPLETE WORKFLOW - ONE FUNCTION TO RULE THEM ALL
+// =============================================================================
+
+export const generateCompleteVisitPlan = async (mrName, month, year) => {
+  try {
+    console.log('🚀 Starting complete visit plan generation...');
+    
+    // Step 1: Create visit plan (automatically handles clustering)
+    const planId = await createGeminiVisitPlan(mrName, month, year);
+    
+    // Step 2: Get plan details
+    const planDetails = await getVisitPlanDetails(planId);
+    
+    // Step 3: Get daily breakdown
+    const weeklyBreakdown = await getDailyBreakdown(planId);
+    
+    // Step 4: Generate insights
+    const insights = generatePlanInsights(planDetails, weeklyBreakdown);
+    
+    // Step 5: Return complete plan
+    const completePlan = {
+      planId,
+      mrName,
+      month,
+      year,
+      summary: {
+        totalWorkingDays: planDetails?.total_working_days || 25,
+        totalPlannedVisits: planDetails?.total_planned_visits || 0,
+        estimatedRevenue: planDetails?.estimated_revenue || 0,
+        efficiencyScore: planDetails?.efficiency_score || 0,
+        coverageScore: calculateCoverageScore(weeklyBreakdown)
+      },
+      weeklyBreakdown,
+      insights
+    };
+    
+    console.log('✅ Complete visit plan generated successfully');
+    return completePlan;
+    
+  } catch (error) {
+    console.error('💥 Error generating complete visit plan:', error);
+    throw error;
+  }
+};
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+const generatePlanInsights = (planDetails, weeklyBreakdown) => {
+  const insights = [];
+  
+  const totalRevenue = parseFloat(planDetails?.estimated_revenue) || 0;
+  const totalVisits = planDetails?.total_planned_visits || 0;
+  const workingDays = planDetails?.total_working_days || 25;
+  
+  // Revenue insight
+  insights.push({
+    type: 'revenue',
+    title: 'Revenue Potential',
+    value: `₹${(totalRevenue / 100000).toFixed(1)}L`,
+    description: `Expected monthly revenue from ${totalVisits} visits`,
+    recommendation: totalRevenue > 500000 ? 'Excellent revenue potential' : 'Focus on high-value customers'
+  });
+
+  // Efficiency insight
+  const avgVisitsPerDay = workingDays > 0 ? (totalVisits / workingDays).toFixed(1) : 0;
+  insights.push({
+    type: 'optimization',
+    title: 'Visit Efficiency',
+    value: `${avgVisitsPerDay}/day`,
+    description: 'Average visits per working day',
+    recommendation: avgVisitsPerDay >= 8 ? 'Optimal visit distribution' : 'Consider increasing daily visits'
+  });
+
+  // Coverage insight
+  const totalAreas = new Set(
+    weeklyBreakdown.flatMap(week => 
+      week.days.flatMap(day => 
+        day.visits?.map(v => v.area_name) || []
+      )
+    )
+  ).size;
+  
+  insights.push({
+    type: 'coverage',
+    title: 'Territory Coverage',
+    value: `${totalAreas} areas`,
+    description: 'Geographic areas covered in plan',
+    recommendation: 'AI-optimized geographic clustering'
+  });
+
+  return insights;
+};
+
+const calculateCoverageScore = (weeklyBreakdown) => {
+  if (!weeklyBreakdown || weeklyBreakdown.length === 0) return 0;
+  
+  const totalVisits = weeklyBreakdown.reduce((sum, week) => 
+    sum + week.summary.totalVisits, 0
+  );
+  
+  const totalAreas = new Set(
+    weeklyBreakdown.flatMap(week => 
+      week.days.flatMap(day => 
+        day.visits?.map(v => v.area_name) || []
+      )
+    )
+  ).size;
+  
+  // Score based on visits and area coverage
+  return Math.min(100, (totalAreas * 4) + (totalVisits > 150 ? 20 : 10));
+};
+
+export {
+  // Core functions
+  getCustomerAreasForClustering,
+  createGeminiClusters,
+  saveClusterAssignments,
+  getExistingClusters,
+  createGeminiVisitPlan,
+  
+  // Plan details
+  getVisitPlanDetails,
+  getDailyBreakdown,
+  
+  // Main workflow
+  generateCompleteVisitPlan
+};
