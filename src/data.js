@@ -820,8 +820,8 @@ export const saveClusterAssignments = async (mrName, clusters) => {
           p_area_name: String(areaData.area_name),
           p_city: String(areaData.city),
           p_state: String(areaData.state),
-          p_latitude: null, // Not needed for clustering
-          p_longitude: null, // Not needed for clustering
+          p_latitude: 0.0, // Not needed for clustering
+          p_longitude: 0.0, // Not needed for clustering
           p_confidence: 0.85, // Default confidence for Gemini clustering
           p_business_density: cluster.business_density || 'Medium',
           p_nearby_areas_json: null,
