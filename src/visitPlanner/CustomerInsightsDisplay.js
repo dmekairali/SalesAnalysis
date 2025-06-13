@@ -91,53 +91,50 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
 
   // Memoized Golden Clients Calculation
   const goldenClients = useMemo(() => {
-    if (!weeklyBreakdown) return [];
+    if (!allMrCustomers || allMrCustomers.length === 0) {
+      return [];
+    }
 
-    const customerData = {};
-    weeklyBreakdown.forEach(week => {
-      week.days.forEach(day => {
-        if (day.visits && Array.isArray(day.visits)) {
-          day.visits.forEach(visit => {
-            if (visit.customer_phone && !visit.prospect_generated) {
-              const key = visit.customer_phone;
-              if (!customerData[key]) {
-                customerData[key] = {
-                  name: visit.customer_name,
-                  phone: visit.customer_phone,
-                  type: visit.customer_type || 'Unknown',
-                  totalExpectedValue: 0,
-                  visitCount: 0,
-                  areas: new Set(),
-                };
-              }
-              customerData[key].totalExpectedValue += visit.expected_order_value || 0;
-              customerData[key].visitCount++;
-              customerData[key].areas.add(visit.area_name || 'N/A');
-            }
-          });
-        }
-      });
-    });
-
-    const allCustomersArray = Object.values(customerData);
-    if (allCustomersArray.length === 0) return [];
-
-    const minVisitCount = 3;
-    // Calculate average total expected value dynamically or use a fixed threshold
-    const totalValueForAllCustomers = allCustomersArray.reduce((sum, cust) => sum + cust.totalExpectedValue, 0);
-    const avgTotalExpectedValue = totalValueForAllCustomers / allCustomersArray.length;
-    // Ensure minTotalValue is substantial, e.g., not too low if avg is low.
-    const minTotalValue = Math.max(avgTotalExpectedValue, 10000);
-
-
-    let filteredClients = allCustomersArray.filter(
-      cust => cust.visitCount >= minVisitCount && cust.totalExpectedValue >= minTotalValue
+    // Filter for Doctors and Retailers first from historical data
+    const filteredMrCustomers = allMrCustomers.filter(
+      customer => customer.customer_type === 'Doctor' || customer.customer_type === 'Retailer'
     );
 
-    filteredClients.sort((a, b) => b.totalExpectedValue - a.totalExpectedValue);
+    // Aggregate historical data for these filtered customers
+    // No need to iterate weeklyBreakdown here; we use allMrCustomers directly
+    const customerAggregatedData = filteredMrCustomers.map(customer => ({
+      name: customer.customer_name,
+      phone: customer.customer_phone || customer.customer_id, // Use customer_id as fallback for key
+      type: customer.customer_type,
+      // Use historical fields from customer_predictions_cache
+      totalExpectedValue: parseFloat(customer.total_order_value_last_6m || customer.total_order_value || 0), // Prioritize 6m if available
+      visitCount: parseInt(customer.total_visits_last_6m || customer.total_visits || 0), // Prioritize 6m
+      churnRiskScore: parseFloat(customer.churn_risk_score) || 0,
+      // Areas might not be directly relevant here unless it's a primary service area from cache
+      // For simplicity, we'll omit 'areas' from this historical golden client view for now.
+    }));
 
-    return filteredClients.slice(0, 5); // Top 5 Golden Clients
-  }, [weeklyBreakdown]);
+    if (customerAggregatedData.length === 0) return [];
+
+    // Define "Golden" Criteria based on historical data
+    const minHistoricalVisitCount = 3; // Example: At least 3 historical visits
+    const lowChurnRiskThreshold = 0.2; // Example: Churn risk score <= 20%
+
+    // Calculate average total historical value among Doctors/Retailers or use a fixed threshold
+    const totalValueFromFiltered = customerAggregatedData.reduce((sum, cust) => sum + cust.totalExpectedValue, 0);
+    const avgTotalExpectedValue = customerAggregatedData.length > 0 ? totalValueFromFiltered / customerAggregatedData.length : 0;
+    const minHistoricalTotalValue = Math.max(avgTotalExpectedValue * 0.75, 15000); // Example: 75% of avg or 15k
+
+    let potentialGoldenClients = customerAggregatedData.filter(cust =>
+      cust.visitCount >= minHistoricalVisitCount &&
+      cust.totalExpectedValue >= minHistoricalTotalValue &&
+      cust.churnRiskScore <= lowChurnRiskThreshold
+    );
+
+    potentialGoldenClients.sort((a, b) => b.totalExpectedValue - a.totalExpectedValue); // Sort by highest historical value
+
+    return potentialGoldenClients.slice(0, 5); // Top 5 Golden Clients based on historical data
+  }, [allMrCustomers]);
 
 
   // 1. Customer Segmentation Recap (Unique Visited Customers by Type)
@@ -371,15 +368,10 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
                     <span className="text-xs font-medium bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{client.type}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    <p><span className="font-medium text-gray-600">Total Visits:</span> <span className="font-bold text-indigo-600">{client.visitCount}</span></p>
-                    <p><span className="font-medium text-gray-600">Total Est. Revenue:</span> <span className="font-bold text-green-600">{formatCurrency(client.totalExpectedValue)}</span></p>
-                    <p><span className="font-medium text-gray-600">Avg. Revenue/Visit:</span> <span className="font-bold text-green-600">{formatCurrency(client.totalExpectedValue / client.visitCount)}</span></p>
-                    <div className="col-span-2 flex items-start mt-1">
-                        <MapPin className="h-4 w-4 mr-1 text-gray-500 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-gray-500">
-                           <span className="font-medium">Areas:</span> {Array.from(client.areas).join(', ') || 'N/A'}
-                        </p>
-                    </div>
+                    <p><span className="font-medium text-gray-600">Historical Visits:</span> <span className="font-bold text-indigo-600">{client.visitCount}</span></p>
+                    <p><span className="font-medium text-gray-600">Historical Value:</span> <span className="font-bold text-green-600">{formatCurrency(client.totalExpectedValue)}</span></p>
+                    <p><span className="font-medium text-gray-600">Avg. Value/Visit:</span> <span className="font-bold text-green-600">{client.visitCount > 0 ? formatCurrency(client.totalExpectedValue / client.visitCount) : 'N/A'}</span></p>
+                    <p><span className="font-medium text-gray-600">Churn Risk:</span> <span className="font-bold text-red-600">{(client.churnRiskScore * 100).toFixed(0)}%</span></p>
                   </div>
                 </li>
               ))}

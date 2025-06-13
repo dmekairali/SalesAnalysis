@@ -56,36 +56,6 @@ const RouteAnalysisDisplay = ({ visitPlan }) => {
 
   return (
     <div className="space-y-8 p-1 bg-gray-50 rounded-lg">
-      {/* Daily Workload Distribution Section */}
-      <section>
-        <h3 className={headingClasses}>
-          <CalendarDays className="h-6 w-6 mr-2 text-blue-600" />
-          Daily Workload Distribution
-        </h3>
-        <div className="overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planned Visits</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Est. Revenue</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {weeklyBreakdown.flatMap(week => week.days).map((day, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{day.date}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{day.dayName}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{day.summary?.totalVisits || 0}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-green-700 font-medium">{formatCurrency(day.summary?.estimatedRevenue || 0)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       {/* Area Visit Frequency Section */}
       <section>
         <h3 className={headingClasses}>
