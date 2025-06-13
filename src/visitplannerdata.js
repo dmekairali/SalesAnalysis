@@ -58,7 +58,8 @@ export class ReactVisitPlannerML {
         year,
         summary: this.calculatePlanSummary(visitPlan),
         dailyPlans: visitPlan,
-        insights: this.generatePlanInsights(visitPlan, customers.length)
+        insights: this.generatePlanInsights(visitPlan, customers.length),
+        geminiClusteredAreas: clusteredAreas
       };
 
     } catch (error) {

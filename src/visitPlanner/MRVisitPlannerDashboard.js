@@ -29,7 +29,7 @@ const MRVisitPlannerDashboard = () => {
   const [mrList, setMrList] = useState([]);
   const [loadingMRs, setLoadingMRs] = useState(true);
  
-  const [clusterStatus, setClusterStatus] = useState(null);
+  const [clusterStatus, setClusterStatus] = useState(null); // Will be updated from plan generation
 
   const initialPlanSteps = [
     { id: 'INITIALIZATION', name: 'Initializing', status: 'pending' },
@@ -48,25 +48,7 @@ const MRVisitPlannerDashboard = () => {
     process.env.REACT_APP_SUPABASE_ANON_KEY
   );
 
-  useEffect(() => {
-  const checkClusterStatus = async () => {
-    if (!selectedMR) return;
-    
-    try {
-      const clusters = await getExistingClusters(selectedMR);
-      setClusterStatus({
-        hasExistingClusters: clusters.length > 0,
-        clusterCount: clusters.length,
-        totalAreas: clusters.reduce((sum, cluster) => sum + cluster.areas.length, 0)
-      });
-    } catch (error) {
-      console.error('Error checking cluster status:', error);
-      setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0 });
-    }
-  };
-  
-  checkClusterStatus();
-}, [selectedMR]);
+  // Removed useEffect for checkClusterStatus, as clusterStatus will be updated from generateVisitPlan
   
  // Calculate customer breakdown for the entire plan
   const customerBreakdown = useMemo(() => {
@@ -249,12 +231,30 @@ const generateVisitPlan = async () => {
       };
       
       setVisitPlan(transformedPlan);
+
+      // Update clusterStatus from geminiClusteredAreas
+      if (result.geminiClusteredAreas && result.geminiClusteredAreas.clusters) {
+        const { clusters } = result.geminiClusteredAreas;
+        const clusterCount = clusters.length;
+        const totalAreas = clusters.reduce((sum, cluster) => sum + (cluster.areas ? cluster.areas.length : 0), 0);
+        setClusterStatus({
+          hasExistingClusters: clusterCount > 0,
+          clusterCount,
+          totalAreas
+        });
+      } else {
+        // If no cluster data, reset or set to a default state
+        setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0, message: "No cluster data returned." });
+      }
+
     } else {
       console.error('Plan generation failed:', result.error);
       alert(`Plan generation failed: ${result.error}`);
+      setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0, message: "Plan generation failed." }); // Reset on failure
     }
   } catch (error) {
     console.error('Error generating visit plan:', error);
+    setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0, message: "Error during plan generation." }); // Reset on error
     alert('Error generating visit plan. Please try again.');
   }
   setLoading(false);
@@ -548,18 +548,24 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
               Generate intelligent visit plans based on customer behavior, route optimization, and revenue potential
             </p>
 
-    {/* ADD THIS HERE */}
-  {clusterStatus && (
-  <div className={`mt-2 flex items-center text-sm ${
-    clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-600'
-  }`}>
-    <Brain className="h-4 w-4 mr-1" />
-    Clusters: {clusterStatus.hasExistingClusters ? `${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas` : 'No clusters created'}
-    {clusterStatus.hasExistingClusters && (
-      <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
-    )}
-  </div>
-)}
+            {/* Display Cluster Status */}
+            {clusterStatus && (
+              <div className={`mt-2 flex items-center text-sm ${
+                clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-500' // Orange for no/failed clusters
+              }`}>
+                <Brain className="h-4 w-4 mr-1.5" />
+                {clusterStatus.message ? (
+                  <span>{clusterStatus.message}</span>
+                ) : clusterStatus.hasExistingClusters ? (
+                  <>
+                    <span>{`${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas defined`}</span>
+                    <CheckCircle className="h-4 w-4 ml-1.5 text-green-500" />
+                  </>
+                ) : (
+                  <span>No clusters defined or plan not generated yet.</span>
+                )}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-4">
