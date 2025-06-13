@@ -30,13 +30,13 @@ export class ReactVisitPlannerML {
 
       // 2. Prepare area data
       const areaData = this.prepareAreaData(customers);
-      
+      console.log(areaData);
       // 3. Create clusters (simplified version for React)
       const clusteredAreas = this.createOptimizedClusters(areaData);
-      
+      console.log(clusteredAreas);
       // 4. Generate calendar
       const calendar = this.generateWorkingDaysCalendar(month, year);
-      
+      console.log(calendar);
       // 5. Create visit plan with rotation logic
       const visitPlan = this.createVisitPlanWithRotation(
         customers, 
@@ -279,7 +279,7 @@ ${JSON.stringify(areaData, null, 2)}`
       console.warn(`WARNING: Gemini left ${unassignedCount} areas unassigned. Creating fallback clusters.`);
       return this.createComprehensiveFallbackClusters(areaData);
     }
-    
+    console.log(clusters)
     return clusters;
     
   } catch (e) {
