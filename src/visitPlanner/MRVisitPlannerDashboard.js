@@ -30,6 +30,16 @@ const MRVisitPlannerDashboard = () => {
   const [loadingMRs, setLoadingMRs] = useState(true);
  
   const [clusterStatus, setClusterStatus] = useState(null);
+
+  const initialPlanSteps = [
+    { id: 'INITIALIZATION', name: 'Initializing', status: 'pending' },
+    { id: 'FETCH_CUSTOMERS', name: 'Fetching Customers', status: 'pending' },
+    { id: 'PREPARE_AREA_DATA', name: 'Preparing Area Data', status: 'pending' },
+    { id: 'CREATE_CLUSTERS', name: 'Creating Clusters', status: 'pending' },
+    { id: 'GENERATE_CALENDAR', name: 'Generating Calendar', status: 'pending' },
+    { id: 'CREATE_VISIT_PLAN', name: 'Creating Visit Plan', status: 'pending' }
+  ];
+  const [planGenerationSteps, setPlanGenerationSteps] = useState(initialPlanSteps);
   
   // Import Supabase client
   const { createClient } = require('@supabase/supabase-js');
@@ -181,6 +191,26 @@ const generateVisitPlan = async () => {
   }
 
   setLoading(true);
+  setPlanGenerationSteps(initialPlanSteps.map(step => ({ ...step, status: 'pending' }))); // Reset steps
+
+  const handleProgressUpdate = (progress) => {
+    console.log('Progress Update:', progress);
+    setPlanGenerationSteps(prevSteps => {
+      const existingStepIndex = prevSteps.findIndex(s => s.id === progress.step);
+      if (existingStepIndex !== -1) {
+        return prevSteps.map((step, index) =>
+          index === existingStepIndex
+            ? { ...step, status: progress.status, description: progress.description }
+            : step
+        );
+      } else if (progress.step === 'ERROR') {
+        // Add error step or mark all subsequent steps as failed
+        return prevSteps.map(step => ({ ...step, status: step.status === 'pending' ? 'failed' : step.status, description: step.id === prevSteps[prevSteps.length-1].id ? progress.description : step.description  }));
+      }
+      return prevSteps; // Should not happen if all steps are predefined
+    });
+  };
+
   try {
     console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
     
@@ -189,7 +219,8 @@ const generateVisitPlan = async () => {
       selectedMR, 
       selectedMonth, 
       selectedYear, 
-      15 // minVisitsPerDay
+      15, // minVisitsPerDay
+      handleProgressUpdate // Pass the callback
     );
     
     console.log('Visit Plan Result:', result);
@@ -612,11 +643,41 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
       {/* Loading State */}
       {loading && (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <RefreshCw className="h-12 w-12 text-green-600 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating Optimal Visit Plan</h3>
-          <p className="text-gray-600">
-            Analyzing customer patterns, route optimization, and ML predictions...
+          <RefreshCw className="h-10 w-10 text-green-600 animate-spin mx-auto mb-3" />
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Generating Optimal Visit Plan</h3>
+          <p className="text-sm text-gray-500 mb-6">
+            AI is meticulously crafting your plan. Follow the progress below:
           </p>
+          <div className="w-full max-w-md mx-auto bg-gray-50 p-4 rounded-lg shadow-inner">
+            <ul className="space-y-3">
+              {planGenerationSteps.map(step => (
+                <li key={step.id} className="flex items-center p-3 bg-white rounded-md shadow-sm border border-gray-200">
+                  <div className="flex-shrink-0 mr-3">
+                    {step.status === 'completed' && <CheckCircle className="h-6 w-6 text-green-500" />}
+                    {step.status === 'in-progress' && <RefreshCw className="h-6 w-6 text-blue-500 animate-spin" />}
+                    {step.status === 'failed' && <AlertTriangle className="h-6 w-6 text-red-500" />}
+                    {step.status === 'pending' && <Clock className="h-6 w-6 text-gray-400" />}
+                  </div>
+                  <div className="flex-grow">
+                    <span className={`font-medium text-sm ${
+                      step.status === 'completed' ? 'text-green-700' :
+                      step.status === 'in-progress' ? 'text-blue-700' :
+                      step.status === 'failed' ? 'text-red-700' :
+                      'text-gray-600'
+                    }`}>
+                      {step.name}
+                    </span>
+                    {step.description && step.status !== 'completed' && (
+                      <p className="text-xs text-gray-500 mt-1">{step.description}</p>
+                    )}
+                     {step.status === 'failed' && step.description && (
+                      <p className="text-xs text-red-500 mt-1">{step.description}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 

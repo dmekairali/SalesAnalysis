@@ -18,8 +18,9 @@ export class ReactVisitPlannerML {
   /**
    * Generate visit plan for MR with cluster-based rotation
    */
-  async generateVisitPlan(mrName, month, year, minVisitsPerDay = 15) {
+  async generateVisitPlan(mrName, month, year, minVisitsPerDay = 15, onProgress = () => {}) {
     try {
+      onProgress({ step: 'INITIALIZATION', status: 'in-progress', description: 'Initializing plan generation...' });
       console.log(`Generating visit plan for ${mrName} - ${month}/${year}`);
       
       // 1. Get customer data (from your existing data)
@@ -27,15 +28,19 @@ export class ReactVisitPlannerML {
       if (!customers || customers.length === 0) {
         throw new Error('No customers found for this MR');
       }
+      onProgress({ step: 'FETCH_CUSTOMERS', status: 'completed', description: 'Fetching customer data...' });
 
       // 2. Prepare area data
       const areaData = await this.prepareAreaData(customers);
+      onProgress({ step: 'PREPARE_AREA_DATA', status: 'completed', description: 'Preparing area data...' });
       console.log(areaData);
       // 3. Create clusters (simplified version for React)
       const clusteredAreas = await this.createOptimizedClusters(areaData);
+      onProgress({ step: 'CREATE_CLUSTERS', status: 'completed', description: 'Creating optimized clusters...' });
       console.log(clusteredAreas);
       // 4. Generate calendar
       const calendar = await this.generateWorkingDaysCalendar(month, year);
+      onProgress({ step: 'GENERATE_CALENDAR', status: 'completed', description: 'Generating working days calendar...' });
       console.log(calendar);
       // 5. Create visit plan with rotation logic
       const visitPlan = await this.createVisitPlanWithRotation(
@@ -44,6 +49,7 @@ export class ReactVisitPlannerML {
         calendar, 
         minVisitsPerDay
       );
+      onProgress({ step: 'CREATE_VISIT_PLAN', status: 'completed', description: 'Creating visit plan with rotation...' });
 
       return {
         success: true,
@@ -57,6 +63,7 @@ export class ReactVisitPlannerML {
 
     } catch (error) {
       console.error('Error generating visit plan:', error);
+      onProgress({ step: 'ERROR', status: 'failed', description: error.message });
       return {
         success: false,
         error: error.message,
