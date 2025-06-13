@@ -15,6 +15,9 @@ import { COLORS,
 
 // Add these imports at the top
 import { reactVisitPlannerML } from '../visitplannerdata.js';
+import PerformanceMetricsDisplay from './PerformanceMetricsDisplay.js';
+import RouteAnalysisDisplay from './RouteAnalysisDisplay.js';
+import CustomerInsightsDisplay from './CustomerInsightsDisplay.js';
 
 import { SearchableDropdown } from '../enhancedFilters.js';
 
@@ -217,8 +220,15 @@ const generateVisitPlan = async () => {
           totalWorkingDays: result.summary.total_working_days,
           totalPlannedVisits: result.summary.total_planned_visits,
           estimatedRevenue: result.summary.estimated_revenue,
-          efficiencyScore: parseFloat(result.summary.efficiency_score),
-          coverageScore: 90 // Default
+          efficiencyScore: parseFloat(result.summary.efficiencyScore || 0),
+          // Ensure all new summary fields are mapped if names differ, or use them directly if names match
+          totalWorkingDays: result.summary.total_working_days || 0,
+          totalPlannedVisits: result.summary.total_planned_visits || 0,
+          totalUniqueCustomersVisited: result.summary.total_unique_customers_visited || 0,
+          totalProspectsTargeted: result.summary.total_prospects_targeted || 0,
+          estimatedRevenue: result.summary.estimated_revenue || 0,
+          avgVisitsPerDay: parseFloat(result.summary.avg_visits_per_day || 0).toFixed(1),
+          coverageScore: result.summary.coverageScore || 90 // Default if not present
         },
         weeklyBreakdown: transformDailyPlansToWeekly(result.dailyPlans),
         insights: result.insights.map(insight => ({
@@ -226,8 +236,11 @@ const generateVisitPlan = async () => {
           title: insight.title,
           value: insight.value,
           description: insight.description,
-          recommendation: `Status: ${insight.status}`
-        }))
+          status: insight.status, // Assuming status is directly on insight
+          recommendation: insight.recommendation || `Status: ${insight.status}` // Keep original if recommendation not direct
+        })),
+        detailedClusterStats: result.detailedClusterStats, // Ensure this is mapped
+        geminiClusteredAreas: result.geminiClusteredAreas   // Already being mapped
       };
       
       setVisitPlan(transformedPlan);
@@ -737,10 +750,20 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
 
           {/* Content based on active view */}
           {activeView === 'overview' && <OverviewComponent />}
-          {activeView === 'analytics' && (
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold mb-4">Advanced Analytics Coming Soon</h3>
-              <p className="text-gray-600">Performance metrics, route analysis, and customer insights will be available here.</p>
+          {activeView === 'analytics' && visitPlan && (
+            <div className="space-y-8 p-4 md:p-6 bg-gray-100 rounded-lg shadow-inner">
+              {/* Added padding, bg-gray-100, shadow-inner. Adjusted p-6 to md:p-6 for responsiveness */}
+              <PerformanceMetricsDisplay visitPlan={visitPlan} />
+              <RouteAnalysisDisplay visitPlan={visitPlan} />
+              <CustomerInsightsDisplay visitPlan={visitPlan} />
+            </div>
+          )}
+          {activeView === 'analytics' && !visitPlan && (
+            <div className="bg-white p-12 rounded-lg shadow-md text-center border border-gray-200">
+              {/* Added border */}
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <h3 className="text-xl font-semibold mb-2 text-gray-700">Analytics & Insights</h3>
+              <p className="text-gray-500">Please generate a visit plan first to see detailed analytics.</p>
             </div>
           )}
         </>

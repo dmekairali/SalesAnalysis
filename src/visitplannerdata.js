@@ -38,6 +38,17 @@ export class ReactVisitPlannerML {
       const clusteredAreas = await this.createOptimizedClusters(areaData);
       onProgress({ step: 'CREATE_CLUSTERS', status: 'completed', description: 'Creating optimized clusters...' });
       console.log(clusteredAreas);
+
+      // Calculate detailedClusterStats
+      const detailedClusterStats = {
+        totalGeminiClusters: clusteredAreas.clusters ? clusteredAreas.clusters.length : 0,
+        totalGeminiAreas: clusteredAreas.clusters ? clusteredAreas.clusters.reduce((sum, cluster) => sum + (cluster.areas ? cluster.areas.length : 0), 0) : 0,
+        avgAreasPerGeminiCluster: 0
+      };
+      if (detailedClusterStats.totalGeminiClusters > 0) {
+        detailedClusterStats.avgAreasPerGeminiCluster = parseFloat((detailedClusterStats.totalGeminiAreas / detailedClusterStats.totalGeminiClusters).toFixed(2));
+      }
+
       // 4. Generate calendar
       const calendar = await this.generateWorkingDaysCalendar(month, year);
       onProgress({ step: 'GENERATE_CALENDAR', status: 'completed', description: 'Generating working days calendar...' });
@@ -56,10 +67,11 @@ export class ReactVisitPlannerML {
         mrName,
         month,
         year,
-        summary: this.calculatePlanSummary(visitPlan),
+        summary: this.calculatePlanSummary(visitPlan), // summary is used directly and also by generatePlanInsights
         dailyPlans: visitPlan,
-        insights: this.generatePlanInsights(visitPlan, customers.length),
-        geminiClusteredAreas: clusteredAreas
+        insights: this.generatePlanInsights(visitPlan, customers.length), // customers.length assumed to be unique MR customers
+        geminiClusteredAreas: clusteredAreas,
+        detailedClusterStats: detailedClusterStats
       };
 
     } catch (error) {
@@ -687,19 +699,34 @@ createComprehensiveFallbackClusters(areaData) {
   calculatePlanSummary(calendar) {
     const workingDays = calendar.filter(d => !d.isSunday);
     const totalVisits = workingDays.reduce((sum, day) => sum + day.totalVisits, 0);
-    const totalCustomers = workingDays.reduce((sum, day) => 
-      sum + day.clusters.reduce((cSum, cluster) => 
-        cSum + cluster.customers.filter(c => !c.prospect_generated).length, 0), 0);
-    const totalProspects = workingDays.reduce((sum, day) => 
-      sum + day.clusters.reduce((cSum, cluster) => 
-        cSum + cluster.customers.filter(c => c.prospect_generated).length, 0), 0);
+
+    const customerPhoneSet = new Set();
+    const prospectPhoneSet = new Set();
+
+    workingDays.forEach(day => {
+      day.clusters.forEach(cluster => {
+        cluster.customers.forEach(customer => {
+          if (customer.customer_phone) { // Ensure phone number exists
+            if (customer.prospect_generated === true) {
+              prospectPhoneSet.add(customer.customer_phone);
+            } else {
+              customerPhoneSet.add(customer.customer_phone);
+            }
+          }
+        });
+      });
+    });
+
+    const totalUniqueCustomersVisited = customerPhoneSet.size;
+    const totalProspectsTargeted = prospectPhoneSet.size;
 
     return {
       total_working_days: workingDays.length,
       total_planned_visits: totalVisits,
-      total_customers: totalCustomers,
-      total_prospects: totalProspects,
-      estimated_revenue: totalCustomers * 2500 + totalProspects * 1500,
+      total_unique_customers_visited: totalUniqueCustomersVisited,
+      total_prospects_targeted: totalProspectsTargeted,
+      // Ensure estimated_revenue uses these unique counts
+      estimated_revenue: (totalUniqueCustomersVisited * 2500) + (totalProspectsTargeted * 1500),
       efficiency_score: workingDays.length > 0 ? (totalVisits / (workingDays.length * 15) * 100).toFixed(1) : 0,
       avg_visits_per_day: workingDays.length > 0 ? (totalVisits / workingDays.length).toFixed(1) : 0
     };
@@ -709,16 +736,17 @@ createComprehensiveFallbackClusters(areaData) {
    * Generate plan insights
    */
   generatePlanInsights(calendar, totalCustomersAvailable) {
-    const summary = this.calculatePlanSummary(calendar);
+    const summary = this.calculatePlanSummary(calendar); // This call is fine, uses updated summary fields
     const insights = [];
 
     // Utilization insight
-    const utilizationRate = totalCustomersAvailable > 0 ? (summary.total_customers / totalCustomersAvailable * 100) : 0;
+    // Ensure totalCustomersAvailable is the count of unique customers available for the MR
+    const utilizationRate = totalCustomersAvailable > 0 ? (summary.total_unique_customers_visited / totalCustomersAvailable * 100) : 0;
     insights.push({
       type: 'utilization',
       title: 'Customer Utilization',
       value: `${utilizationRate.toFixed(1)}%`,
-      description: `${summary.total_customers} of ${totalCustomersAvailable} customers planned`,
+      description: `${summary.total_unique_customers_visited} of ${totalCustomersAvailable} unique customers planned`,
       status: utilizationRate >= 80 ? 'good' : utilizationRate >= 60 ? 'warning' : 'critical'
     });
 
@@ -732,13 +760,13 @@ createComprehensiveFallbackClusters(areaData) {
     });
 
     // Prospect ratio insight
-    const prospectRatio = summary.total_visits > 0 ? (summary.total_prospects / summary.total_visits * 100) : 0;
+    const prospectRatio = summary.total_planned_visits > 0 ? (summary.total_prospects_targeted / summary.total_planned_visits * 100) : 0;
     insights.push({
       type: 'prospects',
-      title: 'New Business',
-      value: `${prospectRatio.toFixed(1)}%`,
-      description: `${summary.total_prospects} prospects vs ${summary.total_customers} existing`,
-      status: prospectRatio <= 20 ? 'good' : prospectRatio <= 40 ? 'warning' : 'critical'
+      title: 'New Business Focus',
+      value: `${prospectRatio.toFixed(1)}% of visits`,
+      description: `${summary.total_prospects_targeted} prospects vs ${summary.total_unique_customers_visited} existing customers targeted in plan`,
+      status: prospectRatio <= 20 ? 'good' : prospectRatio <= 40 ? 'warning' : 'critical' // Example status logic
     });
 
     return insights;
