@@ -1,20 +1,144 @@
-import React from 'react';
-import { Users, Star, TrendingUp, Lightbulb, BarChart, UserCheck, Building2, UserPlus } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Users, Star, TrendingUp, Lightbulb, BarChart, UserCheck, Building2, UserPlus, Award, MapPin, AlertTriangle, ShoppingBag, CalendarOff, Activity } from 'lucide-react'; // Added AlertTriangle and others
 
 const CustomerInsightsDisplay = ({ visitPlan }) => {
-  if (!visitPlan || !visitPlan.summary || !visitPlan.weeklyBreakdown || !visitPlan.insights) {
+  if (!visitPlan || !visitPlan.summary || !visitPlan.weeklyBreakdown || !visitPlan.insights || !visitPlan.allMrCustomers) {
     return (
       <div className="bg-white p-6 rounded-lg shadow text-center text-gray-500">
         <Lightbulb className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-        <p>No customer insights to display.</p>
-        <p className="text-sm">Please generate a visit plan to see the insights.</p>
+        <p>No customer insights to display or missing customer data.</p>
+        <p className="text-sm">Please generate a visit plan to see the insights. Ensure 'allMrCustomers' data is available.</p>
       </div>
     );
   }
 
-  const { summary, weeklyBreakdown, insights } = visitPlan;
+  const { summary, weeklyBreakdown, insights, allMrCustomers, advancedAnalyticsInsights } = visitPlan;
 
   // --- Calculations & Data Preparation ---
+
+  // At-Risk Clients Calculation
+  const atRiskClients = useMemo(() => {
+    if (!allMrCustomers || allMrCustomers.length === 0) return [];
+
+    const highChurnThreshold = 0.6;
+    const minVisitsForLowEngagement = 3;
+    const lowOrderValueThreshold = 5000; // Total order value
+    const minVisitsForNoRecentConversion = 2;
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const riskReasons = {
+        HIGH_CHURN: "High Churn Risk Score",
+        LOW_ENGAGEMENT: "Low Engagement (Visits vs Value, Old Order)",
+        NO_CONVERSION: "Visits without Conversion"
+    };
+
+    const clients = allMrCustomers.map(cust => {
+        let riskScore = 0;
+        let reasons = new Set();
+
+        // Criteria 1: High Churn Score
+        const churnRisk = parseFloat(cust.churn_risk_score);
+        if (churnRisk >= highChurnThreshold) {
+            riskScore += churnRisk * 100; // Weight churn score heavily
+            reasons.add(riskReasons.HIGH_CHURN);
+        }
+
+        // Criteria 2: Low Engagement with Low Order Value & Old Last Order
+        const totalVisits = parseInt(cust.total_visits_last_6m || cust.total_visits || 0); // Prefer more specific if available
+        const totalOrderValue = parseFloat(cust.total_order_value_last_6m || cust.total_order_value || 0);
+        const lastOrderDate = cust.last_order_date ? new Date(cust.last_order_date) : null;
+
+        if (totalVisits >= minVisitsForLowEngagement &&
+            totalOrderValue <= lowOrderValueThreshold &&
+            lastOrderDate && lastOrderDate < ninetyDaysAgo) {
+            riskScore += 40; // Add points for this risk
+            reasons.add(riskReasons.LOW_ENGAGEMENT);
+        }
+
+        // Criteria 3: Visits without any conversion (no orders ever)
+        const totalOrders = parseInt(cust.total_orders_last_6m || cust.total_orders || 0);
+        if (cust.last_visit_date && // Has been visited
+            !lastOrderDate && totalOrders === 0 && // No orders ever
+            totalVisits >= minVisitsForNoRecentConversion) {
+            riskScore += 50; // Add points for this risk
+            reasons.add(riskReasons.NO_CONVERSION);
+        }
+
+        return { ...cust, calculatedRiskScore: riskScore, riskReasons: Array.from(reasons) };
+    })
+    .filter(cust => cust.calculatedRiskScore > 0) // Only include those who met at least one criterion
+    .sort((a, b) => {
+        // Primary sort by calculatedRiskScore descending
+        if (b.calculatedRiskScore !== a.calculatedRiskScore) {
+            return b.calculatedRiskScore - a.calculatedRiskScore;
+        }
+        // Secondary sort by churn_risk_score descending
+        if (parseFloat(b.churn_risk_score) !== parseFloat(a.churn_risk_score)) {
+            return parseFloat(b.churn_risk_score) - parseFloat(a.churn_risk_score);
+        }
+        // Tertiary sort by last_order_date ascending (nulls/older dates first)
+        const dateA = a.last_order_date ? new Date(a.last_order_date) : null;
+        const dateB = b.last_order_date ? new Date(b.last_order_date) : null;
+        if (!dateA && dateB) return -1; // a (no date) comes before b (has date)
+        if (dateA && !dateB) return 1;  // b (no date) comes before a (has date)
+        if (dateA && dateB) return dateA - dateB;
+        return 0;
+    });
+
+    return clients.slice(0, 7); // Top 7 At-Risk Clients
+  }, [allMrCustomers]);
+
+  // Memoized Golden Clients Calculation
+  const goldenClients = useMemo(() => {
+    if (!weeklyBreakdown) return [];
+
+    const customerData = {};
+    weeklyBreakdown.forEach(week => {
+      week.days.forEach(day => {
+        if (day.visits && Array.isArray(day.visits)) {
+          day.visits.forEach(visit => {
+            if (visit.customer_phone && !visit.prospect_generated) {
+              const key = visit.customer_phone;
+              if (!customerData[key]) {
+                customerData[key] = {
+                  name: visit.customer_name,
+                  phone: visit.customer_phone,
+                  type: visit.customer_type || 'Unknown',
+                  totalExpectedValue: 0,
+                  visitCount: 0,
+                  areas: new Set(),
+                };
+              }
+              customerData[key].totalExpectedValue += visit.expected_order_value || 0;
+              customerData[key].visitCount++;
+              customerData[key].areas.add(visit.area_name || 'N/A');
+            }
+          });
+        }
+      });
+    });
+
+    const allCustomersArray = Object.values(customerData);
+    if (allCustomersArray.length === 0) return [];
+
+    const minVisitCount = 3;
+    // Calculate average total expected value dynamically or use a fixed threshold
+    const totalValueForAllCustomers = allCustomersArray.reduce((sum, cust) => sum + cust.totalExpectedValue, 0);
+    const avgTotalExpectedValue = totalValueForAllCustomers / allCustomersArray.length;
+    // Ensure minTotalValue is substantial, e.g., not too low if avg is low.
+    const minTotalValue = Math.max(avgTotalExpectedValue, 10000);
+
+
+    let filteredClients = allCustomersArray.filter(
+      cust => cust.visitCount >= minVisitCount && cust.totalExpectedValue >= minTotalValue
+    );
+
+    filteredClients.sort((a, b) => b.totalExpectedValue - a.totalExpectedValue);
+
+    return filteredClients.slice(0, 5); // Top 5 Golden Clients
+  }, [weeklyBreakdown]);
+
 
   // 1. Customer Segmentation Recap (Unique Visited Customers by Type)
   const uniqueVisitedCustomersByType = {};
@@ -191,11 +315,11 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
         </div>
       </section>
 
-      {/* Top Planned Visits Section */}
+      {/* Top Planned Single Visits Section */}
       <section>
         <h3 className={headingClasses}>
           <TrendingUp className="h-6 w-6 mr-2 text-green-600" />
-          Top 5 Planned Visits (by Est. Revenue)
+          Top 5 Single Visits (by Est. Revenue)
         </h3>
         <div className="overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
           {topVisits.length > 0 ? (
@@ -226,7 +350,122 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
               </tbody>
             </table>
           ) : (
-            <p className="text-sm text-gray-500 p-4">No visit data available to rank top customers.</p>
+            <p className="text-sm text-gray-500 p-4">No visit data available to rank top single visits.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Golden Clients Section */}
+      <section>
+        <h3 className={headingClasses}>
+          <Award className="h-6 w-6 mr-2 text-amber-500" />
+          Golden Clients (High Value & Frequency)
+        </h3>
+        <div className={cardClasses}>
+          {goldenClients.length > 0 ? (
+            <ul className="space-y-4">
+              {goldenClients.map(client => (
+                <li key={client.phone} className="p-3 rounded-md border border-gray-200 hover:shadow-lg transition-shadow bg-amber-50">
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="text-md font-semibold text-amber-700">{client.name}</h4>
+                    <span className="text-xs font-medium bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{client.type}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <p><span className="font-medium text-gray-600">Total Visits:</span> <span className="font-bold text-indigo-600">{client.visitCount}</span></p>
+                    <p><span className="font-medium text-gray-600">Total Est. Revenue:</span> <span className="font-bold text-green-600">{formatCurrency(client.totalExpectedValue)}</span></p>
+                    <p><span className="font-medium text-gray-600">Avg. Revenue/Visit:</span> <span className="font-bold text-green-600">{formatCurrency(client.totalExpectedValue / client.visitCount)}</span></p>
+                    <div className="col-span-2 flex items-start mt-1">
+                        <MapPin className="h-4 w-4 mr-1 text-gray-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-gray-500">
+                           <span className="font-medium">Areas:</span> {Array.from(client.areas).join(', ') || 'N/A'}
+                        </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">
+              No clients currently meet the 'Golden Client' criteria based on this plan (min. 3 visits and high total value).
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* At-Risk Clients Section */}
+      <section>
+        <h3 className={headingClasses}>
+          <AlertTriangle className="h-6 w-6 mr-2 text-red-500" />
+          At-Risk Clients (Requiring Attention)
+        </h3>
+        <div className={cardClasses}>
+          {atRiskClients.length > 0 ? (
+            <ul className="space-y-4">
+              {atRiskClients.map(client => (
+                <li key={client.customer_phone || client.customer_id} className="p-3 rounded-md border border-gray-200 hover:shadow-lg transition-shadow bg-red-50">
+                  <div className="flex justify-between items-start mb-1">
+                    <div>
+                        <h4 className="text-md font-semibold text-red-700">{client.customer_name}</h4>
+                        <span className="text-xs text-gray-600">{client.customer_type}</span>
+                    </div>
+                    {client.churn_risk_score && (
+                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${parseFloat(client.churn_risk_score) >= highChurnThreshold ? 'bg-red-200 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            Churn Risk: {(parseFloat(client.churn_risk_score) * 100).toFixed(0)}%
+                         </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-sm mb-2">
+                    <p><Activity className="inline h-4 w-4 mr-1 text-gray-500" />Visits (6m): <span className="font-bold">{client.total_visits_last_6m || client.total_visits || 'N/A'}</span></p>
+                    <p><ShoppingBag className="inline h-4 w-4 mr-1 text-gray-500" />Value (6m): <span className="font-bold">{formatCurrency(parseFloat(client.total_order_value_last_6m || client.total_order_value || 0))}</span></p>
+                    <p><CalendarOff className="inline h-4 w-4 mr-1 text-gray-500" />Last Order: <span className="font-bold">{client.last_order_date ? new Date(client.last_order_date).toLocaleDateString() : 'N/A'}</span></p>
+                  </div>
+                  {client.riskReasons && client.riskReasons.length > 0 && (
+                    <div className="mt-1 pt-1 border-t border-red-100">
+                      <p className="text-xs font-semibold text-red-600">Key Risk Factors:</p>
+                      <ul className="list-disc list-inside ml-1">
+                        {client.riskReasons.map((reason, idx) => (
+                          <li key={idx} className="text-xs text-red-500">{reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">
+              No clients currently identified as 'At-Risk' based on the defined criteria and available data.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Advanced AI Analytics Section */}
+      <section>
+        <h3 className={headingClasses}>
+          <BarChart className="h-6 w-6 mr-2 text-fuchsia-600" /> {/* Changed icon for variety */}
+          Advanced AI Analytics
+        </h3>
+        <div className="space-y-3">
+          {advancedAnalyticsInsights && advancedAnalyticsInsights.length > 0 ? (
+            advancedAnalyticsInsights.map((insight, index) => (
+              <div key={insight.id || `adv-insight-${index}`} className={`${cardClasses} border-l-4 ${
+                insight.type === 'warning' ? 'border-red-500 bg-red-50' :
+                insight.type === 'info' ? 'border-blue-500 bg-blue-50' :
+                'border-gray-300' // Default border
+              }`}>
+                <h4 className={`text-md font-semibold mb-1 ${
+                  insight.type === 'warning' ? 'text-red-700' :
+                  insight.type === 'info' ? 'text-blue-700' :
+                  'text-gray-800'
+                }`}>{insight.title}</h4>
+                <p className="text-sm text-gray-600">{insight.description}</p>
+              </div>
+            ))
+          ) : (
+            <div className={`${cardClasses} text-center`}>
+              <p className="text-sm text-gray-500">No advanced AI analytics available for this plan.</p>
+            </div>
           )}
         </div>
       </section>

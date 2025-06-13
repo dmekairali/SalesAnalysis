@@ -239,8 +239,10 @@ const generateVisitPlan = async () => {
           status: insight.status, // Assuming status is directly on insight
           recommendation: insight.recommendation || `Status: ${insight.status}` // Keep original if recommendation not direct
         })),
-        detailedClusterStats: result.detailedClusterStats, // Ensure this is mapped
-        geminiClusteredAreas: result.geminiClusteredAreas   // Already being mapped
+        detailedClusterStats: result.detailedClusterStats,
+        geminiClusteredAreas: result.geminiClusteredAreas,
+        allMrCustomers: result.allMrCustomers,
+        advancedAnalyticsInsights: result.advancedAnalyticsInsights // <-- Ensure this is mapped
       };
       
       setVisitPlan(transformedPlan);

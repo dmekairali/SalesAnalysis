@@ -71,7 +71,23 @@ export class ReactVisitPlannerML {
         dailyPlans: visitPlan,
         insights: this.generatePlanInsights(visitPlan, customers.length), // customers.length assumed to be unique MR customers
         geminiClusteredAreas: clusteredAreas,
-        detailedClusterStats: detailedClusterStats
+        detailedClusterStats: detailedClusterStats,
+        allMrCustomers: customers
+      };
+
+      // Call for advanced analytics insights
+      const lastMonthActuals = await this.fetchLastMonthVisitSummary(mrName, year, month);
+      // Create a temporary plan object as it would be returned, for generateAdvancedAnalyticsInsights
+      const currentPlanDataForInsights = {
+        dailyPlans: visitPlan, // visitPlan is the calendar array
+        summary: tempReturnObject.summary, // Use the summary already calculated
+         // other fields if needed by generateAdvancedAnalyticsInsights
+      };
+      const advancedInsightsResult = await this.generateAdvancedAnalyticsInsights(currentPlanDataForInsights, customers, lastMonthActuals);
+
+      return {
+        ...tempReturnObject, // Spread previous return data
+        advancedAnalyticsInsights: advancedInsightsResult
       };
 
     } catch (error) {
@@ -771,7 +787,221 @@ createComprehensiveFallbackClusters(areaData) {
 
     return insights;
   }
+
+  // Helper to call Gemini API, similar to getGeminiClusters
+  async _callGeminiAPI(promptText, context = "advanced_analytics") {
+    const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      console.error(`${context}: Gemini API key not configured`);
+      return null; // Or throw error
+    }
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const prompt = { contents: [{ parts: [{ text: promptText }] }] };
+    const options = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prompt)
+    };
+
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        console.error(`${context}: Gemini API error: ${response.status} ${response.statusText}`);
+        return null;
+      }
+      const result = await response.json();
+      if (result.error) {
+        console.error(`${context}: Gemini API error in result: ${result.error.message}`);
+        return null;
+      }
+      const responseTextContent = result.candidates[0]?.content?.parts[0]?.text;
+      if (!responseTextContent) {
+        console.error(`${context}: No text content in Gemini response`);
+        return null;
+      }
+      const cleanText = responseTextContent.replace(/```json|```/g, '').trim();
+      return JSON.parse(cleanText);
+    } catch (e) {
+      console.error(`${context}: Error calling or parsing Gemini response: ${e.message}`, e);
+      return null;
+    }
+  }
+
+  async generateAdvancedAnalyticsInsights(visitPlan, allMrCustomers, lastMonthActuals) {
+    const advancedInsights = [];
+    if (!visitPlan || !allMrCustomers || !lastMonthActuals) {
+        console.warn("generateAdvancedAnalyticsInsights: Missing necessary data.");
+        return advancedInsights;
+    }
+
+    try {
+      // 1. Plan vs. Actual Discrepancies
+      if (lastMonthActuals && lastMonthActuals.visitsPerClient && visitPlan.summary) {
+        const topLastMonthClients = Object.entries(lastMonthActuals.visitsPerClient)
+          .sort(([,a],[,b]) => b-a).slice(0,3).map(([name, visits]) => `${name} (${visits} visits)`).join(', ');
+        const topLastMonthAreas = Object.entries(lastMonthActuals.visitsPerArea)
+          .sort(([,a],[,b]) => b-a).slice(0,3).map(([name, visits]) => `${name} (${visits} visits)`).join(', ');
+
+        // Calculate current plan's top clients and areas
+        const currentPlanClientVisits = {};
+        const currentPlanAreaVisits = {};
+        visitPlan.dailyPlans.forEach(day => {
+            day.clusters.forEach(cluster => {
+                cluster.customers.forEach(customer => {
+                    if (!customer.prospect_generated) { // Only existing customers for this comparison
+                        currentPlanClientVisits[customer.customer_name] = (currentPlanClientVisits[customer.customer_name] || 0) + 1;
+                    }
+                });
+                currentPlanAreaVisits[cluster.area_name] = (currentPlanAreaVisits[cluster.area_name] || 0) + 1;
+            });
+        });
+        const topCurrentClients = Object.entries(currentPlanClientVisits)
+            .sort(([,a],[,b]) => b-a).slice(0,3).map(([name, visits]) => `${name} (${visits} visits)`).join(', ');
+        const topCurrentAreas = Object.entries(currentPlanAreaVisits)
+            .sort(([,a],[,b]) => b-a).slice(0,3).map(([name, visits]) => `${name} (${visits} visits)`).join(', ');
+
+        if (topLastMonthClients && topCurrentClients) {
+            const discrepancyPrompt = `Analyze this data: Last month's top visited clients were [${topLastMonthClients || 'N/A'}], top areas [${topLastMonthAreas || 'N/A'}]. This month's plan focuses on clients [${topCurrentClients || 'N/A'}], areas [${topCurrentAreas || 'N/A'}]. Identify up to 2 key strategic shifts in focus. For each, briefly state the shift and a possible positive implication. Return as valid JSON only: {"insights": [{"title": "Strategic Shift: ...", "description": "Shift from... Implication: ...", "type": "info"}]}`;
+            const discrepancyResult = await this._callGeminiAPI(discrepancyPrompt, "PlanVsActualDiscrepancy");
+            if (discrepancyResult && discrepancyResult.insights) {
+                advancedInsights.push(...discrepancyResult.insights.map(i => ({...i, id: `adv_discrepancy_${Date.now()}_${Math.random()}`})));
+            }
+        }
+      }
+
+      // 2. Churn Risk Mitigation
+      const highChurnThreshold = 0.6;
+      const atRiskCustomersInPlan = [];
+      const plannedCustomerPhones = new Set();
+      visitPlan.dailyPlans.forEach(day => day.clusters.forEach(cl => cl.customers.forEach(cust => plannedCustomerPhones.add(cust.customer_phone))));
+
+      allMrCustomers.forEach(cust => {
+        if (plannedCustomerPhones.has(cust.customer_phone) && parseFloat(cust.churn_risk_score) >= highChurnThreshold) {
+            const plannedVisitsForCust = visitPlan.dailyPlans.reduce((acc, day) =>
+                acc + day.clusters.reduce((cAcc, cluster) =>
+                    cAcc + cluster.customers.filter(c => c.customer_phone === cust.customer_phone).length, 0), 0);
+
+            if (atRiskCustomersInPlan.length < 3) { // Limit to 3 for the prompt
+                 atRiskCustomersInPlan.push({
+                    name: cust.customer_name,
+                    churnRisk: parseFloat(cust.churn_risk_score).toFixed(2),
+                    totalPastValue: cust.total_order_value || 0,
+                    plannedVisits: plannedVisitsForCust
+                });
+            }
+        }
+      });
+
+      if (atRiskCustomersInPlan.length > 0) {
+        const atRiskClientSummary = atRiskCustomersInPlan.map(c =>
+            `${c.name} (Churn: ${c.churnRisk}, Past Value: ${c.totalPastValue}, Planned Visits: ${c.plannedVisits})`
+        ).join('; ');
+
+        const churnPrompt = `For these high-churn-risk clients included in the current plan: [${atRiskClientSummary}]. Provide one concise, actionable suggestion per client for the MR to try during the planned visits to reduce churn risk. Return as valid JSON only: {"insights": [{"title": "Churn Mitigation: [Client Name]", "description": "[Actionable Suggestion]", "type": "warning"}]}`;
+        const churnResult = await this._callGeminiAPI(churnPrompt, "ChurnRiskMitigation");
+        if (churnResult && churnResult.insights) {
+            advancedInsights.push(...churnResult.insights.map(i => ({...i, id: `adv_churn_${Date.now()}_${Math.random()}`})));
+        }
+      }
+    } catch (error) {
+        console.error("Error in generateAdvancedAnalyticsInsights:", error);
+    }
+    return advancedInsights;
+  }
+
+  async fetchLastMonthVisitSummary(mrName, referenceYear, referenceMonth) {
+    try {
+      console.log(`Fetching last month's visit summary for ${mrName}, ref: ${referenceMonth}/${referenceYear}`);
+
+      let targetYear = referenceYear;
+      let targetMonth = referenceMonth - 1; // JS Date months are 0-indexed for logic, but we'll use 1-indexed for display/query consistency
+
+      if (targetMonth === 0) { // If referenceMonth was January (1), targetMonth becomes 0
+        targetMonth = 12; // December
+        targetYear = referenceYear - 1;
+      }
+
+      // Formatting for Supabase query (YYYY-MM-DD)
+      const firstDay = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+      // For JS Date, month is 0-indexed, so targetMonth for new Date() is correct if targetMonth is 1-12
+      const lastDayOfMonthValue = new Date(targetYear, targetMonth, 0).getDate();
+      const lastDay = `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(lastDayOfMonthValue).padStart(2, '0')}`;
+
+      console.log(`Querying for ${mrName} between ${firstDay} and ${lastDay}`);
+
+      const { data, error } = await supabase
+        .from('mr_visits')
+        .select('customer_phone, clientName, areaName, dcrDate') // Ensure these are the correct column names
+        .eq('mr_name', mrName) // Ensure 'mr_name' is the correct column for MR's name
+        .gte('dcrDate', firstDay)
+        .lte('dcrDate', lastDay);
+
+      if (error) {
+        console.error('Supabase query error in fetchLastMonthVisitSummary:', error);
+        throw new Error(`Supabase query error: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        console.warn(`No visit data found for ${mrName} in ${targetMonth}/${targetYear}`);
+        return {
+          totalVisits: 0,
+          visitsPerClient: {},
+          visitsPerArea: {},
+          uniqueClientsVisited: 0,
+          queryPeriod: { month: targetMonth, year: targetYear, firstDay, lastDay }
+        };
+      }
+
+      const totalVisits = data.length;
+      const visitsPerClient = {};
+      const visitsPerArea = {};
+      const uniqueClientPhones = new Set();
+
+      data.forEach(visit => {
+        // Use customer_phone if available and valid, otherwise fallback to clientName
+        const clientKey = visit.customer_phone && String(visit.customer_phone).trim() !== "" ? String(visit.customer_phone).trim() : visit.clientName || 'UnknownClient';
+        visitsPerClient[clientKey] = (visitsPerClient[clientKey] || 0) + 1;
+
+        if (visit.customer_phone && String(visit.customer_phone).trim() !== "") {
+            uniqueClientPhones.add(String(visit.customer_phone).trim());
+        }
+
+        const areaKey = visit.areaName || 'UnknownArea';
+        visitsPerArea[areaKey] = (visitsPerArea[areaKey] || 0) + 1;
+      });
+
+      const uniqueClientsVisited = uniqueClientPhones.size;
+
+      console.log(`Summary for ${mrName} (${targetMonth}/${targetYear}): ${totalVisits} visits, ${uniqueClientsVisited} unique clients.`);
+
+      return {
+        totalVisits,
+        visitsPerClient,
+        visitsPerArea,
+        uniqueClientsVisited,
+        queryPeriod: { month: targetMonth, year: targetYear, firstDay, lastDay }
+      };
+
+    } catch (error) {
+      console.error('Error in fetchLastMonthVisitSummary:', error);
+      return {
+        error: error.message,
+        totalVisits: 0,
+        visitsPerClient: {},
+        visitsPerArea: {},
+        uniqueClientsVisited: 0,
+        queryPeriod: {} // Indicate failure or incomplete data
+      };
+    }
+  }
 }
 
 // Initialize the visit planner ML instance
 export const reactVisitPlannerML = new ReactVisitPlannerML();
+
+// Helper function to get the last day of a month
+// This was already added, but the diff tool might try to add it again if the search block includes it.
+// It's fine, the tool should handle duplicate function definitions gracefully or this version will overwrite.
+function getLastDayOfMonth(year, month) { // Ensure this is not duplicated if already present
+  return new Date(year, month, 0).getDate();
+}
