@@ -5,12 +5,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus  } from 'lucide-react';
 
 // Import your existing components and utilities
-import { COLORS, 
-  generateCompleteVisitPlan,
-  getExistingClusters,
-  createGeminiClusters,
-  getVisitPlanDetails,
-  getDailyBreakdown
+import {
+  COLORS,
+  formatCurrencyIndianStyle, // Added this import
+  // generateCompleteVisitPlan, // Assuming these are not used directly in this file anymore
+  // getExistingClusters,
+  // createGeminiClusters,
+  // getVisitPlanDetails,
+  // getDailyBreakdown
 } from '../data.js';
 
 // Add these imports at the top
@@ -452,7 +454,7 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Expected Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">₹{((visitPlan?.summary?.estimatedRevenue || 0) / 100000).toFixed(1)}L</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrencyIndianStyle(visitPlan?.summary?.estimatedRevenue || 0)}</p>
             </div>
             <TrendingUp className="h-8 w-8 text-purple-500" />
           </div>
@@ -533,7 +535,7 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
               >
                 <div className="text-sm font-medium text-gray-900">{day.date.split('-')[2]}</div>
                 <div className="text-xs text-gray-600">{day.summary.totalVisits} visits</div>
-                <div className="text-xs text-green-600">₹{(day.summary.estimatedRevenue / 1000).toFixed(0)}K</div>
+                <div className="text-xs text-green-600">{formatCurrencyIndianStyle(day.summary.estimatedRevenue || 0)}</div>
                 {day.summary.highPriorityVisits > 0 && (
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-1"></div>
                 )}
@@ -814,7 +816,7 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
                     <span className="font-medium">Time:</span> {visit.scheduled_time}
                   </div>
                   <div>
-                    <span className="font-medium">Expected:</span> ₹{visit.expected_order_value?.toLocaleString() || 0}
+                    <span className="font-medium">Expected:</span> {formatCurrencyIndianStyle(visit.expected_order_value || 0)}
                   </div>
                   <div>
                     <span className="font-medium">Order Probability:</span> {((visit.order_probability || 0) * 100).toFixed(0)}%

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Info, BarChart3 } from 'lucide-react'; // Kept BarChart3 for consistency with the "no data" message
+import { formatCurrencyIndianStyle } from '../data.js'; // Corrected path
 
 const PerformanceMetricsDisplay = ({ visitPlan }) => {
   // The main content has been removed as per user feedback to avoid redundancy.

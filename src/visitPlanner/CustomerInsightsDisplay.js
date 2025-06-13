@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Users, Star, TrendingUp, Lightbulb, BarChart, UserCheck, Building2, UserPlus, Award, MapPin, AlertTriangle, ShoppingBag, CalendarOff, Activity } from 'lucide-react'; // Added AlertTriangle and others
+import { Users, Star, TrendingUp, Lightbulb, BarChart, UserCheck, Building2, UserPlus, Award, MapPin, AlertTriangle, ShoppingBag, CalendarOff, Activity } from 'lucide-react';
+import { formatCurrencyIndianStyle } from '../data.js'; // Corrected import path
 
 const CustomerInsightsDisplay = ({ visitPlan }) => {
   if (!visitPlan || !visitPlan.summary || !visitPlan.weeklyBreakdown || !visitPlan.insights || !visitPlan.allMrCustomers) {
@@ -198,13 +199,7 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
   });
   const topVisits = allVisits.sort((a, b) => b.expected_order_value - a.expected_order_value).slice(0, 5);
 
-
-  const formatCurrency = (value) => {
-    if (value >= 100000) {
-      return `₹${(value / 100000).toFixed(2)}L`;
-    }
-    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  };
+  // Removed local formatCurrency function
 
   const cardClasses = "bg-white p-4 rounded-lg shadow border border-gray-200";
   const headingClasses = "text-xl font-semibold mb-4 text-gray-700 flex items-center";
@@ -341,7 +336,7 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
                             {visit.priority}
                         </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-green-700 font-semibold">{formatCurrency(visit.expected_order_value)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-green-700 font-semibold">{formatCurrencyIndianStyle(visit.expected_order_value)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -369,8 +364,8 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <p><span className="font-medium text-gray-600">Historical Visits:</span> <span className="font-bold text-indigo-600">{client.visitCount}</span></p>
-                    <p><span className="font-medium text-gray-600">Historical Value:</span> <span className="font-bold text-green-600">{formatCurrency(client.totalExpectedValue)}</span></p>
-                    <p><span className="font-medium text-gray-600">Avg. Value/Visit:</span> <span className="font-bold text-green-600">{client.visitCount > 0 ? formatCurrency(client.totalExpectedValue / client.visitCount) : 'N/A'}</span></p>
+                    <p><span className="font-medium text-gray-600">Historical Value:</span> <span className="font-bold text-green-600">{formatCurrencyIndianStyle(client.totalExpectedValue)}</span></p>
+                    <p><span className="font-medium text-gray-600">Avg. Value/Visit:</span> <span className="font-bold text-green-600">{client.visitCount > 0 ? formatCurrencyIndianStyle(client.totalExpectedValue / client.visitCount) : 'N/A'}</span></p>
                     <p><span className="font-medium text-gray-600">Churn Risk:</span> <span className="font-bold text-red-600">{(client.churnRiskScore * 100).toFixed(0)}%</span></p>
                   </div>
                 </li>
@@ -408,7 +403,7 @@ const CustomerInsightsDisplay = ({ visitPlan }) => {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-sm mb-2">
                     <p><Activity className="inline h-4 w-4 mr-1 text-gray-500" />Visits (6m): <span className="font-bold">{client.total_visits_last_6m || client.total_visits || 'N/A'}</span></p>
-                    <p><ShoppingBag className="inline h-4 w-4 mr-1 text-gray-500" />Value (6m): <span className="font-bold">{formatCurrency(parseFloat(client.total_order_value_last_6m || client.total_order_value || 0))}</span></p>
+                    <p><ShoppingBag className="inline h-4 w-4 mr-1 text-gray-500" />Value (6m): <span className="font-bold">{formatCurrencyIndianStyle(parseFloat(client.total_order_value_last_6m || client.total_order_value || 0))}</span></p>
                     <p><CalendarOff className="inline h-4 w-4 mr-1 text-gray-500" />Last Order: <span className="font-bold">{client.last_order_date ? new Date(client.last_order_date).toLocaleDateString() : 'N/A'}</span></p>
                   </div>
                   {client.riskReasons && client.riskReasons.length > 0 && (

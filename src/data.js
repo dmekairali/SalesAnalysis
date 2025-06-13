@@ -163,8 +163,48 @@ export const formatIndianCurrency = (num) => {
         return thousandValue.toFixed(1) + ' K';
     }
   }
-  return number.toString(); // Or number.toLocaleString('en-IN') for smaller numbers
+  // For numbers less than 1000, use toFixed(0) as per new requirement
+  return number.toFixed(0);
 };
+
+// New function as per requirements / or to replace existing formatIndianCurrency
+export const formatCurrencyIndianStyle = (value, decimals = 2) => {
+  if (typeof value !== 'number' || isNaN(value)) {
+    return '₹0';
+  }
+
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? '-' : '';
+  let formattedValue;
+
+  if (absValue >= 10000000) { // 1 Crore
+    formattedValue = (absValue / 10000000).toFixed(decimals) + ' Cr';
+  } else if (absValue >= 100000) { // 1 Lakh
+    formattedValue = (absValue / 100000).toFixed(decimals) + ' L';
+  } else if (absValue >= 1000) { // 1 Thousand
+    formattedValue = (absValue / 1000).toFixed(decimals) + ' K';
+  } else {
+    // Values less than 1000, no decimals
+    formattedValue = absValue.toFixed(0);
+  }
+
+  // Remove .00 from K, L, Cr if decimals were originally > 0 and resulted in .00
+  if (decimals > 0) {
+    if (formattedValue.endsWith('.00 K') || formattedValue.endsWith('.00 L') || formattedValue.endsWith('.00 Cr')) {
+      formattedValue = formattedValue.replace('.00', '');
+    }
+  }
+  // Also remove .0 if decimals was 1 and resulted in .0
+  if (decimals === 1) {
+     if (formattedValue.endsWith('.0 K') || formattedValue.endsWith('.0 L') || formattedValue.endsWith('.0 Cr')) {
+      formattedValue = formattedValue.replace('.0', '');
+    }
+  }
+
+
+  return `${sign}₹${formattedValue}`;
+};
+
 
 export const fetchCustomerData = async () => {
   let allItems = [];

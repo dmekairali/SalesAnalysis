@@ -1,5 +1,6 @@
 import React from 'react';
-import { CalendarDays, MapPin, BarChartHorizontalBig, Brain, DollarSign, Users } from 'lucide-react';
+import { MapPin, BarChartHorizontalBig, Brain, DollarSign, Users } from 'lucide-react'; // Removed CalendarDays
+import { formatCurrencyIndianStyle } from '../data.js'; // Corrected import path
 
 const RouteAnalysisDisplay = ({ visitPlan }) => {
   if (!visitPlan || !visitPlan.weeklyBreakdown || !visitPlan.detailedClusterStats || !visitPlan.summary) {
@@ -41,12 +42,7 @@ const RouteAnalysisDisplay = ({ visitPlan }) => {
     ? estimatedRevenue / detailedClusterStats.totalGeminiClusters
     : 0;
 
-  const formatCurrency = (value) => {
-     if (value >= 100000) {
-      return `₹${(value / 100000).toFixed(2)}L`;
-    }
-    return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  };
+  // Removed local formatCurrency function
 
   const cardClasses = "bg-white p-4 rounded-lg shadow border border-gray-200";
   const headingClasses = "text-xl font-semibold mb-4 text-gray-700 flex items-center";
@@ -105,7 +101,7 @@ const RouteAnalysisDisplay = ({ visitPlan }) => {
           <div className={cardClasses}>
             <DollarSign className="inline h-5 w-5 mr-1 text-gray-500" />
             <p className={labelTextClasses}>Avg. Revenue per Cluster</p>
-            <p className={`${valueTextClasses} text-green-600`}>{formatCurrency(avgRevenuePerCluster)}</p>
+            <p className={`${valueTextClasses} text-green-600`}>{formatCurrencyIndianStyle(avgRevenuePerCluster)}</p>
           </div>
         </div>
       </section>
