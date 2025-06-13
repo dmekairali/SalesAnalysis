@@ -1,3 +1,11 @@
+import { createClient } from '@supabase/supabase-js'
+
+// Supabase configuration
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+
 /**
  * Visit Planning ML Integration Class for React Dashboard
  */
@@ -62,37 +70,70 @@ export class ReactVisitPlannerML {
   /**
    * Fetch customer data for specific MR (uses your existing data structure)
    */
-  async fetchCustomerDataForMR(mrName) {
-    // This uses your existing data fetching - adjust based on your data structure
-    const { sampleOrderData } = await initializeData();
+  /**
+ * Fetch customer data for specific MR from Supabase
+ */
+async fetchCustomerDataForMR(mrName) {
+  try {
+    console.log(`Fetching customer data for MR: ${mrName}`);
     
-    // Extract unique customers for this MR
-    const customerMap = new Map();
+    // Query Supabase using the client
+    const { data, error } = await supabase
+      .from('customer_predictions_cache')
+      .select('*')
+      .eq('mr_name', mrName)
+      .limit(1000);
     
-    sampleOrderData
-      .filter(order => 
-        (order.medicalRepresentative || order.salesRepresentative) === mrName
-      )
-      .forEach(order => {
-        if (!customerMap.has(order.customerId)) {
-          customerMap.set(order.customerId, {
-            customer_phone: order.customerId,
-            customer_name: order.customerName,
-            customer_type: order.customerType || 'Unknown',
-            area_name: order.city || 'Unknown Area',
-            city: order.city || 'Unknown',
-            state: order.state || 'Unknown',
-            total_priority_score: Math.random() * 100, // You can enhance this based on order history
-            predicted_order_value: order.netAmount || 2000,
-            last_visit_date: order.date,
-            mr_name: mrName
-          });
-        }
-      });
-
-    return Array.from(customerMap.values());
+    if (error) {
+      throw new Error(`Supabase query error: ${error.message}`);
+    }
+    
+    if (!data || !Array.isArray(data)) {
+      throw new Error('Supabase returned invalid data format');
+    }
+    
+    console.log(`Found ${data.length} customers for MR: ${mrName}`);
+    
+    // Transform Supabase data to match the expected customer format
+    return data.map(record => ({
+      customer_phone: record.customer_phone || record.customer_id || `PHONE_${Date.now()}_${Math.random()}`,
+      customer_name: record.customer_name || 'Unknown Customer',
+      customer_type: record.customer_type || 'Unknown',
+      area_name: record.area_name || record.city || 'Unknown Area',
+      city: record.city || 'Unknown City',
+      state: record.state || 'Unknown State',
+      total_priority_score: parseFloat(record.total_priority_score) || Math.random() * 100,
+      predicted_order_value: parseFloat(record.predicted_order_value) || 2000,
+      last_visit_date: record.last_visit_date || new Date().toISOString().slice(0, 10),
+      mr_name: record.mr_name || mrName,
+      // Additional fields from Supabase that might be useful
+      customer_id: record.customer_id,
+      phone: record.phone || record.customer_phone,
+      email: record.email,
+      address: record.address,
+      pincode: record.pincode,
+      territory: record.territory,
+      route: record.route,
+      visit_frequency: record.visit_frequency,
+      last_order_date: record.last_order_date,
+      last_order_value: parseFloat(record.last_order_value) || 0,
+      avg_monthly_orders: parseFloat(record.avg_monthly_orders) || 0,
+      total_orders_last_6m: parseInt(record.total_orders_last_6m) || 0,
+      growth_trend: record.growth_trend,
+      customer_segment: record.customer_segment,
+      preferred_products: record.preferred_products,
+      payment_terms: record.payment_terms,
+      credit_limit: parseFloat(record.credit_limit) || 0,
+      outstanding_amount: parseFloat(record.outstanding_amount) || 0,
+      created_at: record.created_at,
+      updated_at: record.updated_at
+    }));
+    
+  } catch (error) {
+    console.error('Error fetching customer data from Supabase:', error);
+    throw new Error(`Failed to fetch customer data for MR ${mrName}: ${error.message}`);
   }
-
+}
   /**
    * Prepare area data for clustering
    */
@@ -128,34 +169,156 @@ export class ReactVisitPlannerML {
   /**
    * Create optimized clusters (simplified for React)
    */
-  createOptimizedClusters(areaData) {
-    const clusters = [];
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    
-    // Sort areas by priority and customer count
-    const sortedAreas = areaData
-      .sort((a, b) => (b.avg_priority * b.customer_count) - (a.avg_priority * a.customer_count));
-
-    // Group areas into clusters (3-5 areas per cluster)
-    const areasPerCluster = 4;
-    for (let i = 0; i < sortedAreas.length; i += areasPerCluster) {
-      const clusterAreas = sortedAreas.slice(i, i + areasPerCluster);
-      const clusterIndex = Math.floor(i / areasPerCluster);
-      
-      clusters.push({
-        cluster_name: `Route ${clusterIndex + 1}`,
-        cluster_priority: clusterIndex < 3 ? 'High' : 'Medium',
-        recommended_visit_day: weekdays[clusterIndex % weekdays.length],
-        areas: clusterAreas.map((area, index) => ({
-          area_name: area.area_name,
-          visit_sequence: index + 1,
-          notes: `${area.customer_count} customers, avg priority: ${area.avg_priority.toFixed(1)}`
-        }))
-      });
-    }
-
-    return { clusters };
+  /**
+ * Create optimized clusters using Gemini AI
+ */
+async createOptimizedClusters(areaData) {
+  try {
+    return await this.getGeminiClusters(areaData);
+  } catch (error) {
+    console.warn('Gemini clustering failed, using fallback:', error.message);
+    return this.createComprehensiveFallbackClusters(areaData);
   }
+}
+
+/**
+ * Get optimized clusters from Gemini AI
+ */
+async getGeminiClusters(areaData) {
+  const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+  
+  if (!GEMINI_API_KEY) {
+    throw new Error('Gemini API key not configured');
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+  
+  const totalCustomers = areaData.reduce((sum, area) => sum + area.customer_count, 0);
+  const targetClusters = Math.max(8, Math.ceil(areaData.length / 4)); // At least 8 clusters
+  
+  const prompt = {
+    contents: [{
+      parts: [{
+        text: `Create ${targetClusters} route-optimized clusters that cover ALL ${areaData.length} areas.
+
+CRITICAL: Every area must be assigned to a cluster. No area should be left unassigned.
+
+REQUIREMENTS:
+1. Create ${targetClusters} clusters minimum
+2. Each cluster should have 3-6 areas
+3. Group geographically close areas
+4. Distribute across different weekdays
+5. Include ALL areas provided - no exceptions
+
+PRIORITY AREAS (must be in clusters):
+${areaData.slice(0, 10).map(area => `- ${area.area_name}: ${area.customer_count} customers`).join('\n')}
+
+Return ONLY valid JSON with ALL areas covered:
+{
+  "clusters": [
+    {
+      "cluster_name": "North Route 1",
+      "cluster_priority": "High",
+      "recommended_visit_day": "Monday",
+      "areas": [
+        {
+          "area_name": "Rohtak",
+          "visit_sequence": 1,
+          "notes": "PRIMARY - High volume area"
+        }
+      ]
+    }
+  ]
+}
+
+ALL AREAS TO CLUSTER (${areaData.length} total):
+${JSON.stringify(areaData, null, 2)}`
+      }]
+    }]
+  };
+
+  const options = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(prompt)
+  };
+
+  try {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.error) {
+      throw new Error(`Gemini API error: ${result.error.message}`);
+    }
+    
+    const responseTextContent = result.candidates[0].content.parts[0].text;
+    const cleanText = responseTextContent.replace(/```json|```/g, '');
+    const clusters = JSON.parse(cleanText);
+    
+    if (!clusters.clusters || !Array.isArray(clusters.clusters)) {
+      throw new Error("Invalid cluster format from Gemini");
+    }
+    
+    // Validate all areas are covered
+    const assignedAreas = new Set();
+    clusters.clusters.forEach(cluster => {
+      cluster.areas.forEach(area => {
+        assignedAreas.add(area.area_name);
+      });
+    });
+    
+    const unassignedCount = areaData.length - assignedAreas.size;
+    if (unassignedCount > 0) {
+      console.warn(`WARNING: Gemini left ${unassignedCount} areas unassigned. Creating fallback clusters.`);
+      return this.createComprehensiveFallbackClusters(areaData);
+    }
+    
+    return clusters;
+    
+  } catch (e) {
+    console.error(`Gemini clustering failed: ${e.message}`);
+    throw e;
+  }
+}
+
+/**
+ * Create comprehensive fallback clusters when Gemini fails
+ */
+createComprehensiveFallbackClusters(areaData) {
+  const clusters = [];
+  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  
+  // Sort areas by priority and customer count
+  const sortedAreas = areaData
+    .sort((a, b) => (b.avg_priority * b.customer_count) - (a.avg_priority * a.customer_count));
+
+  // Group areas into clusters (3-5 areas per cluster)
+  const areasPerCluster = 4;
+  for (let i = 0; i < sortedAreas.length; i += areasPerCluster) {
+    const clusterAreas = sortedAreas.slice(i, i + areasPerCluster);
+    const clusterIndex = Math.floor(i / areasPerCluster);
+    
+    clusters.push({
+      cluster_name: `Fallback Route ${clusterIndex + 1}`,
+      cluster_priority: clusterIndex < 3 ? 'High' : 'Medium',
+      recommended_visit_day: weekdays[clusterIndex % weekdays.length],
+      areas: clusterAreas.map((area, index) => ({
+        area_name: area.area_name,
+        visit_sequence: index + 1,
+        notes: `${area.customer_count} customers, avg priority: ${area.avg_priority.toFixed(1)}`
+      }))
+    });
+  }
+
+  return { clusters };
+}
 
   /**
    * Generate working days calendar
