@@ -13,6 +13,9 @@ import { COLORS,
   getDailyBreakdown
 } from '../data.js';
 
+// Add these imports at the top
+import { reactVisitPlannerML } from '../visitplannerdata.js';
+
 import { SearchableDropdown } from '../enhancedFilters.js';
 
 const MRVisitPlannerDashboard = () => {
@@ -145,7 +148,7 @@ const MRVisitPlannerDashboard = () => {
 
     fetchMRs();
   }, []);
-
+/*
 const generateVisitPlan = async () => {
   if (!selectedMR) {
     alert('Please select an MR first');
@@ -167,8 +170,123 @@ const generateVisitPlan = async () => {
   }
   setLoading(false);
 };
-  
- 
+ */ 
+
+
+// Replace your existing generateVisitPlan function with this:
+const generateVisitPlan = async () => {
+  if (!selectedMR) {
+    alert('Please select an MR first');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
+    
+    // Use the new React visit planner
+    const result = await reactVisitPlannerML.generateVisitPlan(
+      selectedMR, 
+      selectedMonth, 
+      selectedYear, 
+      15 // minVisitsPerDay
+    );
+    
+    console.log('Visit Plan Result:', result);
+    
+    if (result.success) {
+      // Transform to match your component expectations
+      const transformedPlan = {
+        mrName: selectedMR,
+        month: selectedMonth,
+        year: selectedYear,
+        summary: {
+          totalWorkingDays: result.summary.total_working_days,
+          totalPlannedVisits: result.summary.total_planned_visits,
+          estimatedRevenue: result.summary.estimated_revenue,
+          efficiencyScore: parseFloat(result.summary.efficiency_score),
+          coverageScore: 90 // Default
+        },
+        weeklyBreakdown: transformDailyPlansToWeekly(result.dailyPlans),
+        insights: result.insights.map(insight => ({
+          type: insight.type,
+          title: insight.title,
+          value: insight.value,
+          description: insight.description,
+          recommendation: `Status: ${insight.status}`
+        }))
+      };
+      
+      setVisitPlan(transformedPlan);
+    } else {
+      console.error('Plan generation failed:', result.error);
+      alert(`Plan generation failed: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Error generating visit plan:', error);
+    alert('Error generating visit plan. Please try again.');
+  }
+  setLoading(false);
+};
+
+// Add this helper function to transform daily plans to weekly breakdown
+const transformDailyPlansToWeekly = (dailyPlans) => {
+  if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
+
+  const weeks = [];
+  let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
+  let weekNumber = 1;
+
+  const workingDays = dailyPlans.filter(d => !d.isSunday);
+
+  workingDays.forEach((dayPlan, index) => {
+    const dayData = {
+      date: dayPlan.date,
+      dayName: dayPlan.dayName,
+      visits: dayPlan.clusters.flatMap(cluster => 
+        cluster.customers.map(customer => ({
+          customer_name: customer.customer_name,
+          customer_phone: customer.customer_phone,
+          customer_type: customer.customer_type,
+          area_name: cluster.area_name,
+          scheduled_time: `${9 + Math.floor(index % 8)}:00`, // Simple time allocation
+          expected_order_value: customer.predicted_order_value || 2000,
+          order_probability: customer.prospect_generated ? 0.3 : 0.7,
+          priority: cluster.area_priority === 'PRIMARY' ? 'HIGH' : 
+                   cluster.area_priority === 'ROUTE_ROTATION' ? 'HIGH' :
+                   cluster.area_priority === 'PROSPECT' ? 'LOW' : 'MEDIUM'
+        }))
+      ),
+      summary: {
+        totalVisits: dayPlan.totalVisits,
+        estimatedRevenue: dayPlan.clusters.reduce((sum, cluster) => 
+          sum + cluster.customers.reduce((cSum, customer) => 
+            cSum + (customer.predicted_order_value || 2000), 0), 0),
+        areasVisited: new Set(dayPlan.clusters.map(c => c.area_name)).size,
+        highPriorityVisits: dayPlan.clusters.filter(c => 
+          c.area_priority === 'PRIMARY' || c.area_priority === 'ROUTE_ROTATION'
+        ).reduce((sum, c) => sum + c.customers.length, 0)
+      }
+    };
+
+    currentWeek.days.push(dayData);
+    currentWeek.summary.totalVisits += dayData.summary.totalVisits;
+    currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
+
+    // If we have 6 days (Mon-Sat) or it's the last day, close the week
+    if (currentWeek.days.length === 6 || index === workingDays.length - 1) {
+      weeks.push(currentWeek);
+      weekNumber++;
+      currentWeek = { 
+        week: weekNumber, 
+        days: [], 
+        summary: { totalVisits: 0, estimatedRevenue: 0 } 
+      };
+    }
+  });
+
+  return weeks;
+};
 
   // Get month name
   const getMonthName = (month) => {
