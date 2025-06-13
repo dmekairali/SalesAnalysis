@@ -29,16 +29,16 @@ export class ReactVisitPlannerML {
       }
 
       // 2. Prepare area data
-      const areaData = this.prepareAreaData(customers);
+      const areaData = await this.prepareAreaData(customers);
       console.log(areaData);
       // 3. Create clusters (simplified version for React)
-      const clusteredAreas = this.createOptimizedClusters(areaData);
+      const clusteredAreas = await this.createOptimizedClusters(areaData);
       console.log(clusteredAreas);
       // 4. Generate calendar
-      const calendar = this.generateWorkingDaysCalendar(month, year);
+      const calendar = await this.generateWorkingDaysCalendar(month, year);
       console.log(calendar);
       // 5. Create visit plan with rotation logic
-      const visitPlan = this.createVisitPlanWithRotation(
+      const visitPlan = await this.createVisitPlanWithRotation(
         customers, 
         clusteredAreas, 
         calendar, 
