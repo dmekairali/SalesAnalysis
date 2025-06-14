@@ -1,4 +1,4 @@
-// analytics_components.js - Medicine-wise and Pack-wise Analytics
+// analytics_components.js - Medicine-wise and Pack-wise Analytics - COMPLETE VERSION
 
 import React from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
@@ -32,7 +32,7 @@ const MedicineWiseAnalytics = ({ medicinePerformance, selectedMedicine, availabl
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-green-600">Total Revenue</p>
               <p className="text-2xl font-bold text-green-700">
-                ₹{currentMedicineData.totalRevenue.toLocaleString()}
+                {formatCurrencyByContext(currentMedicineData.totalRevenue, 'card')}
               </p>
             </div>
             <div className="bg-blue-50 p-4 rounded-lg">
@@ -60,23 +60,23 @@ const MedicineWiseAnalytics = ({ medicinePerformance, selectedMedicine, availabl
         <div className="mt-6">
           <h5 className="font-medium mb-3">Top Performing Medicines</h5>
           <ResponsiveContainer width="100%" height={300}>
-  <BarChart data={medicineData.slice(0, 10)}>
-    <CartesianGrid strokeDasharray="3 3" />
-    <XAxis 
-      dataKey="medicineName" 
-      angle={-45}
-      textAnchor="end"
-      height={80}
-    />
-    <YAxis 
-      tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
-    />
-    <Tooltip 
-      formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} 
-    />
-    <Bar dataKey="totalRevenue" fill={COLORS.primary} />
-  </BarChart>
-</ResponsiveContainer>
+            <BarChart data={medicineData.slice(0, 10)}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="medicineName" 
+                angle={-45}
+                textAnchor="end"
+                height={80}
+              />
+              <YAxis 
+                tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+              />
+              <Tooltip 
+                formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} 
+              />
+              <Bar dataKey="totalRevenue" fill={COLORS.primary} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -108,7 +108,9 @@ const MedicineWiseAnalytics = ({ medicinePerformance, selectedMedicine, availabl
                     fill="#8884d8"
                     dataKey="value"
                   />
-                  <Tooltip formatter={(value) => [`₹${value}`, 'MRP']} />
+                  <Tooltip 
+                    formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'MRP']} 
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -128,11 +130,13 @@ const MedicineWiseAnalytics = ({ medicinePerformance, selectedMedicine, availabl
                           <span className="font-medium">{pack.packSize}</span>
                           <div className="text-xs text-gray-500">SKU: {pack.sku}</div>
                         </div>
-                        <span className="font-semibold text-green-600">₹{pack.mrp}</span>
+                        <span className="font-semibold text-green-600">
+                          {formatCurrencyByContext(pack.mrp, 'table')}
+                        </span>
                       </div>
                       <div className="text-sm text-gray-600">
                         <div>Units: {unitCount}</div>
-                        <div>Price per unit: ₹{pricePerUnit}</div>
+                        <div>Price per unit: {formatCurrencyByContext(pricePerUnit, 'table')}</div>
                       </div>
                     </div>
                   );
@@ -166,7 +170,7 @@ const PackWiseAnalytics = ({ packSizePerformance, selectedProduct }) => {
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-green-600">Pack Revenue</p>
               <p className="text-2xl font-bold text-green-700">
-                ₹{currentPackData.totalRevenue.toLocaleString()}
+                {formatCurrencyByContext(currentPackData.totalRevenue, 'card')}
               </p>
             </div>
             <div className="bg-blue-50 p-4 rounded-lg">
@@ -202,9 +206,11 @@ const PackWiseAnalytics = ({ packSizePerformance, selectedProduct }) => {
                 textAnchor="end"
                 height={80}
               />
-              <YAxis />
+              <YAxis 
+                tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+              />
               <Tooltip 
-                formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']}
+                formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']}
                 labelFormatter={(label) => `Pack: ${label}`}
               />
               <Bar dataKey="totalRevenue" fill={COLORS.secondary} />
@@ -245,7 +251,9 @@ const PackWiseAnalytics = ({ packSizePerformance, selectedProduct }) => {
                     <tr key={index} className={`hover:bg-gray-50 ${isTopPerformer ? 'bg-green-50' : ''}`}>
                       <td className="px-4 py-2 text-sm font-medium">{pack.medicineName}</td>
                       <td className="px-4 py-2 text-sm">{pack.packSize}</td>
-                      <td className="px-4 py-2 text-sm font-semibold">₹{pack.totalRevenue.toLocaleString()}</td>
+                      <td className="px-4 py-2 text-sm font-semibold">
+                        {formatCurrencyByContext(pack.totalRevenue, 'table')}
+                      </td>
                       <td className="px-4 py-2 text-sm">{pack.totalQuantity}</td>
                       <td className="px-4 py-2 text-sm">{pack.orderCount}</td>
                       <td className="px-4 py-2 text-sm">{avgQtyPerOrder}</td>
