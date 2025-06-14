@@ -97,6 +97,7 @@ export class VisitAnalyticsEngine {
       `)
       .eq('mr_name', mrName)
       .gte('"dcrDate"', startDate.toISOString().slice(0, 10))
+      .in('customer_type', ['Doctor', 'Retailer'])  // ADD THIS LINE
       .order('"dcrDate"', { ascending: false });
 
     if (error) throw error;
@@ -160,8 +161,8 @@ export class VisitAnalyticsEngine {
         "visitType"
       `)
       .eq('mr_name', mrName)
-      .gte('"dcrDate"', startDate.toISOString().slice(0, 10));
-
+      .gte('"dcrDate"', startDate.toISOString().slice(0, 10))
+      .in('customer_type', ['Doctor', 'Retailer']);  // ADD THIS LINE
     if (error) throw error;
 
     // Group by customer and calculate metrics
@@ -232,8 +233,8 @@ export class VisitAnalyticsEngine {
         "visitType"
       `)
       .eq('mr_name', mrName)
-      .gte('"dcrDate"', startDate.toISOString().slice(0, 10));
-
+      .gte('"dcrDate"', startDate.toISOString().slice(0, 10))
+      .in('customer_type', ['Doctor', 'Retailer']);  // ADD THIS LINE
     if (error) throw error;
 
     // Group by area
@@ -299,8 +300,8 @@ export class VisitAnalyticsEngine {
       `)
       .eq('mr_name', mrName)
       .gte('"dcrDate"', startDate.toISOString().slice(0, 10))
-      .not('"inTime"', 'is', null);
-
+      .not('"inTime"', 'is', null)
+      .in('customer_type', ['Doctor', 'Retailer']);  // ADD THIS LINE
     if (error) throw error;
 
     return visits;
