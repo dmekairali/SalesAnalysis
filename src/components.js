@@ -363,7 +363,7 @@ export const TopProductsChart = ({ data, filters, setFilters }) => {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
           <YAxis />
-          <Tooltip formatter={(value) => [[formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
+          <Tooltip formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
           <Bar dataKey="value" onClick={handleBarClick} cursor="pointer">
             {data.map((entry, index) => (
               <Cell
