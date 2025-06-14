@@ -226,7 +226,7 @@ export const fetchProductData = async () => {
     return [];
   }
 };
-
+/*
 export const formatIndianCurrency = (num) => {
   if (num === null || num === undefined || isNaN(Number(num))) {
     return '0'; // Or 'N/A' or handle as an error
@@ -252,7 +252,7 @@ export const formatIndianCurrency = (num) => {
   }
   return number.toString(); // Or number.toLocaleString('en-IN') for smaller numbers
 };
-
+*/
 export const fetchCustomerData = async () => {
   let allItems = [];
   let lastItemCount = 0;
