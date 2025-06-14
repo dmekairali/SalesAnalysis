@@ -3,6 +3,7 @@
 import React from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Package, Users, Star } from 'lucide-react';
+import { formatIndianCurrency, formatCurrencyByContext } from '../data.js';
 
 const COLORS = {
   primary: '#10b981',
@@ -68,7 +69,7 @@ const MedicineWiseAnalytics = ({ medicinePerformance, selectedMedicine, availabl
                 height={80}
               />
               <YAxis />
-              <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+              <Tooltip formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
               <Bar dataKey="totalRevenue" fill={COLORS.primary} />
             </BarChart>
           </ResponsiveContainer>
