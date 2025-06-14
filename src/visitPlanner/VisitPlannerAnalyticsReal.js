@@ -20,7 +20,8 @@ import {
   PieChart,
   Activity,
   RefreshCw,
-  Download
+  Download,
+  Phone
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -587,6 +588,208 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
     );
   };
 
+
+// Add this OnCallOrdersTab component
+const OnCallOrdersTab = () => {
+  if (!analytics?.onCallOrders) return <LoadingState />;
+  
+  const { summary, customers, insights } = analytics.onCallOrders;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center">
+          <Phone className="h-5 w-5 text-blue-600 mr-2" />
+          <h3 className="font-semibold text-blue-800">On-Call Orders Analysis</h3>
+        </div>
+        <p className="text-sm text-blue-700 mt-1">
+          Orders placed without corresponding visits - analyzing phone-based sales patterns
+        </p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">On-Call Customers</p>
+              <p className="text-2xl font-bold text-gray-900">{summary.total_on_call_customers || 0}</p>
+              <p className="text-xs text-blue-600">{summary.total_on_call_orders || 0} total orders</p>
+            </div>
+            <Phone className="h-8 w-8 text-blue-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">On-Call Revenue</p>
+              <p className="text-2xl font-bold text-gray-900">₹{((summary.total_on_call_revenue || 0) / 100000).toFixed(1)}L</p>
+              <p className="text-xs text-green-600">{summary.total_revenue_percentage || 0}% of total</p>
+            </div>
+            <DollarSign className="h-8 w-8 text-green-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Avg Order Value</p>
+              <p className="text-2xl font-bold text-gray-900">₹{(summary.avg_order_value || 0).toFixed(0)}</p>
+              <p className="text-xs text-purple-600">Phone orders</p>
+            </div>
+            <Target className="h-8 w-8 text-purple-500" />
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-orange-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Phone-Only</p>
+              <p className="text-2xl font-bold text-gray-900">{summary.phone_only_customers || 0}</p>
+              <p className="text-xs text-orange-600">Never visited</p>
+            </div>
+            <Users className="h-8 w-8 text-orange-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Categories */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4">Customer Categories</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-gray-900">Phone-Only Customers</h4>
+              <span className="text-2xl font-bold text-blue-600">{summary.phone_only_customers || 0}</span>
+            </div>
+            <p className="text-sm text-gray-600">Customers who never had visits but place orders regularly</p>
+            <div className="mt-2 text-xs text-blue-700 bg-blue-50 p-2 rounded">
+              💡 Consider virtual relationship strategies
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-gray-900">Lost Touch Customers</h4>
+              <span className="text-2xl font-bold text-yellow-600">{summary.lost_touch_customers || 0}</span>
+            </div>
+            <p className="text-sm text-gray-600">Customers still ordering but no visits in 90+ days</p>
+            <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
+              ⚠️ Schedule visits to maintain relationships
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-gray-900">Frequent On-Call</h4>
+              <span className="text-2xl font-bold text-green-600">{summary.frequent_on_call_customers || 0}</span>
+            </div>
+            <p className="text-sm text-gray-600">Customers with 5+ phone orders</p>
+            <div className="mt-2 text-xs text-green-700 bg-green-50 p-2 rounded">
+              ✅ Strong phone relationship established
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer List */}
+      {customers.length > 0 && (
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold mb-4">On-Call Customers Details</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Order</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Visit</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preference</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {customers.slice(0, 20).map((customer, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{customer.customer_name}</div>
+                        <div className="text-sm text-gray-500">{customer.city}, {customer.state}</div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-600">{customer.customer_type}</td>
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900">{customer.total_on_call_orders}</td>
+                    <td className="px-4 py-4 text-sm font-semibold text-green-600">₹{customer.total_on_call_revenue.toLocaleString()}</td>
+                    <td className="px-4 py-4 text-sm text-gray-600">₹{customer.avg_order_value.toFixed(0)}</td>
+                    <td className="px-4 py-4 text-sm text-gray-600">
+                      {customer.last_visit_date ? (
+                        <div>
+                          <div>{customer.last_visit_date}</div>
+                          <div className="text-xs text-gray-400">{customer.days_since_last_visit} days ago</div>
+                        </div>
+                      ) : (
+                        <span className="text-red-500">Never visited</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        customer.customer_preference === 'Phone-Only Customer' ? 'bg-blue-100 text-blue-800' :
+                        customer.customer_preference === 'Lost Touch Customer' ? 'bg-yellow-100 text-yellow-800' :
+                        customer.customer_preference === 'Frequent On-Call Customer' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {customer.customer_preference}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {customers.length > 20 && (
+            <div className="mt-4 text-center text-sm text-gray-500">
+              Showing top 20 of {customers.length} on-call customers
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Insights */}
+      {insights.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {insights.map((insight, index) => (
+            <div key={index} className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-gray-800">{insight.title}</h4>
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  insight.type === 'risk' ? 'bg-red-100 text-red-800' :
+                  insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}>
+                  {insight.type.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-blue-600 mb-1">{insight.value}</p>
+              <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
+              <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {customers.length === 0 && (
+        <div className="bg-white p-12 rounded-lg shadow-md text-center">
+          <Phone className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No On-Call Orders Found</h3>
+          <p className="text-gray-600">All orders in this period had corresponding visits. Excellent field coverage!</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
   // Loading State Component
   const LoadingState = () => (
     <div className="bg-white p-12 rounded-lg shadow-md text-center">
@@ -616,7 +819,8 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
     { id: 'redflags', label: 'Red Flags', icon: AlertTriangle, component: RedFlagsTab },
     { id: 'golden', label: 'Golden Clients', icon: Star, component: GoldenClientsTab },
     { id: 'areas', label: 'Area Optimization', icon: MapPin, component: AreaOptimizationTab },
-    { id: 'patterns', label: 'Visit Patterns', icon: Clock, component: VisitPatternsTab }
+    { id: 'patterns', label: 'Visit Patterns', icon: Clock, component: VisitPatternsTab },
+    { id: 'oncall', label: 'On-Call Orders', icon: Phone, component: OnCallOrdersTab }
   ];
 
   // Main loading state
@@ -756,6 +960,8 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
           </div>
         </div>
       )}
+
+
 
       {/* Performance Summary Footer */}
       {analytics && (
