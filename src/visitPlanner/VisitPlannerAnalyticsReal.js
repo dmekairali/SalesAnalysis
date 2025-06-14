@@ -1,4 +1,5 @@
-// src/visitPlanner/VisitPlannerAnalyticsReal.js
+// src/visitPlanner/VisitPlannerAnalyticsReal.js - COMPLETE VERSION WITH CURRENCY FORMATTING
+
 import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
@@ -139,7 +140,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Avg per Visit</p>
-                <p className="text-2xl font-bold text-gray-900">₹{efficiency_metrics.avg_revenue_per_visit.toFixed(0)}</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(efficiency_metrics.avg_revenue_per_visit, 'card')}</p>
                 <p className="text-xs text-orange-600">All visits average</p>
               </div>
               <MapPin className="h-8 w-8 text-orange-500" />
@@ -157,19 +158,51 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
             <ResponsiveContainer width="100%" height={350}>
               <ComposedChart data={monthly_comparison}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
+                <XAxis 
+                  dataKey="month"
+                  tickFormatter={(value) => {
+                    // Format month strings like "2025-01" to "Jan 25"
+                    if (value && value.includes('-')) {
+                      const [year, month] = value.split('-');
+                      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                      return `${monthNames[parseInt(month) - 1]} ${year.slice(-2)}`;
+                    }
+                    return value;
+                  }}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  label={{ value: 'Visits', angle: -90, position: 'insideLeft' }}
+                />
+                <YAxis 
+                  yAxisId="right" 
+                  orientation="right"
+                  tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+                  label={{ value: 'Revenue', angle: 90, position: 'insideRight' }}
+                />
                 <Tooltip 
-                  formatter={(value, name) => [
-                    name.includes('revenue') ? `₹${(value/1000).toFixed(0)}K` : value,
-                    name.replace('_', ' ').toUpperCase()
-                  ]}
+                  formatter={(value, name) => {
+                    if (name.includes('revenue')) {
+                      return [formatCurrencyByContext(value, 'tooltip'), name.replace('_', ' ').toUpperCase()];
+                    }
+                    return [value, name.replace('_', ' ').toUpperCase()];
+                  }}
+                  labelFormatter={(label) => {
+                    // Format tooltip label
+                    if (label && label.includes('-')) {
+                      const [year, month] = label.split('-');
+                      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                        'July', 'August', 'September', 'October', 'November', 'December'];
+                      return `${monthNames[parseInt(month) - 1]} ${year}`;
+                    }
+                    return label;
+                  }}
                 />
                 <Legend />
                 <Bar yAxisId="left" dataKey="planned_visits" fill={colors.primary} name="Planned Visits" />
                 <Bar yAxisId="left" dataKey="actual_visits" fill={colors.secondary} name="Actual Visits" />
-                <Line yAxisId="right" type="monotone" dataKey="actual_revenue" stroke={colors.warning} strokeWidth={3} name="Revenue (₹)" />
+                <Line yAxisId="right" type="monotone" dataKey="actual_revenue" stroke={colors.warning} strokeWidth={3} name="Revenue" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -231,7 +264,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
                   </div>
                   <div className="bg-gray-50 p-3 rounded">
                     <p className="text-xs text-gray-600">Revenue</p>
-                    <p className="text-lg font-bold text-gray-900">₹{customer.total_revenue_3m.toLocaleString()}</p>
+                    <p className="text-lg font-bold text-gray-900">{formatCurrencyByContext(customer.total_revenue_3m, 'table')}</p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded">
                     <p className="text-xs text-gray-600">Conversion Rate</p>
@@ -328,7 +361,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
                   </div>
                   <div className="bg-green-50 p-3 rounded">
                     <p className="text-xs text-gray-600">Revenue</p>
-                    <p className="text-lg font-bold text-green-600">₹{client.total_revenue_3m.toLocaleString()}</p>
+                    <p className="text-lg font-bold text-green-600">{formatCurrencyByContext(client.total_revenue_3m, 'table')}</p>
                   </div>
                   <div className="bg-green-50 p-3 rounded">
                     <p className="text-xs text-gray-600">Conversion Rate</p>
@@ -422,7 +455,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
                   <p className="text-lg font-bold text-gray-900">{formatCurrencyByContext(area.revenue_3m, 'card')}</p>
-                  <p className="text-xs text-gray-600">₹{area.avg_revenue_per_customer.toFixed(0)} avg/customer</p>
+                  <p className="text-xs text-gray-600">{formatCurrencyByContext(area.avg_revenue_per_customer, 'table')} avg/customer</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">Success Rate</p>
@@ -441,7 +474,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">Untapped Potential</p>
-                  <p className="text-lg font-bold text-green-600">₹{(area.untapped_potential / 100000).toFixed(1)}L</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrencyByContext(area.untapped_potential, 'card')}</p>
                   <p className="text-xs text-gray-600">Estimated opportunity</p>
                 </div>
               </div>
@@ -564,7 +597,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
                         Success: <span className="font-semibold">{timeSlot.success_rate}%</span>
                       </span>
                       <span className="text-sm text-gray-600">
-                        Avg Order: <span className="font-semibold">₹{timeSlot.avg_order.toLocaleString()}</span>
+                        Avg Order: <span className="font-semibold">{formatCurrencyByContext(timeSlot.avg_order, 'table')}</span>
                       </span>
                     </div>
                   </div>
@@ -590,207 +623,206 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
     );
   };
 
+  // OnCallOrdersTab component
+  const OnCallOrdersTab = () => {
+    if (!analytics?.onCallOrders) return <LoadingState />;
+    
+    const { summary, customers, insights } = analytics.onCallOrders;
 
-// Add this OnCallOrdersTab component
-const OnCallOrdersTab = () => {
-  if (!analytics?.onCallOrders) return <LoadingState />;
-  
-  const { summary, customers, insights } = analytics.onCallOrders;
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <Phone className="h-5 w-5 text-blue-600 mr-2" />
-          <h3 className="font-semibold text-blue-800">On-Call Orders Analysis</h3>
-        </div>
-        <p className="text-sm text-blue-700 mt-1">
-          Orders placed without corresponding visits - analyzing phone-based sales patterns
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">On-Call Customers</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.total_on_call_customers || 0}</p>
-              <p className="text-xs text-blue-600">{summary.total_on_call_orders || 0} total orders</p>
-            </div>
-            <Phone className="h-8 w-8 text-blue-500" />
+    return (
+      <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Phone className="h-5 w-5 text-blue-600 mr-2" />
+            <h3 className="font-semibold text-blue-800">On-Call Orders Analysis</h3>
           </div>
+          <p className="text-sm text-blue-700 mt-1">
+            Orders placed without corresponding visits - analyzing phone-based sales patterns
+          </p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">On-Call Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(summary.total_on_call_revenue || 0, 'card')}</p>
-              <p className="text-xs text-green-600">{summary.total_revenue_percentage || 0}% of total</p>
-            </div>
-            <DollarSign className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Avg Order Value</p>
-              <p className="text-2xl font-bold text-gray-900">₹{(summary.avg_order_value || 0).toFixed(0)}</p>
-              <p className="text-xs text-purple-600">Phone orders</p>
-            </div>
-            <Target className="h-8 w-8 text-purple-500" />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Phone-Only</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.phone_only_customers || 0}</p>
-              <p className="text-xs text-orange-600">Never visited</p>
-            </div>
-            <Users className="h-8 w-8 text-orange-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* Customer Categories */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4">Customer Categories</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-gray-900">Phone-Only Customers</h4>
-              <span className="text-2xl font-bold text-blue-600">{summary.phone_only_customers || 0}</span>
-            </div>
-            <p className="text-sm text-gray-600">Customers who never had visits but place orders regularly</p>
-            <div className="mt-2 text-xs text-blue-700 bg-blue-50 p-2 rounded">
-              💡 Consider virtual relationship strategies
-            </div>
-          </div>
-
-          <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-gray-900">Lost Touch Customers</h4>
-              <span className="text-2xl font-bold text-yellow-600">{summary.lost_touch_customers || 0}</span>
-            </div>
-            <p className="text-sm text-gray-600">Customers still ordering but no visits in 90+ days</p>
-            <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
-              ⚠️ Schedule visits to maintain relationships
-            </div>
-          </div>
-
-          <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-medium text-gray-900">Frequent On-Call</h4>
-              <span className="text-2xl font-bold text-green-600">{summary.frequent_on_call_customers || 0}</span>
-            </div>
-            <p className="text-sm text-gray-600">Customers with 5+ phone orders</p>
-            <div className="mt-2 text-xs text-green-700 bg-green-50 p-2 rounded">
-              ✅ Strong phone relationship established
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Customer List */}
-      {customers.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-4">On-Call Customers Details</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Order</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Visit</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preference</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {customers.slice(0, 20).map((customer, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-4">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{customer.customer_name}</div>
-                        <div className="text-sm text-gray-500">{customer.city}, {customer.state}</div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600">{customer.customer_type}</td>
-                    <td className="px-4 py-4 text-sm font-medium text-gray-900">{customer.total_on_call_orders}</td>
-                    <td className="px-4 py-4 text-sm font-semibold text-green-600">₹{customer.total_on_call_revenue.toLocaleString()}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600">₹{customer.avg_order_value.toFixed(0)}</td>
-                    <td className="px-4 py-4 text-sm text-gray-600">
-                      {customer.last_visit_date ? (
-                        <div>
-                          <div>{customer.last_visit_date}</div>
-                          <div className="text-xs text-gray-400">{customer.days_since_last_visit} days ago</div>
-                        </div>
-                      ) : (
-                        <span className="text-red-500">Never visited</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        customer.customer_preference === 'Phone-Only Customer' ? 'bg-blue-100 text-blue-800' :
-                        customer.customer_preference === 'Lost Touch Customer' ? 'bg-yellow-100 text-yellow-800' :
-                        customer.customer_preference === 'Frequent On-Call Customer' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {customer.customer_preference}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {customers.length > 20 && (
-            <div className="mt-4 text-center text-sm text-gray-500">
-              Showing top 20 of {customers.length} on-call customers
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Insights */}
-      {insights.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {insights.map((insight, index) => (
-            <div key={index} className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold text-gray-800">{insight.title}</h4>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  insight.type === 'risk' ? 'bg-red-100 text-red-800' :
-                  insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {insight.type.toUpperCase()}
-                </span>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">On-Call Customers</p>
+                <p className="text-2xl font-bold text-gray-900">{summary.total_on_call_customers || 0}</p>
+                <p className="text-xs text-blue-600">{summary.total_on_call_orders || 0} total orders</p>
               </div>
-              <p className="text-2xl font-bold text-blue-600 mb-1">{insight.value}</p>
-              <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
-              <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
+              <Phone className="h-8 w-8 text-blue-500" />
             </div>
-          ))}
-        </div>
-      )}
+          </div>
 
-      {customers.length === 0 && (
-        <div className="bg-white p-12 rounded-lg shadow-md text-center">
-          <Phone className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No On-Call Orders Found</h3>
-          <p className="text-gray-600">All orders in this period had corresponding visits. Excellent field coverage!</p>
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">On-Call Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(summary.total_on_call_revenue || 0, 'card')}</p>
+                <p className="text-xs text-green-600">{summary.total_revenue_percentage || 0}% of total</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Avg Order Value</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(summary.avg_order_value || 0, 'card')}</p>
+                <p className="text-xs text-purple-600">Phone orders</p>
+              </div>
+              <Target className="h-8 w-8 text-purple-500" />
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-orange-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Phone-Only</p>
+                <p className="text-2xl font-bold text-gray-900">{summary.phone_only_customers || 0}</p>
+                <p className="text-xs text-orange-600">Never visited</p>
+              </div>
+              <Users className="h-8 w-8 text-orange-500" />
+            </div>
+          </div>
         </div>
-      )}
-    </div>
-  );
-};
+
+        {/* Customer Categories */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold mb-4">Customer Categories</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-900">Phone-Only Customers</h4>
+                <span className="text-2xl font-bold text-blue-600">{summary.phone_only_customers || 0}</span>
+              </div>
+              <p className="text-sm text-gray-600">Customers who never had visits but place orders regularly</p>
+              <div className="mt-2 text-xs text-blue-700 bg-blue-50 p-2 rounded">
+                💡 Consider virtual relationship strategies
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-900">Lost Touch Customers</h4>
+                <span className="text-2xl font-bold text-yellow-600">{summary.lost_touch_customers || 0}</span>
+              </div>
+              <p className="text-sm text-gray-600">Customers still ordering but no visits in 90+ days</p>
+              <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
+                ⚠️ Schedule visits to maintain relationships
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-900">Frequent On-Call</h4>
+                <span className="text-2xl font-bold text-green-600">{summary.frequent_on_call_customers || 0}</span>
+              </div>
+              <p className="text-sm text-gray-600">Customers with 5+ phone orders</p>
+              <div className="mt-2 text-xs text-green-700 bg-green-50 p-2 rounded">
+                ✅ Strong phone relationship established
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer List */}
+        {customers.length > 0 && (
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold mb-4">On-Call Customers Details</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Order</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Visit</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preference</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {customers.slice(0, 20).map((customer, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-4">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{customer.customer_name}</div>
+                          <div className="text-sm text-gray-500">{customer.city}, {customer.state}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">{customer.customer_type}</td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900">{customer.total_on_call_orders}</td>
+                      <td className="px-4 py-4 text-sm font-semibold text-green-600">{formatCurrencyByContext(customer.total_on_call_revenue, 'table')}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600">{formatCurrencyByContext(customer.avg_order_value, 'table')}</td>
+                      <td className="px-4 py-4 text-sm text-gray-600">
+                        {customer.last_visit_date ? (
+                          <div>
+                            <div>{customer.last_visit_date}</div>
+                            <div className="text-xs text-gray-400">{customer.days_since_last_visit} days ago</div>
+                          </div>
+                        ) : (
+                          <span className="text-red-500">Never visited</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          customer.customer_preference === 'Phone-Only Customer' ? 'bg-blue-100 text-blue-800' :
+                          customer.customer_preference === 'Lost Touch Customer' ? 'bg-yellow-100 text-yellow-800' :
+                          customer.customer_preference === 'Frequent On-Call Customer' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {customer.customer_preference}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {customers.length > 20 && (
+              <div className="mt-4 text-center text-sm text-gray-500">
+                Showing top 20 of {customers.length} on-call customers
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Insights */}
+        {insights.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {insights.map((insight, index) => (
+              <div key={index} className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-gray-800">{insight.title}</h4>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    insight.type === 'risk' ? 'bg-red-100 text-red-800' :
+                    insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {insight.type.toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-2xl font-bold text-blue-600 mb-1">{insight.value}</p>
+                <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
+                <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {customers.length === 0 && (
+          <div className="bg-white p-12 rounded-lg shadow-md text-center">
+            <Phone className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No On-Call Orders Found</h3>
+            <p className="text-gray-600">All orders in this period had corresponding visits. Excellent field coverage!</p>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Loading State Component
   const LoadingState = () => (
@@ -962,8 +994,6 @@ const OnCallOrdersTab = () => {
           </div>
         </div>
       )}
-
-
 
       {/* Performance Summary Footer */}
       {analytics && (
