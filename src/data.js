@@ -6,6 +6,93 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+
+// Enhanced Indian Currency Formatter - Updated formatIndianCurrency function
+// Add this to your src/data.js file or create a new utils file
+
+export const formatIndianCurrency = (num, options = {}) => {
+  const {
+    showFullNumber = false,
+    precision = 2,
+    showSymbol = true,
+    compact = true
+  } = options;
+
+  if (num === null || num === undefined || isNaN(Number(num))) {
+    return showSymbol ? '₹0' : '0';
+  }
+
+  const number = Number(num);
+  const symbol = showSymbol ? '₹' : '';
+
+  // If showFullNumber is true, return the complete number with commas
+  if (showFullNumber) {
+    return symbol + number.toLocaleString('en-IN', {
+      maximumFractionDigits: 0
+    });
+  }
+
+  // If compact is false, return full number
+  if (!compact) {
+    return symbol + number.toLocaleString('en-IN', {
+      maximumFractionDigits: precision
+    });
+  }
+
+  const absNumber = Math.abs(number);
+
+  if (absNumber >= 10000000) { // 1 Crore = 1,00,00,000
+    const croreValue = number / 10000000;
+    return symbol + croreValue.toFixed(croreValue % 1 === 0 ? 0 : precision) + ' Cr';
+  }
+  
+  if (absNumber >= 100000) { // 1 Lakh = 1,00,000
+    const lakhValue = number / 100000;
+    return symbol + lakhValue.toFixed(lakhValue % 1 === 0 ? 0 : precision) + ' L';
+  }
+  
+  if (absNumber >= 1000) { // 1 Thousand
+    const thousandValue = number / 1000;
+    return symbol + thousandValue.toFixed(thousandValue % 1 === 0 ? 0 : precision) + ' K';
+  }
+  
+  return symbol + number.toFixed(number % 1 === 0 ? 0 : precision);
+};
+
+// Utility function to format based on context
+export const formatCurrencyByContext = (value, context = 'default') => {
+  switch (context) {
+    case 'card': // For KPI cards - more compact
+      return formatIndianCurrency(value, { precision: 1 });
+    
+    case 'table': // For tables - balance between compact and readable
+      return formatIndianCurrency(value, { precision: value >= 100000 ? 1 : 0 });
+    
+    case 'tooltip': // For tooltips and detailed views
+      return formatIndianCurrency(value, { showFullNumber: true });
+    
+    case 'chart': // For chart labels - very compact
+      return formatIndianCurrency(value, { precision: 0, showSymbol: false });
+    
+    case 'export': // For exports - full numbers
+      return formatIndianCurrency(value, { showFullNumber: true, showSymbol: false });
+    
+    default:
+      return formatIndianCurrency(value);
+  }
+};
+
+// Examples of usage:
+/*
+formatIndianCurrency(1500)           // ₹1.5 K
+formatIndianCurrency(250000)         // ₹2.5 L  
+formatIndianCurrency(15000000)       // ₹1.5 Cr
+formatIndianCurrency(5000, { showFullNumber: true })  // ₹5,000
+formatIndianCurrency(250000, { precision: 0 })        // ₹3 L
+formatCurrencyByContext(1500000, 'card')              // ₹15.0 L
+formatCurrencyByContext(1500000, 'tooltip')           // ₹15,00,000
+*/
+
 // Fetch functions to replace your mock data
 export const fetchOrderData = async () => {
   let allItems = [];
