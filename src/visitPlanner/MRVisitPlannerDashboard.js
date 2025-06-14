@@ -4,6 +4,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 //import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Route, Calendar as CalendarIcon} from 'lucide-react';
 import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus  } from 'lucide-react';
 
+// ADD IMPORT at the top:
+import { formatCurrencyByContext } from '../data.js';
+
 // Import your existing components and utilities
 import { COLORS, 
   generateCompleteVisitPlan,
@@ -415,7 +418,9 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Expected Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">₹{((visitPlan?.summary?.estimatedRevenue || 0) / 100000).toFixed(1)}L</p>
+              //<p className="text-2xl font-bold text-gray-900">₹{((visitPlan?.summary?.estimatedRevenue || 0) / 100000).toFixed(1)}L</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(visitPlan?.summary?.estimatedRevenue || 0, 'card')}</p>
+
             </div>
             <TrendingUp className="h-8 w-8 text-purple-500" />
           </div>
@@ -496,7 +501,9 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
               >
                 <div className="text-sm font-medium text-gray-900">{day.date.split('-')[2]}</div>
                 <div className="text-xs text-gray-600">{day.summary.totalVisits} visits</div>
-                <div className="text-xs text-green-600">₹{(day.summary.estimatedRevenue / 1000).toFixed(0)}K</div>
+               // <div className="text-xs text-green-600">₹{(day.summary.estimatedRevenue / 1000).toFixed(0)}K</div>
+             <p className="text-2xl font-bold text-green-600">{formatCurrencyByContext(day.summary.estimatedRevenue, 'card')}</p>
+
                 {day.summary.highPriorityVisits > 0 && (
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-1"></div>
                 )}
@@ -724,7 +731,9 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
                     <span className="font-medium">Time:</span> {visit.scheduled_time}
                   </div>
                   <div>
-                    <span className="font-medium">Expected:</span> ₹{visit.expected_order_value?.toLocaleString() || 0}
+                   // <span className="font-medium">Expected:</span> ₹{visit.expected_order_value?.toLocaleString() || 0}
+                  <p>Time: {visit.scheduled_time} | Expected: {formatCurrencyByContext(visit.expected_order_value || 0, 'table')}</p>
+
                   </div>
                   <div>
                     <span className="font-medium">Order Probability:</span> {((visit.order_probability || 0) * 100).toFixed(0)}%
