@@ -40,6 +40,8 @@ import {
   Area
 } from 'recharts';
 
+import { formatIndianCurrency, formatCurrencyByContext } from '../data.js';
+
 // Import the analytics engine
 import { visitAnalyticsEngine } from './VisitAnalyticsEngine';
 
@@ -126,7 +128,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₹{(efficiency_metrics.total_revenue / 100000).toFixed(1)}L</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(efficiency_metrics.total_revenue, 'card')}</p>
                 <p className="text-xs text-purple-600">Last {selectedTimeframe}</p>
               </div>
               <DollarSign className="h-8 w-8 text-purple-500" />
@@ -419,7 +421,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
-                  <p className="text-lg font-bold text-gray-900">₹{(area.revenue_3m / 100000).toFixed(1)}L</p>
+                  <p className="text-lg font-bold text-gray-900">{formatCurrencyByContext(area.revenue_3m, 'card')}</p>
                   <p className="text-xs text-gray-600">₹{area.avg_revenue_per_customer.toFixed(0)} avg/customer</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -624,7 +626,7 @@ const OnCallOrdersTab = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">On-Call Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">₹{((summary.total_on_call_revenue || 0) / 100000).toFixed(1)}L</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(summary.total_on_call_revenue || 0, 'card')}</p>
               <p className="text-xs text-green-600">{summary.total_revenue_percentage || 0}% of total</p>
             </div>
             <DollarSign className="h-8 w-8 text-green-500" />
