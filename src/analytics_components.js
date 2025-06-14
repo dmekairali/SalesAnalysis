@@ -3,7 +3,7 @@
 import React from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Package, Users, Star } from 'lucide-react';
-import { formatIndianCurrency, formatCurrencyByContext } from '../data.js';
+import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
 const COLORS = {
   primary: '#10b981',
