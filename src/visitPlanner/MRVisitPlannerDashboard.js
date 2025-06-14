@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus  } from 'lucide-react';
 
 // ADD IMPORT at the top:
-import { formatCurrencyByContext } from '../data.js';
+import { formatIndianCurrency, formatCurrencyByContext } from '../data.js';
 
 // Import your existing components and utilities
 import { COLORS, 
