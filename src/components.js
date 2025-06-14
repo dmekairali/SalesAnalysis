@@ -4,6 +4,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, Area, AreaChart, ComposedChart, ReferenceLine } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Bell, Download, Search, Home, Box, Star, Target, Settings, Activity, Clock, Eye } from 'lucide-react';
 import { COLORS, ML_INSIGHTS, SALES_DRIVERS } from './data.js';
+import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
 // KPI Card Component
 export const KPICard = ({ title, value, icon: Icon, format = 'number', color = COLORS.primary, trend = null, mlPrediction = null }) => (
@@ -12,9 +13,9 @@ export const KPICard = ({ title, value, icon: Icon, format = 'number', color = C
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
         <p className="text-2xl font-bold text-gray-900">
-          {format === 'currency' ? `₹${(value/1000).toFixed(1)}K` : 
+          {format === 'currency' ? formatCurrencyByContext(value, 'card') : 
            format === 'percentage' ? `${value.toFixed(1)}%` :
-           value.toLocaleString()}
+           typeof value === 'number' ? value.toLocaleString() : value}
         </p>
         {trend && (
           <p className={`text-xs ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
