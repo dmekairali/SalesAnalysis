@@ -208,7 +208,7 @@ export const SalesTrendChart = ({ data }) => (
         <YAxis />
         <Tooltip 
           formatter={(value, name) => [
-            value ? `₹${value.toLocaleString()}` : 'N/A',
+            value ? formatCurrencyByContext(value, 'tooltip') : 'N/A',
             name === 'actual' ? 'Actual Revenue' : 'ML Prediction'
           ]}
         />
@@ -329,7 +329,7 @@ export const CategoryChart = ({ data, filters, setFilters }) => {
             />
           ))}
         </Pie>
-        <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+        <Tooltip formatter={(value) => [[formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
         <Legend />
       </PieChart>
     </ResponsiveContainer>
@@ -363,7 +363,7 @@ export const TopProductsChart = ({ data, filters, setFilters }) => {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
           <YAxis />
-          <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+          <Tooltip formatter={(value) => [[formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
           <Bar dataKey="value" onClick={handleBarClick} cursor="pointer">
             {data.map((entry, index) => (
               <Cell
