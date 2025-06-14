@@ -19,7 +19,7 @@ import { reactVisitPlannerML } from '../visitplannerdata.js';
 // ADD THIS IMPORT - The real analytics component
 import VisitPlannerAnalyticsReal from './VisitPlannerAnalyticsReal.js';
 
-import { visitAnalyticsEngine } from './visitPlanner/VisitAnalyticsEngine.js';
+import { visitAnalyticsEngine } from './visitPlanner/VisitAnalyticsEngine';
 
 
 import { SearchableDropdown } from '../enhancedFilters.js';
