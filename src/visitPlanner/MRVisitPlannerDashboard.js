@@ -16,6 +16,12 @@ import { COLORS,
 // Add these imports at the top
 import { reactVisitPlannerML } from '../visitplannerdata.js';
 
+// ADD THIS IMPORT - The real analytics component
+import VisitPlannerAnalyticsReal from './VisitPlannerAnalyticsReal';
+
+import { visitAnalyticsEngine } from './visitPlanner/VisitAnalyticsEngine';
+
+
 import { SearchableDropdown } from '../enhancedFilters.js';
 
 const MRVisitPlannerDashboard = () => {
@@ -30,7 +36,11 @@ const MRVisitPlannerDashboard = () => {
   const [loadingMRs, setLoadingMRs] = useState(true);
  
   const [clusterStatus, setClusterStatus] = useState(null);
-  
+  const viewToggleConfig = [
+    { id: 'overview', label: 'Monthly Overview', icon: Calendar },
+    { id: 'analytics', label: 'Analytics & Insights', icon: TrendingUp }
+  ];
+
   // Import Supabase client
   const { createClient } = require('@supabase/supabase-js');
   const supabase = createClient(
@@ -643,15 +653,12 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
 )}
 
       {/* Main Content */}
-      {visitPlan && !loading && (
+      {visitPlan && !loading && selectedMR && (
         <>
-          {/* View Toggle */}
+           {/* View Toggle */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex space-x-1">
-              {[
-                { id: 'overview', label: 'Monthly Overview', icon: Calendar },
-                { id: 'analytics', label: 'Analytics & Insights', icon: TrendingUp }
-              ].map(({ id, label, icon: Icon }) => (
+              {viewToggleConfig.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveView(id)}
@@ -670,12 +677,8 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
 
           {/* Content based on active view */}
           {activeView === 'overview' && <OverviewComponent />}
-          {activeView === 'analytics' && (
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold mb-4">Advanced Analytics Coming Soon</h3>
-              <p className="text-gray-600">Performance metrics, route analysis, and customer insights will be available here.</p>
-            </div>
-          )}
+          {activeView === 'analytics' && <VisitPlannerAnalyticsReal mrName={selectedMR} />}
+
         </>
       )}
 
