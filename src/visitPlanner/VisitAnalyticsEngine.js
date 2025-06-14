@@ -76,28 +76,28 @@ export class VisitAnalyticsEngine {
     const { data, error } = await supabase
       .from('mr_visits')
       .select(`
-        visitId,
-        empName,
-        dcrDate,
-        clientName,
-        clientMobileNo,
-        visitType,
-        inTime,
-        outTime,
-        areaName,
-        cityName,
-        amountOfSale,
-        amountCollect,
-        sampleValue,
-        dcrStatus,
+        "visitId",
+        "empName",
+        "dcrDate",
+        "clientName",
+        "clientMobileNo",
+        "visitType",
+        "inTime",
+        "outTime",
+        "areaName",
+        "cityName",
+        "amountOfSale",
+        "amountCollect",
+        "sampleValue",
+        "dcrStatus",
         mr_name,
         customer_phone,
         customer_name,
         customer_type
       `)
       .eq('mr_name', mrName)
-      .gte('dcrDate', startDate.toISOString().slice(0, 10))
-      .order('dcrDate', { ascending: false });
+      .gte('"dcrDate"', startDate.toISOString().slice(0, 10))
+      .order('"dcrDate"', { ascending: false });
 
     if (error) throw error;
     return data || [];
@@ -153,14 +153,14 @@ export class VisitAnalyticsEngine {
         customer_name,
         customer_phone,
         customer_type,
-        areaName,
-        dcrDate,
-        amountOfSale,
-        amountCollect,
-        visitType
+        "areaName",
+        "dcrDate",
+        "amountOfSale",
+        "amountCollect",
+        "visitType"
       `)
       .eq('mr_name', mrName)
-      .gte('dcrDate', startDate.toISOString().slice(0, 10));
+      .gte('"dcrDate"', startDate.toISOString().slice(0, 10));
 
     if (error) throw error;
 
@@ -223,16 +223,16 @@ export class VisitAnalyticsEngine {
     const { data: visits, error } = await supabase
       .from('mr_visits')
       .select(`
-        areaName,
-        cityName,
+        "areaName",
+        "cityName",
         customer_name,
         customer_phone,
-        dcrDate,
-        amountOfSale,
-        visitType
+        "dcrDate",
+        "amountOfSale",
+        "visitType"
       `)
       .eq('mr_name', mrName)
-      .gte('dcrDate', startDate.toISOString().slice(0, 10));
+      .gte('"dcrDate"', startDate.toISOString().slice(0, 10));
 
     if (error) throw error;
 
@@ -291,15 +291,15 @@ export class VisitAnalyticsEngine {
       .from('mr_visits')
       .select(`
         customer_type,
-        dcrDate,
-        inTime,
-        outTime,
-        amountOfSale,
-        visitType
+        "dcrDate",
+        "inTime",
+        "outTime",
+        "amountOfSale",
+        "visitType"
       `)
       .eq('mr_name', mrName)
-      .gte('dcrDate', startDate.toISOString().slice(0, 10))
-      .not('inTime', 'is', null);
+      .gte('"dcrDate"', startDate.toISOString().slice(0, 10))
+      .not('"inTime"', 'is', null);
 
     if (error) throw error;
 
