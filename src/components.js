@@ -329,7 +329,7 @@ export const CategoryChart = ({ data, filters, setFilters }) => {
             />
           ))}
         </Pie>
-        <Tooltip formatter={(value) => [[formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
+        <Tooltip formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
         <Legend />
       </PieChart>
     </ResponsiveContainer>
