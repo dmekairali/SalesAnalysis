@@ -1,6 +1,7 @@
 
 
 import React from 'react';
+import { formatCurrencyByContext } from './utils.js';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, Area, AreaChart, ComposedChart, ReferenceLine } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Bell, Download, Search, Home, Box, Star, Target, Settings, Activity, Clock, Eye } from 'lucide-react';
 import { COLORS, ML_INSIGHTS, SALES_DRIVERS } from './data.js';
@@ -12,7 +13,7 @@ export const KPICard = ({ title, value, icon: Icon, format = 'number', color = C
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
         <p className="text-2xl font-bold text-gray-900">
-          {format === 'currency' ? `₹${(value/1000).toFixed(1)}K` : 
+          {format === 'currency' ? formatCurrencyByContext(value) :
            format === 'percentage' ? `${value.toFixed(1)}%` :
            value.toLocaleString()}
         </p>
@@ -109,7 +110,7 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
                     <div key={notification.id} className="p-4 border-b hover:bg-gray-50">
                       <p className="text-sm font-medium">{notification.message}</p>
                       <p className="text-xs text-gray-500">{notification.timestamp}</p>
-                      <p className="text-sm text-green-600">₹{notification.amount.toLocaleString()}</p>
+                      <p className="text-sm text-green-600">{formatCurrencyByContext(notification.amount)}</p>
                       <p className="text-xs text-blue-600 italic">{notification.ml_prediction}</p>
                     </div>
                   ))}
@@ -207,7 +208,7 @@ export const SalesTrendChart = ({ data }) => (
         <YAxis />
         <Tooltip 
           formatter={(value, name) => [
-            value ? `₹${value.toLocaleString()}` : 'N/A',
+            value ? formatCurrencyByContext(value) : 'N/A',
             name === 'actual' ? 'Actual Revenue' : 'ML Prediction'
           ]}
         />
@@ -328,7 +329,7 @@ export const CategoryChart = ({ data, filters, setFilters }) => {
             />
           ))}
         </Pie>
-        <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+        <Tooltip formatter={(value) => [formatCurrencyByContext(value), 'Revenue']} />
         <Legend />
       </PieChart>
     </ResponsiveContainer>
@@ -362,7 +363,7 @@ export const TopProductsChart = ({ data, filters, setFilters }) => {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
           <YAxis />
-          <Tooltip formatter={(value) => [`₹${value.toLocaleString()}`, 'Revenue']} />
+          <Tooltip formatter={(value) => [formatCurrencyByContext(value), 'Revenue']} />
           <Bar dataKey="value" onClick={handleBarClick} cursor="pointer">
             {data.map((entry, index) => (
               <Cell
@@ -393,7 +394,7 @@ export const GeoHeatMap = ({ data }) => (
               <p className="text-sm text-gray-600">{location.orders} orders</p>
             </div>
             <div className="text-right">
-              <p className="font-bold text-green-600">₹{location.value.toLocaleString()}</p>
+              <p className="font-bold text-green-600">{formatCurrencyByContext(location.value)}</p>
               <div className="w-16 h-2 bg-green-200 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-green-500 transition-all duration-300"
@@ -421,7 +422,16 @@ export const ProductForecastChart = ({ data }) => (
         <XAxis dataKey="month" />
         <YAxis yAxisId="left" />
         <YAxis yAxisId="right" orientation="right" />
-        <Tooltip />
+        <Tooltip formatter={(value, name, props) => {
+          // props.dataKey can be used to differentiate between 'revenue' and 'confidence'
+          if (props.dataKey === 'revenue') {
+            return [formatCurrencyByContext(value), 'Revenue'];
+          }
+          if (props.dataKey === 'confidence') {
+            return [`${value}%`, 'Confidence'];
+          }
+          return [value, name]; // Default fallback
+        }} />
         <Legend />
         <Bar yAxisId="left" dataKey="revenue" fill={COLORS.primary} name="Revenue (₹)" />
         <Line yAxisId="right" type="monotone" dataKey="confidence" stroke={COLORS.accent} name="Confidence %" />
@@ -439,7 +449,15 @@ export const CustomerTimelineChart = ({ data }) => (
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="period" />
         <YAxis />
-        <Tooltip />
+        <Tooltip formatter={(value, name, props) => {
+          if (props.dataKey === 'value') { // Corresponds to "Expected Value (₹)"
+            return [formatCurrencyByContext(value), "Expected Value"];
+          }
+          if (props.dataKey === 'probability') { // Corresponds to "Order Probability %"
+            return [`${value}%`, "Order Probability"];
+          }
+          return [value, name];
+        }} />
         <Line type="monotone" dataKey="value" stroke={COLORS.primary} name="Expected Value (₹)" />
         <Line type="monotone" dataKey="probability" stroke={COLORS.accent} name="Order Probability %" />
       </LineChart>
