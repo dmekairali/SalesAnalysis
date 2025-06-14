@@ -195,6 +195,7 @@ export const SalesDriversCompact = () => (
 );
 
 // Enhanced Chart Components
+
 export const SalesTrendChart = ({ data }) => (
   <div className="bg-white p-6 rounded-lg shadow-md">
     <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -204,13 +205,37 @@ export const SalesTrendChart = ({ data }) => (
     <ResponsiveContainer width="100%" height={350}>
       <ComposedChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="month" />
-        <YAxis />
+        <XAxis 
+          dataKey="month" 
+          tickFormatter={(value) => {
+            // Format date strings like "2025-01" to "Jan 25"
+            if (value && value.includes('-')) {
+              const [year, month] = value.split('-');
+              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              return `${monthNames[parseInt(month) - 1]} ${year.slice(-2)}`;
+            }
+            return value;
+          }}
+        />
+        <YAxis 
+          tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+        />
         <Tooltip 
           formatter={(value, name) => [
             value ? formatCurrencyByContext(value, 'tooltip') : 'N/A',
             name === 'actual' ? 'Actual Revenue' : 'ML Prediction'
           ]}
+          labelFormatter={(label) => {
+            // Format tooltip label
+            if (label && label.includes('-')) {
+              const [year, month] = label.split('-');
+              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                'July', 'August', 'September', 'October', 'November', 'December'];
+              return `${monthNames[parseInt(month) - 1]} ${year}`;
+            }
+            return label;
+          }}
         />
         <Area 
           type="monotone" 
@@ -286,15 +311,13 @@ export const FulfillmentChart = ({ data, filters, setFilters }) => {
   );
 };
 
+
 export const CategoryChart = ({ data, filters, setFilters }) => {
   const selectedCategory = filters?.selectedCategory;
 
   const handleSegmentClick = (dataPoint) => {
-    // dataPoint is the payload object from recharts, containing the original data entry
     if (!dataPoint || !dataPoint.name) return;
-
     const clickedCategoryName = dataPoint.name;
-
     setFilters(prev => ({
       ...prev,
       selectedCategory: selectedCategory === clickedCategoryName ? null : clickedCategoryName
@@ -304,56 +327,56 @@ export const CategoryChart = ({ data, filters, setFilters }) => {
   const categoryColors = [COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.purple, COLORS.teal, COLORS.warning, COLORS.success, COLORS.error];
 
   return (
-  <div className="bg-white p-6 rounded-lg shadow-md">
-    <h3 className="text-lg font-semibold mb-4">Sales by Category {selectedCategory ? `(${selectedCategory})` : ''}</h3>
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          outerRadius={90}
-          innerRadius={45}  // Make it a Donut chart
-          dataKey="value"
-          onClick={handleSegmentClick} // Attach click handler
-          className="cursor-pointer"
-        >
-          {data.map((entry, index) => (
-            <Cell 
-              key={`cell-${index}`} 
-              fill={categoryColors[index % categoryColors.length]}
-              // Apply visual indication for selection
-              fillOpacity={selectedCategory && entry.name !== selectedCategory ? 0.5 : 1}
-              stroke={selectedCategory === entry.name ? '#333333' : '#FFFFFF'} // Dark stroke for selected, white for others
-              strokeWidth={selectedCategory === entry.name ? 3 : 1}
-            />
-          ))}
-        </Pie>
-        <Tooltip formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  </div>
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h3 className="text-lg font-semibold mb-4">Sales by Category {selectedCategory ? `(${selectedCategory})` : ''}</h3>
+      <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            outerRadius={90}
+            innerRadius={45}
+            dataKey="value"
+            onClick={handleSegmentClick}
+            className="cursor-pointer"
+          >
+            {data.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`} 
+                fill={categoryColors[index % categoryColors.length]}
+                fillOpacity={selectedCategory && entry.name !== selectedCategory ? 0.5 : 1}
+                stroke={selectedCategory === entry.name ? '#333333' : '#FFFFFF'}
+                strokeWidth={selectedCategory === entry.name ? 3 : 1}
+              />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} 
+          />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
+
+// 3. TOP PRODUCTS CHART (BarChart)
+// ========================================
 
 export const TopProductsChart = ({ data, filters, setFilters }) => {
   const selectedTopProduct = filters?.selectedTopProduct;
 
   const handleBarClick = (dataPoint) => {
-    // dataPoint is the payload object from recharts, containing the original data entry for the bar
     if (!dataPoint || !dataPoint.name) return;
-
     const clickedProductName = dataPoint.name;
-
     setFilters(prev => ({
       ...prev,
       selectedTopProduct: selectedTopProduct === clickedProductName ? null : clickedProductName
     }));
   };
 
-  // A slightly darker version of COLORS.primary for selection stroke, or a fallback
-  const selectedStrokeColor = COLORS.primaryDark || '#2c5282'; // Example: darker blue
+  const selectedStrokeColor = COLORS.primaryDark || '#2c5282';
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
@@ -361,9 +384,19 @@ export const TopProductsChart = ({ data, filters, setFilters }) => {
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
-          <YAxis />
-          <Tooltip formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
+          <XAxis 
+            dataKey="name" 
+            angle={-45} 
+            textAnchor="end" 
+            height={80} 
+            interval={0}
+          />
+          <YAxis 
+            tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+          />
+          <Tooltip 
+            formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} 
+          />
           <Bar dataKey="value" onClick={handleBarClick} cursor="pointer">
             {data.map((entry, index) => (
               <Cell
@@ -410,6 +443,7 @@ export const GeoHeatMap = ({ data }) => (
 );
 
 // Product Forecast Chart
+
 export const ProductForecastChart = ({ data }) => (
   <div className="bg-white p-6 rounded-lg shadow-md">
     <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -419,30 +453,106 @@ export const ProductForecastChart = ({ data }) => (
     <ResponsiveContainer width="100%" height={350}>
       <ComposedChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="month" />
-        <YAxis yAxisId="left" />
-        <YAxis yAxisId="right" orientation="right" />
-        <Tooltip />
+        <XAxis 
+          dataKey="month"
+          tickFormatter={(value) => {
+            // Format month names to shorter versions if needed
+            const shortMonths = {
+              'January': 'Jan', 'February': 'Feb', 'March': 'Mar',
+              'April': 'Apr', 'May': 'May', 'June': 'Jun',
+              'July': 'Jul', 'August': 'Aug', 'September': 'Sep',
+              'October': 'Oct', 'November': 'Nov', 'December': 'Dec'
+            };
+            return shortMonths[value] || value;
+          }}
+        />
+        <YAxis 
+          yAxisId="left" 
+          tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+        />
+        <YAxis 
+          yAxisId="right" 
+          orientation="right"
+          tickFormatter={(value) => `${value}%`}
+        />
+        <Tooltip 
+          formatter={(value, name) => {
+            if (name === 'revenue') {
+              return [formatCurrencyByContext(value, 'tooltip'), 'Revenue'];
+            } else if (name === 'confidence') {
+              return [`${value}%`, 'Confidence'];
+            }
+            return [value, name];
+          }}
+        />
         <Legend />
-        <Bar yAxisId="left" dataKey="revenue" fill={COLORS.primary} name="Revenue (₹)" />
-        <Line yAxisId="right" type="monotone" dataKey="confidence" stroke={COLORS.accent} name="Confidence %" />
+        <Bar 
+          yAxisId="left" 
+          dataKey="revenue" 
+          fill={COLORS.primary} 
+          name="Revenue" 
+        />
+        <Line 
+          yAxisId="right" 
+          type="monotone" 
+          dataKey="confidence" 
+          stroke={COLORS.accent} 
+          name="Confidence %" 
+        />
       </ComposedChart>
     </ResponsiveContainer>
   </div>
 );
 
+
 // Customer Timeline Chart
+
 export const CustomerTimelineChart = ({ data }) => (
   <div>
     <h4 className="font-medium mb-3">Expected Order Timeline</h4>
     <ResponsiveContainer width="100%" height={250}>
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="period" />
-        <YAxis />
-        <Tooltip />
-        <Line type="monotone" dataKey="value" stroke={COLORS.primary} name="Expected Value (₹)" />
-        <Line type="monotone" dataKey="probability" stroke={COLORS.accent} name="Order Probability %" />
+        <XAxis 
+          dataKey="period"
+          angle={-45}
+          textAnchor="end"
+          height={60}
+          interval={0}
+        />
+        <YAxis 
+          yAxisId="left"
+          tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+        />
+        <YAxis 
+          yAxisId="right"
+          orientation="right"
+          tickFormatter={(value) => `${value}%`}
+        />
+        <Tooltip 
+          formatter={(value, name) => {
+            if (name === 'value' || name.includes('Value')) {
+              return [formatCurrencyByContext(value, 'tooltip'), 'Expected Value'];
+            } else if (name.includes('probability') || name.includes('Probability')) {
+              return [`${value}%`, 'Order Probability'];
+            }
+            return [value, name];
+          }}
+        />
+        <Line 
+          yAxisId="left"
+          type="monotone" 
+          dataKey="value" 
+          stroke={COLORS.primary} 
+          name="Expected Value" 
+        />
+        <Line 
+          yAxisId="right"
+          type="monotone" 
+          dataKey="probability" 
+          stroke={COLORS.accent} 
+          name="Order Probability %" 
+        />
       </LineChart>
     </ResponsiveContainer>
   </div>
