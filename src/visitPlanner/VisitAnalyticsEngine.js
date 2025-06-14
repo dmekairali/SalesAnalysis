@@ -761,6 +761,159 @@ Provide insights in this JSON format:
       default: return 3;
     }
   }
+
+
+  // Add these methods to your VisitAnalyticsEngine.js class
+
+/**
+ * Fetch on call orders analysis
+ */
+async fetchOnCallOrders(mrName, timeframe) {
+  const months = this.getMonthsFromTimeframe(timeframe);
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+  const endDate = new Date();
+
+  try {
+    const { data, error } = await supabase.rpc('analyze_on_call_orders', {
+      p_mr_name: mrName,
+      p_start_date: startDate.toISOString().slice(0, 10),
+      p_end_date: endDate.toISOString().slice(0, 10)
+    });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching on call orders:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch on call orders summary
+ */
+async fetchOnCallSummary(mrName, timeframe) {
+  const months = this.getMonthsFromTimeframe(timeframe);
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+  const endDate = new Date();
+
+  try {
+    const { data, error } = await supabase.rpc('get_on_call_orders_summary', {
+      p_mr_name: mrName,
+      p_start_date: startDate.toISOString().slice(0, 10),
+      p_end_date: endDate.toISOString().slice(0, 10)
+    });
+
+    if (error) throw error;
+    return data?.[0] || {};
+  } catch (error) {
+    console.error('Error fetching on call summary:', error);
+    return {};
+  }
+}
+
+// Update the main generateAnalytics method to include on call orders
+async generateAnalytics(mrName, timeframe = '3months') {
+  try {
+    console.log(`🔍 Generating analytics for ${mrName} - ${timeframe}`);
+    
+    // Add onCallOrders to the parallel fetch
+    const [
+      actualVisits,
+      plannedVisits,
+      customerPerformance,
+      areaAnalysis,
+      visitPatterns,
+      onCallOrders,
+      onCallSummary
+    ] = await Promise.all([
+      this.fetchActualVisits(mrName, timeframe),
+      this.fetchPlannedVisits(mrName),
+      this.analyzeCustomerPerformance(mrName, timeframe),
+      this.analyzeAreaPerformance(mrName, timeframe),
+      this.analyzeVisitPatterns(mrName, timeframe),
+      this.fetchOnCallOrders(mrName, timeframe),
+      this.fetchOnCallSummary(mrName, timeframe)
+    ]);
+
+    // Process analytics including on call orders
+    const analytics = {
+      mrName,
+      timeframe,
+      performanceComparison: this.calculatePerformanceComparison(actualVisits, plannedVisits),
+      redFlagCustomers: this.identifyRedFlagCustomers(customerPerformance),
+      goldenClients: this.identifyGoldenClients(customerPerformance),
+      areaAnalysis: await this.enhanceAreaAnalysis(areaAnalysis),
+      visitPatterns: this.processVisitPatterns(visitPatterns, actualVisits),
+      onCallOrders: {
+        summary: onCallSummary,
+        customers: onCallOrders,
+        insights: this.generateOnCallInsights(onCallOrders, onCallSummary)
+      },
+      aiInsights: null
+    };
+
+    // Generate AI insights
+    analytics.aiInsights = await this.generateAIInsights(analytics);
+
+    return {
+      success: true,
+      analytics
+    };
+
+  } catch (error) {
+    console.error('Error generating analytics:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Generate insights for on call orders
+ */
+generateOnCallInsights(onCallCustomers, summary) {
+  const insights = [];
+
+  // Revenue impact insight
+  if (summary.total_revenue_percentage > 0) {
+    insights.push({
+      type: 'revenue',
+      title: 'On-Call Revenue Impact',
+      value: `${summary.total_revenue_percentage}%`,
+      description: `₹${(summary.total_on_call_revenue / 100000).toFixed(1)}L from ${summary.total_on_call_customers} customers`,
+      recommendation: summary.total_revenue_percentage > 30 ? 
+        'Significant revenue from phone orders - maintain strong phone relationships' :
+        'Opportunity to grow phone-based sales'
+    });
+  }
+
+  // Customer preference insight
+  if (summary.phone_only_customers > 0) {
+    insights.push({
+      type: 'customer',
+      title: 'Phone-Only Customers',
+      value: `${summary.phone_only_customers}`,
+      description: 'Customers who never had visits but place orders',
+      recommendation: 'Consider virtual relationship building strategies'
+    });
+  }
+
+  // Lost touch insight
+  if (summary.lost_touch_customers > 0) {
+    insights.push({
+      type: 'risk',
+      title: 'Lost Touch Customers',
+      value: `${summary.lost_touch_customers}`,
+      description: 'Customers still ordering but no recent visits',
+      recommendation: 'Schedule visits to maintain relationships'
+    });
+  }
+
+  return insights;
+}
 }
 
 // Export singleton instance
