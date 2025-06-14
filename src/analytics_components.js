@@ -60,19 +60,23 @@ const MedicineWiseAnalytics = ({ medicinePerformance, selectedMedicine, availabl
         <div className="mt-6">
           <h5 className="font-medium mb-3">Top Performing Medicines</h5>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={medicineData.slice(0, 10)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="medicineName" 
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis />
-              <Tooltip formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} />
-              <Bar dataKey="totalRevenue" fill={COLORS.primary} />
-            </BarChart>
-          </ResponsiveContainer>
+  <BarChart data={medicineData.slice(0, 10)}>
+    <CartesianGrid strokeDasharray="3 3" />
+    <XAxis 
+      dataKey="medicineName" 
+      angle={-45}
+      textAnchor="end"
+      height={80}
+    />
+    <YAxis 
+      tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
+    />
+    <Tooltip 
+      formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} 
+    />
+    <Bar dataKey="totalRevenue" fill={COLORS.primary} />
+  </BarChart>
+</ResponsiveContainer>
         </div>
       </div>
 
