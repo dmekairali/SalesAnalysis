@@ -500,9 +500,10 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
               >
                 <div className="text-sm font-medium text-gray-900">{day.date.split('-')[2]}</div>
                 <div className="text-xs text-gray-600">{day.summary.totalVisits} visits</div>
-             <p className="text-2xl font-bold text-green-600">{formatCurrencyByContext(day.summary.estimatedRevenue, 'card')}</p>
+             <p className="text-xs text-green-600">{formatCurrencyByContext(day.summary.estimatedRevenue, 'card')}</p>
                 {day.summary.highPriorityVisits > 0 && (
                   <div className="w-2 h-2 bg-red-500 rounded-full mt-1"></div>
+
                 )}
               </div>
             ))}
