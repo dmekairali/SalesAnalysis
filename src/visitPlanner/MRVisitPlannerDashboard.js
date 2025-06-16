@@ -5,16 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus  } from 'lucide-react';
 
 // ADD IMPORT at the top:
-import { formatIndianCurrency, formatCurrencyByContext } from '../data.js';
-
-// Import your existing components and utilities
-import { COLORS, 
-  generateCompleteVisitPlan,
-  getExistingClusters,
-  createGeminiClusters,
-  getVisitPlanDetails,
-  getDailyBreakdown
-} from '../data.js';
+import {COLORS, formatIndianCurrency, formatCurrencyByContext } from '../data.js';
 
 // Add these imports at the top
 import { reactVisitPlannerML } from '../visitplannerdata.js';
