@@ -523,8 +523,6 @@ const calculateCoverageScore = (weeklyBreakdown) => {
   
   return Math.min(100, (totalAreas * 4) + (totalVisits > 150 ? 20 : 10));
 };
-  }
-};
 
 // Function to get latest order data with filters
 export const fetchFilteredOrderData = async (filters = {}) => {
