@@ -969,9 +969,12 @@ const clearAnalysis = () => {
   };
 
   // Products Tab Component with Pack Size Support
-  const ProductsTab = () => (
+  // Complete Updated ProductsTab Component - Replace in App.js
+
+const ProductsTab = () => {
+  return (
     <div className="space-y-6">
-      {/* View Mode Toggle */}
+      {/* Enhanced Control Panel */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold flex items-center">
@@ -999,177 +1002,368 @@ const clearAnalysis = () => {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Pack-wise
+                Pack-wise (Variant)
               </button>
             </div>
           </div>
         </div>
 
-        {/* Product Selection */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          {/* Medicine Selector */}
+        {/* Filter Controls */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          {/* Fulfillment Center Filter */}
           <div>
             <SearchableDropdown
-              options={uniqueMedicines}
-              value={currentMedicine}
-              onChange={(medicineName) => {
-                const firstProduct = individualProducts.find(p => p.medicineName === medicineName);
-                if (firstProduct) {
-                  setSelectedProduct(firstProduct.sku);
-                  setSelectedPackSize(firstProduct.packSize);
-                }
-              }}
-              placeholder="Select Medicine..."
-              label="Medicine Name"
+              options={uniqueFulfillmentCenters}
+              value={selectedFulfillmentCenter}
+              onChange={setSelectedFulfillmentCenter}
+              placeholder="Select Fulfillment Center..."
+              label="Fulfillment Center"
             />
           </div>
 
-          {/* Pack Size Selector */}
+          {/* Product/Variant Selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Pack Size & Price
-            </label>
-            <select
-              value={selectedPackSize || ''}
-              onChange={(e) => {
-                const packSize = e.target.value;
-                const product = availablePackSizes.find(p => p.packSize === packSize);
-                if (product) {
-                  setSelectedProduct(product.sku);
-                  setSelectedPackSize(packSize);
-                }
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              disabled={!currentMedicine}
+            {viewMode === 'medicine' ? (
+              <SearchableDropdown
+                options={availableOptions}
+                value={selectedProduct}
+                onChange={setSelectedProduct}
+                placeholder="Select Medicine..."
+                label="Medicine Name"
+              />
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pack Variant (by Variant Code)
+                </label>
+                <select
+                  value={selectedProduct}
+                  onChange={(e) => setSelectedProduct(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  <option value="">Select Pack Variant...</option>
+                  {availableOptions.map((variant, index) => (
+                    <option key={index} value={variant.code}>
+                      {variant.name} - ₹{variant.mrp} ({variant.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-end space-x-2">
+            <button
+              onClick={generateAnalysis}
+              disabled={loadingAnalysis || !selectedFulfillmentCenter}
+              className="flex-1 flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <option value="">Select Pack Size...</option>
-              {availablePackSizes.map((product, index) => (
-                <option key={index} value={product.packSize}>
-                  {product.packSize} - ₹{product.mrp} (SKU: {product.sku})
-                </option>
+              {loadingAnalysis ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-4 w-4 mr-2" />
+                  Generate Analysis
+                </>
+              )}
+            </button>
+            {analysisGenerated && (
+              <button
+                onClick={clearAnalysis}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Enhanced Filter Summary */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="font-medium text-blue-800">Fulfillment Center:</span>
+              <div className="text-blue-700 mt-1">
+                {selectedFulfillmentCenter || 'Not selected'}
+              </div>
+            </div>
+            <div>
+              <span className="font-medium text-blue-800">Analysis Mode:</span>
+              <div className="text-blue-700 mt-1 capitalize">{viewMode}-wise Analysis</div>
+            </div>
+            <div>
+              <span className="font-medium text-blue-800">Selected Item:</span>
+              <div className="text-blue-700 mt-1">
+                {selectedProduct || 'Not selected'}
+              </div>
+            </div>
+            <div>
+              <span className="font-medium text-blue-800">Data Source:</span>
+              <div className="text-blue-700 mt-1">
+                {selectedFulfillmentCenter && selectedFulfillmentCenter !== 'All Fulfillment Centers'
+                  ? `${(filteredDashboardData.filter(o => o.deliveredFrom === selectedFulfillmentCenter)).length} orders`
+                  : `${filteredDashboardData.length} orders (all centers)`
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {loadingAnalysis && (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <RefreshCw className="h-12 w-12 text-purple-600 animate-spin mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating Product Analysis</h3>
+          <p className="text-gray-600 mb-4">
+            Analyzing {selectedFulfillmentCenter && selectedFulfillmentCenter !== 'All Fulfillment Centers'
+              ? `orders from ${selectedFulfillmentCenter}`
+              : 'orders from all fulfillment centers'
+            }...
+          </p>
+          <div className="space-y-1 text-sm text-gray-500">
+            <p>✓ Processing {viewMode}-wise data</p>
+            <p>✓ Calculating performance metrics</p>
+            <p>✓ Generating ML predictions</p>
+          </div>
+        </div>
+      )}
+
+      {/* No Analysis Generated State */}
+      {!analysisGenerated && !loadingAnalysis && (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Generate Product Analysis</h3>
+          <p className="text-gray-600 mb-6">
+            Configure your analysis parameters and generate comprehensive insights
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div className="text-left">
+              <h4 className="font-medium text-gray-900 mb-3">Medicine-wise Analysis</h4>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>✓ Performance by medicine name</p>
+                <p>✓ Category-wise distribution</p>
+                <p>✓ Revenue and quantity analysis</p>
+                <p>✓ No pack size filtering needed</p>
+              </div>
+            </div>
+            
+            <div className="text-left">
+              <h4 className="font-medium text-gray-900 mb-3">Pack-wise Analysis</h4>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>✓ Analysis by variant code</p>
+                <p>✓ SKU variant tracking</p>
+                <p>✓ MRP change history</p>
+                <p>✓ Pack size performance</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>Note:</strong> Select a fulfillment center first to enable analysis generation. 
+              Choose "All Fulfillment Centers" for comprehensive analysis across all locations.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Results */}
+      {analysisGenerated && !loadingAnalysis && productAnalysisData && (
+        <>
+          {/* Analysis Header */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-xl font-semibold text-gray-900">
+                Analysis Results - {viewMode === 'medicine' ? 'Medicine-wise' : 'Pack-wise (Variant-based)'}
+              </h4>
+              <div className="flex items-center space-x-4 text-sm">
+                <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                  {productAnalysisData.totalOrders} Orders Analyzed
+                </span>
+                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                  {formatCurrencyByContext(productAnalysisData.totalRevenue, 'card')} Total Revenue
+                </span>
+              </div>
+            </div>
+
+            {/* Current Selection Info */}
+            {viewMode === 'medicine' && selectedProduct && currentSelection && currentSelection.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600">Selected Medicine</p>
+                  <p className="font-semibold">{selectedProduct}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-sm text-green-600">Available Variants</p>
+                  <p className="font-semibold">{currentSelection.length}</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm text-purple-600">Category</p>
+                  <p className="font-semibold">{currentSelection[0]?.category || 'N/A'}</p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <p className="text-sm text-orange-600">Brand</p>
+                  <p className="font-semibold">{currentSelection[0]?.brand || 'N/A'}</p>
+                </div>
+              </div>
+            )}
+
+            {viewMode === 'pack' && selectedProduct && currentSelection && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-600">Variant Code</p>
+                  <p className="font-semibold">{currentSelection.variantCode}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-sm text-green-600">Pack Size</p>
+                  <p className="font-semibold">{currentSelection.packSize}</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm text-purple-600">Current MRP</p>
+                  <p className="font-semibold">₹{currentSelection.mrp}</p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <p className="text-sm text-orange-600">SKU Variants</p>
+                  <p className="font-semibold">{currentSelection.skus?.length || 0}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Analytics Components */}
+          {viewMode === 'medicine' ? (
+            <MedicineWiseAnalytics 
+              medicinePerformance={productAnalysisData.medicinePerformance}
+              selectedMedicine={selectedProduct}
+              fulfillmentCenter={selectedFulfillmentCenter}
+            />
+          ) : (
+            <PackWiseAnalytics 
+              packSizePerformance={productAnalysisData.packSizePerformance}
+              selectedVariant={currentSelection}
+              fulfillmentCenter={selectedFulfillmentCenter}
+            />
+          )}
+
+          {/* ML Insights */}
+          {productAnalysisData.insights && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {productAnalysisData.insights.map((insight, index) => (
+                <MLInsightCard key={index} insight={insight} />
               ))}
-            </select>
-          </div>
-        </div>
+            </div>
+          )}
 
-        {/* Product Info Cards */}
-        {currentProduct && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-600">Medicine</p>
-              <p className="font-semibold">{currentProduct.medicineName}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-green-600">Pack Size</p>
-              <p className="font-semibold">{currentProduct.packSize}</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <p className="text-sm text-purple-600">MRP</p>
-              <p className="font-semibold">₹{currentProduct.mrp}</p>
-            </div>
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <p className="text-sm text-orange-600">Available Variants</p>
-              <p className="font-semibold">{availablePackSizes.length} pack sizes</p>
+          {/* Sales Forecast Chart */}
+          {productPredictions.forecasts && productPredictions.forecasts.length > 0 && (
+            <ProductForecastChart 
+              data={productPredictions.forecasts.map((forecast, index) => ({
+                month: new Date(forecast.month).toLocaleDateString('en-US', { month: 'short' }),
+                revenue: forecast.revenue,
+                quantity: forecast.quantity,
+                confidence: forecast.confidence * 100
+              }))}
+            />
+          )}
+
+          {/* Fulfillment Center Impact Analysis */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h4 className="font-medium mb-4 flex items-center">
+              <MapPin className="h-5 w-5 mr-2" />
+              Fulfillment Center Impact Analysis
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h6 className="font-medium text-gray-900 mb-2">Analysis Scope</h6>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Fulfillment Center:</span>
+                    <span className="font-semibold">{productAnalysisData.selectedFulfillmentCenter}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Analysis Type:</span>
+                    <span className="font-semibold capitalize">{productAnalysisData.viewMode}-wise</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Orders:</span>
+                    <span className="font-semibold">{productAnalysisData.totalOrders}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h6 className="font-medium text-gray-900 mb-2">Performance Metrics</h6>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Revenue:</span>
+                    <span className="font-semibold text-green-600">
+                      {formatCurrencyByContext(productAnalysisData.totalRevenue, 'table')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Avg Order Value:</span>
+                    <span className="font-semibold">
+                      {formatCurrencyByContext(
+                        productAnalysisData.totalOrders > 0 
+                          ? productAnalysisData.totalRevenue / productAnalysisData.totalOrders 
+                          : 0, 
+                        'table'
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">
+                      {viewMode === 'medicine' ? 'Medicines' : 'Variants'}:
+                    </span>
+                    <span className="font-semibold">
+                      {viewMode === 'medicine' 
+                        ? Object.keys(productAnalysisData.medicinePerformance).length
+                        : Object.keys(productAnalysisData.variantPerformance).length
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h6 className="font-medium text-gray-900 mb-2">Data Quality</h6>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Data Points:</span>
+                    <span className="font-semibold">{productAnalysisData.totalOrders}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Quality Score:</span>
+                    <span className={`font-semibold ${
+                      productAnalysisData.totalOrders > 100 ? 'text-green-600' :
+                      productAnalysisData.totalOrders > 50 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {productAnalysisData.totalOrders > 100 ? 'High' :
+                       productAnalysisData.totalOrders > 50 ? 'Medium' : 'Low'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Confidence:</span>
+                    <span className="font-semibold text-blue-600">
+                      {productAnalysisData.totalOrders > 100 ? '95%' :
+                       productAnalysisData.totalOrders > 50 ? '85%' : '70%'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Analytics View Based on Mode */}
-      {viewMode === 'medicine' ? (
-        <MedicineWiseAnalytics 
-          medicinePerformance={medicinePerformance}
-          selectedMedicine={currentMedicine}
-          availablePackSizes={availablePackSizes}
-        />
-      ) : (
-        <PackWiseAnalytics 
-          packSizePerformance={packSizePerformance}
-          selectedProduct={currentProduct}
-        />
+        </>
       )}
-
-      {/* Pack Size Comparison */}
-      {currentMedicine && availablePackSizes.length > 1 && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h4 className="font-medium mb-4">Pack Size Comparison for {currentMedicine}</h4>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Pack Size</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">MRP</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Units</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Price per Unit</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Value Score</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {availablePackSizes.map((product, index) => {
-                  const unitCount = parseInt(product.packSize.replace(/\D/g, '')) || 1;
-                  const pricePerUnit = (product.mrp / unitCount).toFixed(2);
-                  const isSelected = product.sku === selectedProduct;
-                  const isValuePack = pricePerUnit === Math.min(...availablePackSizes.map(p => 
-                    (p.mrp / (parseInt(p.packSize.replace(/\D/g, '')) || 1))
-                  ));
-                  
-                  return (
-                    <tr key={index} className={isSelected ? 'bg-green-50' : 'hover:bg-gray-50'}>
-                      <td className="px-4 py-2 text-sm font-medium">{product.packSize}</td>
-                      <td className="px-4 py-2 text-sm text-gray-600">{product.sku}</td>
-                      <td className="px-4 py-2 text-sm font-semibold">₹{product.mrp}</td>
-                      <td className="px-4 py-2 text-sm">{unitCount}</td>
-                      <td className="px-4 py-2 text-sm">₹{pricePerUnit}</td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center space-x-2">
-                          {isValuePack && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                              Best Value
-                            </span>
-                          )}
-                          <button
-                            onClick={() => {
-                              setSelectedProduct(product.sku);
-                              setSelectedPackSize(product.packSize);
-                            }}
-                            className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                              isSelected
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                          >
-                            {isSelected ? 'Selected' : 'Analyze'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ML Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {productPredictions.insights && productPredictions.insights.map((insight, index) => (
-          <MLInsightCard key={index} insight={insight} />
-        ))}
-      </div>
-
-      {/* Sales Forecast Chart */}
-      <ProductForecastChart 
-        data={productPredictions.forecasts && productPredictions.forecasts.map((forecast, index) => ({
-          month: new Date(forecast.month).toLocaleDateString('en-US', { month: 'short' }),
-          revenue: forecast.revenue,
-          quantity: forecast.quantity,
-          confidence: forecast.confidence * 100
-        }))}
-      />
     </div>
   );
+};
 
   // Customers Tab Component  
   const CustomersTab = () => {
