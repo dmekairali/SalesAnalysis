@@ -524,44 +524,7 @@ const calculateCoverageScore = (weeklyBreakdown) => {
   return Math.min(100, (totalAreas * 4) + (totalVisits > 150 ? 20 : 10));
 };
 
-// Function to get latest order data with filters
-export const fetchFilteredOrderData = async (filters = {}) => {
-  try {
-    let query = supabase
-      .from('order_items')
-      .select('*');
 
-    // Apply filters
-    if (filters.dateRange && filters.dateRange[0]) {
-      query = query.gte('order_date', filters.dateRange[0]);
-    }
-    if (filters.dateRange && filters.dateRange[1]) {
-      query = query.lte('order_date', filters.dateRange[1]);
-    }
-    if (filters.customerType) {
-      query = query.eq('customer_type', filters.customerType);
-    }
-    if (filters.territory) {
-      query = query.eq('territory', filters.territory);
-    }
-    if (filters.mrName) {
-      query = query.eq('mr_name', filters.mrName);
-    }
-    if (filters.deliveryStatus) {
-      query = query.eq('delivery_status', filters.deliveryStatus);
-    }
-
-    query = query.order('order_date', { ascending: false });
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    return data;
-  } catch (error) {
-    console.error('Error fetching filtered order data:', error);
-    return [];
-  }
-};
 
 // Function to get latest order data with filters
 export const fetchFilteredOrderData = async (filters = {}) => {
