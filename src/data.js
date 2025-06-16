@@ -562,3 +562,119 @@ export const fetchFilteredOrderData = async (filters = {}) => {
     return [];
   }
 };
+
+// Function to get latest order data with filters
+export const fetchFilteredOrderData = async (filters = {}) => {
+  try {
+    let query = supabase
+      .from('order_items')
+      .select('*');
+
+    // Apply filters
+    if (filters.dateRange && filters.dateRange[0]) {
+      query = query.gte('order_date', filters.dateRange[0]);
+    }
+    if (filters.dateRange && filters.dateRange[1]) {
+      query = query.lte('order_date', filters.dateRange[1]);
+    }
+    if (filters.customerType) {
+      query = query.eq('customer_type', filters.customerType);
+    }
+    if (filters.territory) {
+      query = query.eq('territory', filters.territory);
+    }
+    if (filters.mrName) {
+      query = query.eq('mr_name', filters.mrName);
+    }
+    if (filters.deliveryStatus) {
+      query = query.eq('delivery_status', filters.deliveryStatus);
+    }
+
+    query = query.order('order_date', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching filtered order data:', error);
+    return [];
+  }
+};
+
+// Fetch state revenue summary for geographic heat map
+export const fetchStateRevenueSummary = async (startDate = null, endDate = null) => {
+  try {
+    const { data, error } = await supabase.rpc('get_state_revenue_summary', {
+      p_date_start: startDate,
+      p_date_end: endDate
+    });
+
+    if (error) {
+      console.error('Error calling get_state_revenue_summary:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching state revenue summary:', error);
+    
+    // Fallback: try to get state data from orders table directly
+    try {
+      console.log('Attempting fallback query...');
+      let query = supabase
+        .from('orders')
+        .select('state, net_amount')
+        .not('state', 'is', null);
+
+      if (startDate) {
+        query = query.gte('order_date', startDate);
+      }
+      if (endDate) {
+        query = query.lte('order_date', endDate);
+      }
+
+      const { data: fallbackData, error: fallbackError } = await query;
+      
+      if (fallbackError) throw fallbackError;
+
+      // Aggregate by state
+      const stateMap = {};
+      fallbackData.forEach(order => {
+        const state = order.state;
+        if (!stateMap[state]) {
+          stateMap[state] = { state, orders: 0, value: 0 };
+        }
+        stateMap[state].orders += 1;
+        stateMap[state].value += parseFloat(order.net_amount) || 0;
+      });
+
+      return Object.values(stateMap).sort((a, b) => b.value - a.value);
+    } catch (fallbackError) {
+      console.error('Fallback query also failed:', fallbackError);
+      return [];
+    }
+  }
+};
+
+// Fetch MR state-wise analytics
+export const fetchMRStateSalesAnalytics = async (filters = {}) => {
+  try {
+    const { data, error } = await supabase.rpc('get_mr_state_sales_analytics', {
+      p_date_start: filters.dateStart || null,
+      p_date_end: filters.dateEnd || null,
+      p_mr_name: filters.mrName || null,
+      p_state: filters.state || null
+    });
+
+    if (error) {
+      console.error('Error calling get_mr_state_sales_analytics:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching MR state analytics:', error);
+    return [];
+  }
+};
