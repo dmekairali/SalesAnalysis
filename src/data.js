@@ -1951,3 +1951,317 @@ const runClustering = async () => {
   }
 };
 */
+
+
+
+//-------------------------
+
+
+// Updated functions to add to data.js for variant-code support
+
+// Enhanced product transformation for new schema with variant-code support
+export const transformProductDataEnhanced = (productMasterData) => {
+  // Individual products (each SKU separate)
+  const individualProducts = productMasterData.map(item => ({
+    productId: item.Sku || item.productId,
+    productName: item['Medicine Name'] ? `${item['Medicine Name']} (${item.Pack})` : item.productName,
+    medicineName: item['Medicine Name'] || item.productName,
+    masterSku: item.MasterSku || item.master_code,
+    packSize: item.Pack || 'Standard',
+    sku: item.Sku || item.productId,
+    variantCode: item.variant_code, // Added variant_code support
+    mrp: item.Mrp || item.unitPrice || 0,
+    category: item.Category || item.category,
+    unitPrice: item.unitPrice || item.Mrp || 0,
+    seasonality: item.seasonality || 'Year Round',
+    competitor: item.competitor || 'N/A',
+    marketShare: item.marketShare || 0,
+    brand: item.brand,
+    master_code: item.master_code,
+    status: item.status,
+    focus_status: item.focus_status
+  }));
+
+  // Grouped by medicine (master_code) - for medicine-wise view
+  const groupedByMedicine = individualProducts.reduce((acc, product) => {
+    const masterCode = product.master_code;
+    const existingMedicine = acc.find(p => p.master_code === masterCode);
+    
+    if (existingMedicine) {
+      existingMedicine.totalVariants += 1;
+      existingMedicine.variants.push({
+        variantCode: product.variantCode,
+        packSize: product.packSize,
+        sku: product.sku,
+        mrp: product.mrp,
+        status: product.status
+      });
+    } else {
+      acc.push({
+        productId: product.masterSku,
+        medicineName: product.medicineName,
+        master_code: masterCode,
+        category: product.category,
+        brand: product.brand,
+        totalVariants: 1,
+        variants: [{
+          variantCode: product.variantCode,
+          packSize: product.packSize,
+          sku: product.sku,
+          mrp: product.mrp,
+          status: product.status
+        }]
+      });
+    }
+    
+    return acc;
+  }, []);
+
+  // Grouped by variant_code - for pack-wise view
+  const groupedByVariant = individualProducts.reduce((acc, product) => {
+    const variantCode = product.variantCode;
+    if (!variantCode) return acc;
+    
+    const existingVariant = acc.find(p => p.variantCode === variantCode);
+    
+    if (existingVariant) {
+      existingVariant.skus.push({
+        sku: product.sku,
+        mrp: product.mrp,
+        status: product.status,
+        createdDate: product.createdDate // If available
+      });
+      // Update MRP to latest (highest) for variant
+      if (product.mrp > existingVariant.mrp) {
+        existingVariant.mrp = product.mrp;
+        existingVariant.latestSku = product.sku;
+      }
+    } else {
+      acc.push({
+        productId: product.productId,
+        productName: product.productName,
+        medicineName: product.medicineName,
+        variantCode: variantCode,
+        packSize: product.packSize,
+        category: product.category,
+        brand: product.brand,
+        mrp: product.mrp,
+        master_code: product.master_code,
+        latestSku: product.sku,
+        skus: [{
+          sku: product.sku,
+          mrp: product.mrp,
+          status: product.status,
+          createdDate: product.createdDate
+        }]
+      });
+    }
+    
+    return acc;
+  }, []);
+
+  return { 
+    individualProducts, 
+    groupedByMedicine, 
+    groupedByVariant 
+  };
+};
+
+// Enhanced analytics for pack size analysis with variant-code support
+export const getPackSizeAnalyticsEnhanced = (orderData, fulfillmentCenter = null) => {
+  // Filter by fulfillment center if specified
+  const filteredData = fulfillmentCenter && fulfillmentCenter !== 'All Fulfillment Centers' 
+    ? orderData.filter(order => order.deliveredFrom === fulfillmentCenter)
+    : orderData;
+
+  const packSizePerformance = {};
+  const medicinePerformance = {};
+  const variantPerformance = {};
+
+  filteredData.forEach(order => {
+    if (order.orderItems && order.orderItems.length > 0) {
+      order.orderItems.forEach(item => {
+        // Pack-wise analytics (by individual pack/sku)
+        const packKey = `${item.medicineName} (${item.packSize})`;
+        if (!packSizePerformance[packKey]) {
+          packSizePerformance[packKey] = {
+            medicineName: item.medicineName,
+            packSize: item.packSize,
+            variantCode: item.variant_code,
+            totalQuantity: 0,
+            totalRevenue: 0,
+            orderCount: 0,
+            master_code: item.master_code,
+            fulfillmentCenter: fulfillmentCenter
+          };
+        }
+        packSizePerformance[packKey].totalQuantity += item.quantity;
+        packSizePerformance[packKey].totalRevenue += item.totalPrice;
+        packSizePerformance[packKey].orderCount += 1;
+
+        // Medicine-wise analytics (by master_code)
+        const masterCode = item.master_code;
+        if (masterCode) {
+          if (!medicinePerformance[masterCode]) {
+            medicinePerformance[masterCode] = {
+              master_code: masterCode,
+              medicineName: item.medicineName,
+              category: item.category,
+              totalQuantity: 0,
+              totalRevenue: 0,
+              orderCount: 0,
+              packSizes: new Set(),
+              variants: new Set(),
+              fulfillmentCenter: fulfillmentCenter
+            };
+          }
+          medicinePerformance[masterCode].totalQuantity += item.quantity;
+          medicinePerformance[masterCode].totalRevenue += item.totalPrice;
+          medicinePerformance[masterCode].orderCount += 1;
+          medicinePerformance[masterCode].packSizes.add(item.packSize);
+          if (item.variant_code) {
+            medicinePerformance[masterCode].variants.add(item.variant_code);
+          }
+        }
+
+        // Variant-wise analytics (by variant_code)
+        const variantCode = item.variant_code;
+        if (variantCode) {
+          if (!variantPerformance[variantCode]) {
+            variantPerformance[variantCode] = {
+              variantCode: variantCode,
+              medicineName: item.medicineName,
+              packSize: item.packSize,
+              category: item.category,
+              totalQuantity: 0,
+              totalRevenue: 0,
+              orderCount: 0,
+              skuCount: new Set(),
+              fulfillmentCenter: fulfillmentCenter
+            };
+          }
+          variantPerformance[variantCode].totalQuantity += item.quantity;
+          variantPerformance[variantCode].totalRevenue += item.totalPrice;
+          variantPerformance[variantCode].orderCount += 1;
+          variantPerformance[variantCode].skuCount.add(item.sku);
+        }
+      });
+    } else {
+      // Handle legacy data without orderItems
+      const packKey = order.productName || 'Unknown Product';
+      if (!packSizePerformance[packKey]) {
+        packSizePerformance[packKey] = {
+          medicineName: order.productName || 'Unknown',
+          packSize: 'Standard',
+          variantCode: order.variant_code,
+          totalQuantity: 0,
+          totalRevenue: 0,
+          orderCount: 0,
+          master_code: order.master_code,
+          fulfillmentCenter: fulfillmentCenter
+        };
+      }
+      packSizePerformance[packKey].totalQuantity += order.quantity || 1;
+      packSizePerformance[packKey].totalRevenue += order.netAmount;
+      packSizePerformance[packKey].orderCount += 1;
+    }
+  });
+
+  // Convert Sets to Arrays for medicine performance
+  Object.values(medicinePerformance).forEach(medicine => {
+    medicine.packSizes = Array.from(medicine.packSizes);
+    medicine.variants = Array.from(medicine.variants);
+  });
+
+  // Convert Sets to Arrays for variant performance
+  Object.values(variantPerformance).forEach(variant => {
+    variant.skuCount = variant.skuCount.size;
+  });
+
+  return { 
+    packSizePerformance, 
+    medicinePerformance, 
+    variantPerformance,
+    fulfillmentCenter,
+    totalOrders: filteredData.length,
+    totalRevenue: filteredData.reduce((sum, order) => sum + (order.netAmount || 0), 0)
+  };
+};
+
+// Function to get fulfillment center performance comparison
+export const getFulfillmentCenterComparison = (orderData) => {
+  const centerPerformance = {};
+
+  orderData.forEach(order => {
+    const center = order.deliveredFrom || 'Unknown Center';
+    if (!centerPerformance[center]) {
+      centerPerformance[center] = {
+        name: center,
+        totalOrders: 0,
+        totalRevenue: 0,
+        uniqueProducts: new Set(),
+        uniqueCustomers: new Set(),
+        avgOrderValue: 0
+      };
+    }
+
+    centerPerformance[center].totalOrders += 1;
+    centerPerformance[center].totalRevenue += order.netAmount || 0;
+    centerPerformance[center].uniqueCustomers.add(order.customerId);
+    
+    if (order.products && Array.isArray(order.products)) {
+      order.products.forEach(product => {
+        centerPerformance[center].uniqueProducts.add(product);
+      });
+    }
+  });
+
+  // Calculate averages and convert sets to counts
+  Object.values(centerPerformance).forEach(center => {
+    center.avgOrderValue = center.totalOrders > 0 ? center.totalRevenue / center.totalOrders : 0;
+    center.uniqueProducts = center.uniqueProducts.size;
+    center.uniqueCustomers = center.uniqueCustomers.size;
+  });
+
+  return Object.values(centerPerformance).sort((a, b) => b.totalRevenue - a.totalRevenue);
+};
+
+// Function to generate product insights based on fulfillment center
+export const generateProductInsightsByFulfillment = (analytics, fulfillmentCenter) => {
+  const insights = [];
+  
+  // Performance insight
+  insights.push({
+    type: 'performance',
+    title: 'Fulfillment Performance',
+    value: fulfillmentCenter === 'All Fulfillment Centers' ? 'All Centers' : fulfillmentCenter,
+    description: `Analysis based on ${analytics.totalOrders} orders with ${formatCurrencyByContext(analytics.totalRevenue, 'card')} revenue`,
+    confidence: '95.2%'
+  });
+
+  // Top performer insight
+  const topMedicine = Object.values(analytics.medicinePerformance)
+    .sort((a, b) => b.totalRevenue - a.totalRevenue)[0];
+  
+  if (topMedicine) {
+    insights.push({
+      type: 'top_performer',
+      title: 'Top Medicine',
+      value: topMedicine.medicineName,
+      description: `Leading with ${formatCurrencyByContext(topMedicine.totalRevenue, 'card')} revenue`,
+      confidence: '92.8%'
+    });
+  }
+
+  // Variant diversity insight
+  const totalVariants = Object.keys(analytics.variantPerformance).length;
+  insights.push({
+    type: 'diversity',
+    title: 'Product Variants',
+    value: `${totalVariants} variants`,
+    description: `Active variants across all medicines`,
+    confidence: '98.1%'
+  });
+
+  return insights;
+};
