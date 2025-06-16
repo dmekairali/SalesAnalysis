@@ -3,7 +3,14 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X } from 'lucide-react';
 
 // Import modules - Updated paths for Create React App
-import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders, fetchCustomerAnalyticsTableData } from './data.js';
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders,
+  fetchCustomerAnalyticsTableData,
+  transformProductDataEnhanced, 
+  getPackSizeAnalyticsEnhanced, 
+  getFulfillmentCenterComparison,
+  generateProductInsightsByFulfillment  
+       } from './data.js';
+
 import { ProductForecastingML, CustomerForecastingML } from './mlModels.js';
 import { 
   Navigation, 
@@ -42,6 +49,13 @@ const AyurvedicDashboard = () => {
   const [showMLAnalytics, setShowMLAnalytics] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  / Updated state declarations (add these to existing state)
+const [selectedFulfillmentCenter, setSelectedFulfillmentCenter] = useState('');
+const [productAnalysisData, setProductAnalysisData] = useState(null);
+const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+const [analysisGenerated, setAnalysisGenerated] = useState(false);
+  
   const [filters, setFilters] = useState({
     dateRange: ['', ''],
     searchTerm: '',
@@ -56,6 +70,12 @@ const AyurvedicDashboard = () => {
   });
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
   const [pendingFilters, setPendingFilters] = useState(filters); // For Apply button functionality
+
+
+  // Replace the existing transformProductData usage with this:
+const { individualProducts, groupedByMedicine, groupedByVariant } = useMemo(() => 
+  transformProductDataEnhanced(productData), [productData]
+);
 
   useEffect(() => {
     const loadData = async () => {
@@ -341,12 +361,7 @@ const AyurvedicDashboard = () => {
     a.click();
   };
 
-  // Product predictions
-  const productPredictions = useMemo(() => {
-    if (!productData || productData.length === 0) return { forecasts: [], insights: [], product: null }; // Ensure productData is loaded
-    return productML.predictProductSales(selectedProduct, orderData, productData, 6);
-  }, [selectedProduct, productML, orderData, productData]);
-
+  
   // Customer predictions  
   const customerPredictions = useMemo(() => {
     console.log('[App_Debug] customerPredictions hook triggered. Selected Customer ID:', selectedCustomer);
@@ -389,52 +404,148 @@ const AyurvedicDashboard = () => {
     return [...new Set(individualProducts.map(p => p.medicineName))];
   }, [individualProducts]);
 
-  const uniqueCustomers = useMemo(() => {
-    // console.log('customerAnalyticsData in uniqueCustomers:', customerAnalyticsData); // Removed
-    if (!customerAnalyticsData || customerAnalyticsData.length === 0) {
-      // console.log('Computed uniqueCustomers: [] (due to empty or null customerAnalyticsData)'); // Removed
-      return [];
-    }
+  
+// Updated unique customers computation (replace existing uniqueCustomers)
+const uniqueCustomers = useMemo(() => {
+  if (!customerAnalyticsData || customerAnalyticsData.length === 0) {
+    return [];
+  }
 
-    const mappedCustomers = customerAnalyticsData
-      .filter(analytics => {
-        const idField = analytics.customer_code;
-        let idIsValid = false;
-        if (idField !== null && idField !== undefined) {
-          if (typeof idField === 'string' && idField.trim() !== '') {
-            idIsValid = true;
-          } else if (typeof idField === 'number') {
-            idIsValid = true;
-          }
-        }
+  
+   const mappedCustomers = customerAnalyticsData
+    .filter(analytics => {
+      const idField = analytics.customer_code;
+      return idField !== null && idField !== undefined && 
+             (typeof idField === 'string' ? idField.trim() !== '' : true);
+    })
+    .map(analytics => {
+      const id = String(analytics.customer_code);
+      let name = analytics.customer_name;
+      if (!name || (typeof name === 'string' && name.trim() === '')) {
+        name = `Customer [${id}]`;
+      } else if (typeof name !== 'string') {
+        name = String(name);
+      }
 
-        if (!idIsValid) {
-          // console.warn('Filtered out record due to invalid or missing customer_code:', analytics); // Removed
-        }
-        return idIsValid;
-      })
-      .map(analytics => {
-        const id = String(analytics.customer_code);
-        let name = analytics.customer_name;
-        if (!name || (typeof name === 'string' && name.trim() === '')) {
-          name = `Customer [${id}]`;
-          // console.warn(`Generated default name for customer_code ${id}:`, analytics); // Removed
-        } else if (typeof name !== 'string') {
-          name = String(name);
-        }
+      return { id: id, name: name };
+    });
 
-        return {
-          id: id,
-          name: name
-        };
-      });
+  return mappedCustomers.filter((value, index, self) =>
+    self.findIndex(c => c.id === value.id) === index
+  );
+}, [customerAnalyticsData]);
 
-    const result = mappedCustomers.filter((value, index, self) =>
-      self.findIndex(c => c.id === value.id) === index
+
+
+  // Updated product selection logic for different view modes
+const availableOptions = useMemo(() => {
+  if (viewMode === 'medicine') {
+    // For medicine-wise: return list of medicine names
+    return [...new Set(individualProducts.map(p => p.medicineName))].sort();
+  } else {
+    // For pack-wise: return variant codes with display info
+    return groupedByVariant.map(p => ({
+      code: p.variantCode,
+      name: `${p.medicineName} (${p.packSize})`,
+      mrp: p.mrp,
+      medicineName: p.medicineName,
+      packSize: p.packSize
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }
+}, [individualProducts, groupedByVariant, viewMode]);
+
+
+  // Current product/variant selection
+const currentSelection = useMemo(() => {
+  if (viewMode === 'medicine') {
+    return individualProducts.filter(p => p.medicineName === selectedProduct);
+  } else {
+    return groupedByVariant.find(p => p.variantCode === selectedProduct);
+  }
+}, [individualProducts, groupedByVariant, selectedProduct, viewMode]);
+
+// Fulfillment center options
+const uniqueFulfillmentCenters = useMemo(() => {
+  const centers = [...new Set(filteredDashboardData.map(order => order.deliveredFrom))]
+    .filter(Boolean)
+    .sort();
+  return ['All Fulfillment Centers', ...centers];
+}, [filteredDashboardData]);
+
+// Generate analysis function
+const generateAnalysis = async () => {
+  if (!selectedFulfillmentCenter) {
+    alert('Please select a fulfillment center first');
+    return;
+  }
+
+  setLoadingAnalysis(true);
+  try {
+    // Simulate analysis generation delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Get enhanced analytics based on fulfillment center
+    const analytics = getPackSizeAnalyticsEnhanced(
+      filteredDashboardData, 
+      selectedFulfillmentCenter
     );
-    // console.log('Computed uniqueCustomers (refined):', result); // Removed
-    return result;
-  }, [customerAnalyticsData]);
+    
+    // Generate insights
+    const insights = generateProductInsightsByFulfillment(
+      analytics, 
+      selectedFulfillmentCenter
+    );
+    
+    setProductAnalysisData({
+      ...analytics,
+      insights,
+      selectedFulfillmentCenter,
+      viewMode,
+      selectedProduct
+    });
+    
+    setAnalysisGenerated(true);
+    console.log('✅ Product analysis generated successfully');
+    
+  } catch (error) {
+    console.error('Error generating analysis:', error);
+    alert('Error generating analysis. Please try again.');
+  }
+  setLoadingAnalysis(false);
+};
+
+// Reset analysis when key parameters change
+useEffect(() => {
+  if (analysisGenerated) {
+    setAnalysisGenerated(false);
+    setProductAnalysisData(null);
+  }
+}, [selectedFulfillmentCenter, viewMode, selectedProduct]);
+
+// Updated product predictions with fulfillment center filtering
+const productPredictions = useMemo(() => {
+  if (!productData || productData.length === 0 || !analysisGenerated || !productAnalysisData) {
+    return { forecasts: [], insights: [], product: null };
+  }
+  
+  // Filter data by fulfillment center for predictions
+  const fulfillmentFilteredData = selectedFulfillmentCenter && selectedFulfillmentCenter !== 'All Fulfillment Centers'
+    ? filteredDashboardData.filter(order => order.deliveredFrom === selectedFulfillmentCenter)
+    : filteredDashboardData;
+  
+  const targetProduct = viewMode === 'medicine' ? selectedProduct : currentSelection?.medicineName;
+  if (!targetProduct) return { forecasts: [], insights: [], product: null };
+  
+  return productML.predictProductSales(targetProduct, fulfillmentFilteredData, productData, 6);
+}, [selectedProduct, currentSelection, productML, filteredDashboardData, selectedFulfillmentCenter, analysisGenerated, productAnalysisData, viewMode]);
+
+// Clear analysis function
+const clearAnalysis = () => {
+  setAnalysisGenerated(false);
+  setProductAnalysisData(null);
+  setSelectedProduct('');
+  setSelectedFulfillmentCenter('');
+};
 
   // Effect to reset selectedCustomer if it's no longer in uniqueCustomers (e.g., after data refresh)
   useEffect(() => {
