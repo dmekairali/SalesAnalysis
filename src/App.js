@@ -3,8 +3,8 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X , RefreshCw} from 'lucide-react';
 import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
-// Import modules - Updated paths for Create React App
-import { initializeData, COLORS, calculateKPIs, getUniqueValues, fetchDashboardOrders } from './data.js';
+// Import modules - Updated to include new functions
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, fetchDashboardOrders, fetchStateRevenueSummary } from './data.js';
 
 import { 
   Navigation, 
@@ -22,6 +22,7 @@ import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
 const AyurvedicDashboard = () => {
   const [orderData, setOrderData] = useState([]);
   const [dashboardOrderData, setDashboardOrderData] = useState([]);
+  const [geoData, setGeoData] = useState([]); // Add state for geographic data
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showMLAnalytics, setShowMLAnalytics] = useState(false);
@@ -48,10 +49,15 @@ const AyurvedicDashboard = () => {
 
         const fetchedDashboardOrders = await fetchDashboardOrders();
         setDashboardOrderData(fetchedDashboardOrders || []);
+
+        // Load geographic data using SQL function
+        const fetchedGeoData = await fetchStateRevenueSummary();
+        setGeoData(fetchedGeoData || []);
       } catch (error) {
         console.error("Error initializing data:", error);
         setOrderData([]);
         setDashboardOrderData([]);
+        setGeoData([]);
       } finally {
         setLoading(false);
       }
@@ -290,23 +296,8 @@ const AyurvedicDashboard = () => {
     return [...historicalData, ...predictedData];
   }, [filteredDashboardData, kpis.avgOrderValue]);
 
-  // Geographic data - Updated to use state instead of city
-  const geoData = useMemo(() => {
-    const locationData = {};
-    filteredDashboardData.forEach(order => {
-      const key = order.state; // Changed from city to state
-      if (!locationData[key]) {
-        locationData[key] = {
-          state: order.state, // Changed from city to state
-          value: 0,
-          orders: 0
-        };
-      }
-      locationData[key].value += (order.netAmount || 0);
-      locationData[key].orders += 1;
-    });
-    return Object.values(locationData);
-  }, [filteredDashboardData]);
+  // Remove the old geographic data calculation and use the state data
+  // Geographic data is now loaded from SQL function and stored in state
 
   // Updated fulfillment data to use actual distributor names
   const fulfillmentData = useMemo(() => {
