@@ -387,10 +387,6 @@ const { individualProducts, groupedByMedicine, groupedByVariant } = useMemo(() =
     return customerML.predictCustomerBehavior(selectedCustomer, orderData, productData, 6);
   }, [selectedCustomer, customerML, orderData, productData]);
 
-  // Transform product data for both views
-  const { individualProducts, groupedByMedicine } = useMemo(() => 
-    transformProductData(productData), [productData]
-  );
 
   // Get analytics for both medicine-wise and pack-wise views
   const { packSizePerformance, medicinePerformance } = useMemo(() => 
