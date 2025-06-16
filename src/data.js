@@ -275,6 +275,257 @@ export const refreshDashboardData = async () => {
   }
 };
 
+// Get existing clusters
+export const getExistingClusters = async (mrName) => {
+  try {
+    const { data, error } = await supabase
+      .from('area_coordinates')
+      .select('area_name, city, state, cluster_id, cluster_name, visit_sequence_order, estimated_travel_time_minutes, recommended_days, travel_notes')
+      .eq('mr_name', mrName)
+      .not('cluster_id', 'is', null)
+      .order('cluster_id');
+
+    if (error) throw error;
+
+    // Group by clusters
+    const clusteredResults = data.reduce((acc, area) => {
+      if (!acc[area.cluster_id]) {
+        acc[area.cluster_id] = {
+          cluster_id: area.cluster_id,
+          cluster_name: area.cluster_name,
+          areas: [],
+          estimated_travel_time_minutes: area.estimated_travel_time_minutes,
+          recommended_days: area.recommended_days,
+          travel_notes: area.travel_notes
+        };
+      }
+      
+      acc[area.cluster_id].areas.push({
+        area_name: area.area_name,
+        city: area.city,
+        state: area.state
+      });
+      
+      return acc;
+    }, {});
+
+    return Object.values(clusteredResults);
+
+  } catch (error) {
+    console.error('Error getting existing clusters:', error);
+    return [];
+  }
+};
+
+// Create visit plan
+export const createGeminiVisitPlan = async (mrName, month, year) => {
+  try {
+    console.log('🎯 Creating visit plan for:', { mrName, month, year });
+    
+    let clusters = await getExistingClusters(mrName);
+    
+    if (clusters.length === 0) {
+      console.log('🤖 No clusters found, creating Gemini clusters...');
+      const clusterResult = await createGeminiClusters(mrName);
+      
+      if (clusterResult.success) {
+        await saveClusterAssignments(mrName, clusterResult.clusters);
+        clusters = clusterResult.clusters;
+      } else {
+        throw new Error('Failed to create clusters');
+      }
+    } else {
+      console.log('✅ Using existing clusters:', clusters.length);
+    }
+
+    const { data: planId, error } = await supabase.rpc('create_smart_revisit_visit_plan', {
+      p_mr_name: mrName,
+      p_month: month,
+      p_year: year,
+      p_target_visits_per_day: 15,
+      p_min_revisit_gap_days: 7
+    });
+
+    if (error) throw error;
+
+    console.log('✅ Visit plan created with ID:', planId);
+    return planId;
+
+  } catch (error) {
+    console.error('💥 Error creating visit plan:', error);
+    throw error;
+  }
+};
+
+// Get visit plan details
+export const getVisitPlanDetails = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .from('visit_plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error getting visit plan details:', error);
+    return null;
+  }
+};
+
+// Get daily breakdown
+export const getDailyBreakdown = async (planId) => {
+  try {
+    const { data, error } = await supabase
+      .from('daily_visit_plans')
+      .select(`
+        *,
+        planned_visits (*)
+      `)
+      .eq('visit_plan_id', planId)
+      .order('visit_date');
+    
+    if (error) throw error;
+    
+    const weeks = [];
+    let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
+    let weekNumber = 1;
+
+    data.forEach((dayPlan, index) => {
+      const dayData = {
+        date: dayPlan.visit_date,
+        dayName: new Date(dayPlan.visit_date).toLocaleDateString('en-US', { weekday: 'short' }),
+        visits: dayPlan.planned_visits || [],
+        summary: {
+          totalVisits: dayPlan.planned_visits_count || 0,
+          estimatedRevenue: parseFloat(dayPlan.estimated_daily_revenue) || 0,
+          areasVisited: new Set(dayPlan.planned_visits?.map(v => v.area_name) || []).size,
+          highPriorityVisits: dayPlan.planned_visits?.filter(v => v.priority_level === 'HIGH').length || 0
+        }
+      };
+
+      currentWeek.days.push(dayData);
+      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
+      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
+
+      if (currentWeek.days.length === 6 || index === data.length - 1) {
+        weeks.push(currentWeek);
+        weekNumber++;
+        currentWeek = { 
+          week: weekNumber, 
+          days: [], 
+          summary: { totalVisits: 0, estimatedRevenue: 0 } 
+        };
+      }
+    });
+
+    return weeks;
+  } catch (error) {
+    console.error('Error getting daily breakdown:', error);
+    return [];
+  }
+};
+
+// Complete workflow for visit planning
+export const generateCompleteVisitPlan = async (mrName, month, year) => {
+  try {
+    console.log('🚀 Starting complete visit plan generation...');
+    
+    const planId = await createGeminiVisitPlan(mrName, month, year);
+    const planDetails = await getVisitPlanDetails(planId);
+    const weeklyBreakdown = await getDailyBreakdown(planId);
+    const insights = generatePlanInsights(planDetails, weeklyBreakdown);
+    
+    const completePlan = {
+      planId,
+      mrName,
+      month,
+      year,
+      summary: {
+        totalWorkingDays: planDetails?.total_working_days || 25,
+        totalPlannedVisits: planDetails?.total_planned_visits || 0,
+        estimatedRevenue: planDetails?.estimated_revenue || 0,
+        efficiencyScore: planDetails?.efficiency_score || 0,
+        coverageScore: calculateCoverageScore(weeklyBreakdown)
+      },
+      weeklyBreakdown,
+      insights
+    };
+    
+    console.log('✅ Complete visit plan generated successfully');
+    return completePlan;
+    
+  } catch (error) {
+    console.error('💥 Error generating complete visit plan:', error);
+    throw error;
+  }
+};
+
+// Helper functions for visit planning
+const generatePlanInsights = (planDetails, weeklyBreakdown) => {
+  const insights = [];
+  
+  const totalRevenue = parseFloat(planDetails?.estimated_revenue) || 0;
+  const totalVisits = planDetails?.total_planned_visits || 0;
+  const workingDays = planDetails?.total_working_days || 25;
+  
+  insights.push({
+    type: 'revenue',
+    title: 'Revenue Potential',
+    value: `₹${(totalRevenue / 100000).toFixed(1)}L`,
+    description: `Expected monthly revenue from ${totalVisits} visits`,
+    recommendation: totalRevenue > 500000 ? 'Excellent revenue potential' : 'Focus on high-value customers'
+  });
+
+  const avgVisitsPerDay = workingDays > 0 ? (totalVisits / workingDays).toFixed(1) : 0;
+  insights.push({
+    type: 'optimization',
+    title: 'Visit Efficiency',
+    value: `${avgVisitsPerDay}/day`,
+    description: 'Average visits per working day',
+    recommendation: avgVisitsPerDay >= 8 ? 'Optimal visit distribution' : 'Consider increasing daily visits'
+  });
+
+  const totalAreas = new Set(
+    weeklyBreakdown.flatMap(week => 
+      week.days.flatMap(day => 
+        day.visits?.map(v => v.area_name) || []
+      )
+    )
+  ).size;
+  
+  insights.push({
+    type: 'coverage',
+    title: 'Territory Coverage',
+    value: `${totalAreas} areas`,
+    description: 'Geographic areas covered in plan',
+    recommendation: 'AI-optimized geographic clustering'
+  });
+
+  return insights;
+};
+
+const calculateCoverageScore = (weeklyBreakdown) => {
+  if (!weeklyBreakdown || weeklyBreakdown.length === 0) return 0;
+  
+  const totalVisits = weeklyBreakdown.reduce((sum, week) => 
+    sum + week.summary.totalVisits, 0
+  );
+  
+  const totalAreas = new Set(
+    weeklyBreakdown.flatMap(week => 
+      week.days.flatMap(day => 
+        day.visits?.map(v => v.area_name) || []
+      )
+    )
+  ).size;
+  
+  return Math.min(100, (totalAreas * 4) + (totalVisits > 150 ? 20 : 10));
+};;
+  }
+};
+
 // Function to get latest order data with filters
 export const fetchFilteredOrderData = async (filters = {}) => {
   try {
@@ -313,4 +564,3 @@ export const fetchFilteredOrderData = async (filters = {}) => {
     return [];
   }
 };
-
