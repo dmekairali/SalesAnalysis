@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X , RefreshCw} from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, RefreshCw, User, ChevronDown } from 'lucide-react';
 import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
-// Import modules - Updated to include new functions
+// Import modules
 import { initializeData, COLORS, calculateKPIs, getUniqueValues, fetchDashboardOrders, fetchStateRevenueSummary } from './data.js';
 
 import { 
@@ -16,18 +16,26 @@ import {
   GeoHeatMap
 } from './components.js';
 import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
-// Add this import at the top of App.js
+
+// Import Authentication (Step 1 - Simple Auth)
+import { AuthProvider, useAuth, ProtectedRoute, UserProfile } from './auth/AuthContext.js';
+
+// Import Visit Planner
 import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
 
 const AyurvedicDashboard = () => {
   const [orderData, setOrderData] = useState([]);
   const [dashboardOrderData, setDashboardOrderData] = useState([]);
-  const [geoData, setGeoData] = useState([]); // Add state for geographic data
+  const [geoData, setGeoData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showMLAnalytics, setShowMLAnalytics] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  
+  // Auth hooks (Step 1 - Just get user info, no filtering yet)
+  const { user, isAuthenticated } = useAuth();
   
   const [filters, setFilters] = useState({
     dateRange: ['', ''],
@@ -38,12 +46,17 @@ const AyurvedicDashboard = () => {
     selectedState: null
   });
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
-  const [pendingFilters, setPendingFilters] = useState(filters); // For Apply button functionality
+  const [pendingFilters, setPendingFilters] = useState(filters);
 
+  // Load data (no user filtering yet)
   useEffect(() => {
     const loadData = async () => {
+      if (!isAuthenticated) return;
+      
       try {
         setLoading(true);
+        console.log('📊 Loading dashboard data for user:', user?.full_name, '| Access Level:', user?.access_level);
+        
         const { sampleOrderData: fetchedOrders } = await initializeData();
         setOrderData(fetchedOrders || []);
 
@@ -53,8 +66,14 @@ const AyurvedicDashboard = () => {
         // Load geographic data using SQL function
         const fetchedGeoData = await fetchStateRevenueSummary();
         setGeoData(fetchedGeoData || []);
+        
+        console.log('✅ Data loaded successfully');
+        console.log('📈 Orders:', fetchedOrders?.length || 0);
+        console.log('📊 Dashboard Orders:', fetchedDashboardOrders?.length || 0);
+        console.log('🗺️ Geographic Data:', fetchedGeoData?.length || 0);
+        
       } catch (error) {
-        console.error("Error initializing data:", error);
+        console.error("❌ Error initializing data:", error);
         setOrderData([]);
         setDashboardOrderData([]);
         setGeoData([]);
@@ -62,8 +81,9 @@ const AyurvedicDashboard = () => {
         setLoading(false);
       }
     };
+    
     loadData();
-  }, []);
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     console.log('[DataLoad_Debug] orderData state updated. Total Length:', orderData.length);
@@ -71,8 +91,9 @@ const AyurvedicDashboard = () => {
 
   // Real-time notifications
   useEffect(() => {
+    if (!isAuthenticated || orderData.length === 0) return;
+    
     const interval = setInterval(() => {
-      if (orderData.length === 0) return;
       const newOrder = orderData[Math.floor(Math.random() * orderData.length)];
       const notification = {
         id: Date.now(),
@@ -86,9 +107,9 @@ const AyurvedicDashboard = () => {
     }, 20000);
 
     return () => clearInterval(interval);
-  }, [orderData]);
+  }, [orderData, isAuthenticated]);
 
-  // Create filteredData based on filters (memoized for performance)
+  // Create filteredData based on filters (no user filtering yet)
   const filteredData = useMemo(() => {
     let data = orderData;
 
@@ -142,7 +163,7 @@ const AyurvedicDashboard = () => {
     return data;
   }, [filters, orderData]);
 
-  // Create filteredDashboardData based on filters (memoized for performance)
+  // Create filteredDashboardData based on filters (no user filtering yet)
   const filteredDashboardData = useMemo(() => {
     let data = dashboardOrderData.map(o => ({
       orderId: o.orderId,
@@ -164,6 +185,7 @@ const AyurvedicDashboard = () => {
       lineItemsCount: o.lineItemsCount || 0
     }));
 
+    // Apply the same filters as above
     // Apply date range filter
     if (filters.dateRange?.[0] || filters.dateRange?.[1]) {
       const startDate = filters.dateRange[0] ? new Date(filters.dateRange[0]) : null;
@@ -219,11 +241,16 @@ const AyurvedicDashboard = () => {
     return data;
   }, [filters, dashboardOrderData]);
 
-  // Enhanced export function
+  // Enhanced export function with user info
   const exportWithMLInsights = () => {
     const kpis = calculateKPIs(filteredData);
     const exportData = [
       ['=== AYURVEDIC SALES REPORT WITH ML INSIGHTS ==='],
+      [''],
+      ['User Info:'],
+      [`User: ${user?.full_name} (${user?.access_level})`],
+      [`Access Level: ${user?.access_level}`],
+      user?.mr_name ? [`MR Name: ${user.mr_name}`] : [],
       [''],
       ['Executive Summary:'],
       [`Total Revenue: ₹${kpis.totalRevenue.toLocaleString()}`],
@@ -242,14 +269,14 @@ const AyurvedicDashboard = () => {
         order.orderId, order.date, order.customerName, 
         order.productName, order.netAmount, order.deliveryStatus, order.deliveredFrom
       ])
-    ];
+    ].flat();
 
     const csvContent = exportData.map(row => Array.isArray(row) ? row.join(',') : row).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ayurvedic_ml_sales_report_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `ayurvedic_ml_sales_report_${user?.employee_id}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   };
 
@@ -296,9 +323,6 @@ const AyurvedicDashboard = () => {
     return [...historicalData, ...predictedData];
   }, [filteredDashboardData, kpis.avgOrderValue]);
 
-  // Remove the old geographic data calculation and use the state data
-  // Geographic data is now loaded from SQL function and stored in state
-
   // Updated fulfillment data to use actual distributor names
   const fulfillmentData = useMemo(() => {
     const fulfillmentCounts = {};
@@ -312,6 +336,99 @@ const AyurvedicDashboard = () => {
       value
     }));
   }, [filteredDashboardData]);
+
+  // Enhanced Navigation Component with User Profile
+  const EnhancedNavigation = ({ activeTab, setActiveTab, notifications, showNotifications, setShowNotifications, exportWithMLInsights, showMLAnalytics, setShowMLAnalytics, filters, setFilters }) => (
+    <nav className="bg-white shadow-sm border-b">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row justify-between items-center py-4 md:space-y-0 space-y-4">
+          <div className="flex flex-col md:flex-row items-center md:space-x-8 md:space-y-0 space-y-4">
+            <h1 className="text-2xl font-bold" style={{ color: COLORS.primary }}>
+              AyurML Analytics
+            </h1>
+            <div className="flex flex-wrap space-x-1">
+              {[
+                { id: 'overview', label: 'Overview', icon: TrendingUp },
+                { id: 'visitplanner', label: 'Visit Planner', icon: MapPin }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-green-100 text-green-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4 mr-2" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row items-center w-full md:w-auto md:space-x-4 md:space-y-0 space-y-4">
+            {/* Search */}
+            <div className="relative w-full md:w-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={filters.searchTerm}
+                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* User Profile Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowUserProfile(!showUserProfile)}
+                className="flex items-center space-x-2 p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+                <div className="hidden md:block text-left">
+                  <div className="text-sm font-medium">{user?.full_name}</div>
+                  <div className="text-xs text-gray-500">{user?.access_level}</div>
+                </div>
+                <ChevronDown className="h-4 w-4" />
+              </button>
+              
+              {showUserProfile && (
+                <div className="absolute right-0 mt-2 z-50">
+                  <UserProfile />
+                </div>
+              )}
+            </div>
+
+            {/* ML Analytics Toggle */}
+            <button 
+              onClick={() => setShowMLAnalytics(!showMLAnalytics)}
+              className={`flex items-center justify-center w-full md:w-auto px-3 py-2 rounded-lg text-sm transition-colors ${
+                showMLAnalytics 
+                  ? 'bg-purple-100 text-purple-700' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Brain className="h-4 w-4 mr-1" />
+              ML
+            </button>
+
+            {/* Export */}
+            <button 
+              onClick={exportWithMLInsights}
+              className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Export
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
 
   // Overview Tab Component
   const OverviewTab = () => {
@@ -327,6 +444,28 @@ const AyurvedicDashboard = () => {
 
     return (
       <div className="space-y-6">
+        {/* User Access Info Banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <User className="h-5 w-5 text-blue-600 mr-2" />
+            <div>
+              <h4 className="font-semibold text-blue-800">
+                Welcome, {user?.full_name}! 
+                <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded-full">
+                  {user?.access_level?.toUpperCase()}
+                </span>
+              </h4>
+              <p className="text-sm text-blue-700">
+                {user?.access_level === 'admin' && 'You have full access to all dashboard data and features.'}
+                {user?.access_level === 'manager' && 'You have regional access to assigned territories and states.'}
+                {user?.access_level === 'mr' && `Showing your personal data and performance metrics.`}
+                {user?.access_level === 'viewer' && 'You have read-only access to dashboard data.'}
+                {user?.mr_name && ` | MR: ${user.mr_name}`}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Enhanced Filters */}
         <EnhancedOverviewFilters
           filters={filters}
@@ -455,13 +594,13 @@ const AyurvedicDashboard = () => {
         </div>
 
         {/* Geographic Heat Map */}
-        
+        <GeoHeatMap data={geoData} />
       </div>
     );
   };
 
-  // Main render
-  if (loading) {
+  // Loading state
+  if (loading && !isAuthenticated) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-xl font-semibold">Loading Dashboard Data...</div>
@@ -471,7 +610,7 @@ const AyurvedicDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation 
+      <EnhancedNavigation 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         notifications={notifications}
@@ -482,10 +621,6 @@ const AyurvedicDashboard = () => {
         setShowMLAnalytics={setShowMLAnalytics}
         filters={filters}
         setFilters={setFilters}
-        isFiltersVisible={isFiltersVisible}
-        setIsFiltersVisible={setIsFiltersVisible}
-        pendingFilters={pendingFilters}
-        setPendingFilters={setPendingFilters}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
@@ -495,4 +630,15 @@ const AyurvedicDashboard = () => {
   );
 };
 
-export default AyurvedicDashboard;
+// Main App Component with Authentication Provider
+const App = () => {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <AyurvedicDashboard />
+      </ProtectedRoute>
+    </AuthProvider>
+  );
+};
+
+export default App;
