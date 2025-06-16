@@ -155,7 +155,7 @@ const AyurvedicDashboard = () => {
       territory: o.territory,
       medicalRepresentative: o.medicalRepresentative,
       netAmount: o.netAmount,
-      distributor_name: o.distributor_name,
+      deliveredFrom: o.deliveredFrom,
       discountTier: o.discountTier,
       deliveryStatus: o.deliveryStatus,
       products: o.products || [],
@@ -303,7 +303,7 @@ const AyurvedicDashboard = () => {
   const fulfillmentData = useMemo(() => {
     const fulfillmentCounts = {};
     filteredDashboardData.forEach(order => {
-      const distributor = order.distributor_name || 'Unknown';
+      const distributor = order.deliveredFrom || 'Unknown';
       fulfillmentCounts[distributor] = (fulfillmentCounts[distributor] || 0) + 1;
     });
     
