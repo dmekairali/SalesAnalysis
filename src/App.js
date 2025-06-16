@@ -14,7 +14,6 @@ import {
   FulfillmentChart,
   CategoryChart,
   TopProductsChart,
-  GeoHeatMap,
   ProductForecastChart,
   CustomerTimelineChart,
   MLInsightCard
@@ -373,7 +372,7 @@ const AyurvedicDashboard = () => {
   }, [selectedCustomer, customerML, orderData, productData]);
 
   // Transform product data for both views
-  const { individualProducts, groupedByMedicine } = useMemo(() => 
+  const { individualProducts } = useMemo(() =>
     transformProductData(productData), [productData]
   );
 
@@ -383,7 +382,6 @@ const AyurvedicDashboard = () => {
   );
 
   // Get unique values for dropdowns
-  const uniqueProducts = individualProducts; // This seems fine as individualProducts is derived from productData
   const uniqueMedicines = useMemo(() => {
     if (!individualProducts || individualProducts.length === 0) return [];
     return [...new Set(individualProducts.map(p => p.medicineName))];
@@ -505,25 +503,6 @@ const AyurvedicDashboard = () => {
 
     return [...historicalData, ...predictedData];
   }, [filteredDashboardData, kpis.avgOrderValue]);
-
-  // Geographic data
-  const geoData = useMemo(() => {
-    const locationData = {};
-    filteredDashboardData.forEach(order => {
-      const key = order.city; // city is available
-      if (!locationData[key]) {
-        locationData[key] = {
-          city: order.city,
-          state: order.state, // state is available
-          value: 0,
-          orders: 0
-        };
-      }
-      locationData[key].value += (order.netAmount || 0); // netAmount is available
-      locationData[key].orders += 1;
-    });
-    return Object.values(locationData);
-  }, [filteredDashboardData]);
 
   // Chart data preparations
   const categoryData = useMemo(() => {
