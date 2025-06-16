@@ -1,8 +1,6 @@
-
-
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, Area, AreaChart, ComposedChart, ReferenceLine } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Bell, Download, Search, Home, Box, Star, Target, Settings, Activity, Clock, Eye } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Bell, Download, Search, Home, Star, Target, Settings, Activity, Clock, Eye } from 'lucide-react';
 import { COLORS, ML_INSIGHTS, SALES_DRIVERS } from './data.js';
 import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
@@ -38,7 +36,7 @@ export const KPICard = ({ title, value, icon: Icon, format = 'number', color = C
   </div>
 );
 
-// Navigation Component
+// Navigation Component - Updated to remove products and customers tabs
 export const Navigation = ({ activeTab, setActiveTab, notifications, showNotifications, setShowNotifications, exportWithMLInsights, showMLAnalytics, setShowMLAnalytics, filters, setFilters }) => (
   <nav className="bg-white shadow-sm border-b">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -50,10 +48,7 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
           <div className="flex flex-wrap space-x-1">
             {[
               { id: 'overview', label: 'Overview', icon: Home },
-              { id: 'products', label: 'Product Predictions', icon: Box },
-              { id: 'customers', label: 'Customer Intelligence', icon: Users },
               { id: 'visitplanner', label: 'Visit Planner', icon: MapPin }
-              
             ].map(tab => (
               <button
                 key={tab.id}
@@ -311,109 +306,6 @@ export const FulfillmentChart = ({ data, filters, setFilters }) => {
   );
 };
 
-
-export const CategoryChart = ({ data, filters, setFilters }) => {
-  const selectedCategory = filters?.selectedCategory;
-
-  const handleSegmentClick = (dataPoint) => {
-    if (!dataPoint || !dataPoint.name) return;
-    const clickedCategoryName = dataPoint.name;
-    setFilters(prev => ({
-      ...prev,
-      selectedCategory: selectedCategory === clickedCategoryName ? null : clickedCategoryName
-    }));
-  };
-
-  const categoryColors = [COLORS.primary, COLORS.secondary, COLORS.accent, COLORS.purple, COLORS.teal, COLORS.warning, COLORS.success, COLORS.error];
-
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h3 className="text-lg font-semibold mb-4">Sales by Category {selectedCategory ? `(${selectedCategory})` : ''}</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            outerRadius={90}
-            innerRadius={45}
-            dataKey="value"
-            onClick={handleSegmentClick}
-            className="cursor-pointer"
-          >
-            {data.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={categoryColors[index % categoryColors.length]}
-                fillOpacity={selectedCategory && entry.name !== selectedCategory ? 0.5 : 1}
-                stroke={selectedCategory === entry.name ? '#333333' : '#FFFFFF'}
-                strokeWidth={selectedCategory === entry.name ? 3 : 1}
-              />
-            ))}
-          </Pie>
-          <Tooltip 
-            formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} 
-          />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
-
-// 3. TOP PRODUCTS CHART (BarChart)
-// ========================================
-
-export const TopProductsChart = ({ data, filters, setFilters }) => {
-  const selectedTopProduct = filters?.selectedTopProduct;
-
-  const handleBarClick = (dataPoint) => {
-    if (!dataPoint || !dataPoint.name) return;
-    const clickedProductName = dataPoint.name;
-    setFilters(prev => ({
-      ...prev,
-      selectedTopProduct: selectedTopProduct === clickedProductName ? null : clickedProductName
-    }));
-  };
-
-  const selectedStrokeColor = COLORS.primaryDark || '#2c5282';
-
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      <h3 className="text-lg font-semibold mb-4">Top Products {selectedTopProduct ? `(${selectedTopProduct})` : ''}</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis 
-            dataKey="name" 
-            angle={-45} 
-            textAnchor="end" 
-            height={80} 
-            interval={0}
-          />
-          <YAxis 
-            tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
-          />
-          <Tooltip 
-            formatter={(value) => [formatCurrencyByContext(value, 'tooltip'), 'Revenue']} 
-          />
-          <Bar dataKey="value" onClick={handleBarClick} cursor="pointer">
-            {data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={COLORS.primary}
-                fillOpacity={selectedTopProduct && entry.name !== selectedTopProduct ? 0.6 : 1}
-                stroke={selectedTopProduct === entry.name ? selectedStrokeColor : 'none'}
-                strokeWidth={selectedTopProduct === entry.name ? 3 : 0}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
-
 // Geographic Heat Map Component
 export const GeoHeatMap = ({ data }) => (
   <div className="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -439,135 +331,5 @@ export const GeoHeatMap = ({ data }) => (
         </div>
       ))}
     </div>
-  </div>
-);
-
-// Product Forecast Chart
-
-export const ProductForecastChart = ({ data }) => (
-  <div className="bg-white p-6 rounded-lg shadow-md">
-    <h3 className="text-lg font-semibold mb-4 flex items-center">
-      <Activity className="h-5 w-5 mr-2" />
-      6-Month Sales Forecast
-    </h3>
-    <ResponsiveContainer width="100%" height={350}>
-      <ComposedChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis 
-          dataKey="month"
-          tickFormatter={(value) => {
-            // Format month names to shorter versions if needed
-            const shortMonths = {
-              'January': 'Jan', 'February': 'Feb', 'March': 'Mar',
-              'April': 'Apr', 'May': 'May', 'June': 'Jun',
-              'July': 'Jul', 'August': 'Aug', 'September': 'Sep',
-              'October': 'Oct', 'November': 'Nov', 'December': 'Dec'
-            };
-            return shortMonths[value] || value;
-          }}
-        />
-        <YAxis 
-          yAxisId="left" 
-          tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
-        />
-        <YAxis 
-          yAxisId="right" 
-          orientation="right"
-          tickFormatter={(value) => `${value}%`}
-        />
-        <Tooltip 
-          formatter={(value, name) => {
-            if (name === 'revenue') {
-              return [formatCurrencyByContext(value, 'tooltip'), 'Revenue'];
-            } else if (name === 'confidence') {
-              return [`${value}%`, 'Confidence'];
-            }
-            return [value, name];
-          }}
-        />
-        <Legend />
-        <Bar 
-          yAxisId="left" 
-          dataKey="revenue" 
-          fill={COLORS.primary} 
-          name="Revenue" 
-        />
-        <Line 
-          yAxisId="right" 
-          type="monotone" 
-          dataKey="confidence" 
-          stroke={COLORS.accent} 
-          name="Confidence %" 
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
-  </div>
-);
-
-
-// Customer Timeline Chart
-
-export const CustomerTimelineChart = ({ data }) => (
-  <div>
-    <h4 className="font-medium mb-3">Expected Order Timeline</h4>
-    <ResponsiveContainer width="100%" height={250}>
-      <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis 
-          dataKey="period"
-          angle={-45}
-          textAnchor="end"
-          height={60}
-          interval={0}
-        />
-        <YAxis 
-          yAxisId="left"
-          tickFormatter={(value) => formatCurrencyByContext(value, 'chart')}
-        />
-        <YAxis 
-          yAxisId="right"
-          orientation="right"
-          tickFormatter={(value) => `${value}%`}
-        />
-        <Tooltip 
-          formatter={(value, name) => {
-            if (name === 'value' || name.includes('Value')) {
-              return [formatCurrencyByContext(value, 'tooltip'), 'Expected Value'];
-            } else if (name.includes('probability') || name.includes('Probability')) {
-              return [`${value}%`, 'Order Probability'];
-            }
-            return [value, name];
-          }}
-        />
-        <Line 
-          yAxisId="left"
-          type="monotone" 
-          dataKey="value" 
-          stroke={COLORS.primary} 
-          name="Expected Value" 
-        />
-        <Line 
-          yAxisId="right"
-          type="monotone" 
-          dataKey="probability" 
-          stroke={COLORS.accent} 
-          name="Order Probability %" 
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-);
-
-// ML Insight Card Component
-export const MLInsightCard = ({ insight }) => (
-  <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
-    <div className="flex items-center justify-between mb-2">
-      <h4 className="font-semibold text-gray-800">{insight.title}</h4>
-      <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-        {insight.confidence}
-      </div>
-    </div>
-    <p className="text-2xl font-bold text-blue-600 mb-1">{insight.value}</p>
-    <p className="text-sm text-gray-600">{insight.description}</p>
   </div>
 );
