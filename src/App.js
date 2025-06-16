@@ -50,7 +50,7 @@ const AyurvedicDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  / Updated state declarations (add these to existing state)
+  // Updated state declarations (add these to existing state)
 const [selectedFulfillmentCenter, setSelectedFulfillmentCenter] = useState('');
 const [productAnalysisData, setProductAnalysisData] = useState(null);
 const [loadingAnalysis, setLoadingAnalysis] = useState(false);
