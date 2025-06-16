@@ -455,7 +455,7 @@ const AyurvedicDashboard = () => {
         </div>
 
         {/* Geographic Heat Map */}
-        <GeoHeatMap data={geoData} />
+        
       </div>
     );
   };
