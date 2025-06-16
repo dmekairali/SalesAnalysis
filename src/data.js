@@ -522,7 +522,7 @@ const calculateCoverageScore = (weeklyBreakdown) => {
   ).size;
   
   return Math.min(100, (totalAreas * 4) + (totalVisits > 150 ? 20 : 10));
-};;
+};
   }
 };
 
