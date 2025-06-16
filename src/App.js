@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X , RefreshCw} from 'lucide-react';
+import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
 // Import modules - Updated paths for Create React App
 import { initializeData, COLORS, calculateKPIs, getUniqueValues, transformProductData, getPackSizeAnalytics, fetchDashboardOrders,
