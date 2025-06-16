@@ -1,4 +1,4 @@
-// data.js - Cleaned for Overview and Visit Planner only
+// data.js - Updated to use orders table for Overview tab only
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase configuration
@@ -79,59 +79,87 @@ export const formatCurrencyByContext = (value, context = 'default') => {
   }
 };
 
-// Fetch functions for core data
+// Updated fetch function to use orders table and transform for compatibility
 export const fetchOrderData = async () => {
-  let allItems = [];
-  let lastItemCount = 0;
+  let allOrders = [];
+  let lastOrderCount = 0;
   let offset = 0;
   const pageSize = 1000;
 
   try {
     do {
       const { data: chunk, error: chunkError } = await supabase
-        .from('order_items')
+        .from('orders')
         .select('*')
         .order('order_date', { ascending: false })
         .range(offset, offset + pageSize - 1);
 
       if (chunkError) {
-        console.error('Error fetching chunk of order_items:', chunkError);
+        console.error('Error fetching chunk of orders:', chunkError);
         throw chunkError;
       }
 
       if (chunk) {
-        allItems = allItems.concat(chunk);
-        lastItemCount = chunk.length;
+        allOrders = allOrders.concat(chunk);
+        lastOrderCount = chunk.length;
         offset += pageSize;
       } else {
-        lastItemCount = 0;
+        lastOrderCount = 0;
       }
-    } while (lastItemCount === pageSize);
+    } while (lastOrderCount === pageSize);
 
-    return allItems.map(item => ({
-      orderId: item.order_id,
-      date: item.order_date,
-      customerId: item.customer_code,
-      customerName: item.customer_name,
-      customerType: item.customer_type,
-      territory: item.territory,
-      city: item.city,
-      state: item.state,
-      netAmount: parseFloat(item.order_net_amount) || 0,
-      deliveredFrom: item.delivered_from,
-      discountTier: item.discount_tier,
-      deliveryStatus: item.delivery_status,
-      productName: item.product_description,
-      category: item.category,
-      quantity: item.quantity,
-      medicalRepresentative: item.mr_name,
-      salesRepresentative: item.mr_name,
-      trackingNumber: item.tracking_number,
-      courierPartner: item.courier_partner,
-      paymentMode: item.payment_mode,
-      paymentStatus: item.payment_status,
-      master_code: item.master_code
-    }));
+    // Transform orders data to match existing component expectations
+    // Since each row in orders table represents one order (not individual items),
+    // we need to create item-like records for compatibility with existing components
+    const transformedData = [];
+    
+    allOrders.forEach(order => {
+      // Split products and categories to create individual "item" records
+      const products = order.products ? order.products.split(', ') : ['Unknown Product'];
+      const categories = order.categories ? order.categories.split(', ') : ['Unknown Category'];
+      const brands = order.brands ? order.brands.split(', ') : ['Unknown Brand'];
+      
+      // Create records for each product in the order
+      const maxItems = Math.max(products.length, categories.length, brands.length);
+      
+      for (let i = 0; i < maxItems; i++) {
+        transformedData.push({
+          orderId: order.order_id,
+          date: order.order_date,
+          customerId: order.customer_code,
+          customerName: order.customer_name,
+          customerType: order.customer_type,
+          territory: order.territory,
+          city: order.city,
+          state: order.state,
+          netAmount: parseFloat(order.net_amount) || 0,
+          deliveredFrom: order.delivered_from,
+          discountTier: order.discount_tier,
+          deliveryStatus: order.delivery_status,
+          productName: products[i] || products[0] || 'Unknown Product',
+          category: categories[i] || categories[0] || 'Unknown Category',
+          brand: brands[i] || brands[0] || 'Unknown Brand',
+          quantity: Math.floor((order.total_quantity || 0) / maxItems), // Distribute quantity evenly
+          medicalRepresentative: order.mr_name,
+          salesRepresentative: order.mr_name,
+          mrEmployeeId: order.mr_employee_id,
+          trackingNumber: order.tracking_number,
+          paymentMode: 'N/A', // Not in orders table
+          paymentStatus: order.status,
+          subtotal: parseFloat(order.subtotal) || 0,
+          discountAmount: parseFloat(order.discount_amount) || 0,
+          taxAmount: parseFloat(order.tax_amount) || 0,
+          shippingCharges: parseFloat(order.shipping_charges) || 0,
+          lineItemsCount: order.line_items_count,
+          totalQuantity: order.total_quantity,
+          distributorName: order.distributor_name,
+          expectedDeliveryDate: order.expected_delivery_date,
+          actualDeliveryDate: order.actual_delivery_date
+        });
+      }
+    });
+
+    return transformedData;
   } catch (error) {
     console.error('Error in paginated fetchOrderData (outer catch):', error);
     return [];
@@ -149,17 +177,17 @@ export const initializeData = async () => {
   };
 };
 
-// Fetch aggregated dashboard data using views
+// Fetch aggregated dashboard data using orders table directly
 export const fetchDashboardOrders = async () => {
-  let allItems = [];
-  let lastItemCount = 0;
+  let allOrders = [];
+  let lastOrderCount = 0;
   let offset = 0;
   const pageSize = 1000;
 
   try {
     do {
       const { data: chunk, error: chunkError } = await supabase
-        .from('orders') // This is a view
+        .from('orders')
         .select('*')
         .order('order_date', { ascending: false })
         .range(offset, offset + pageSize - 1);
@@ -170,15 +198,15 @@ export const fetchDashboardOrders = async () => {
       }
 
       if (chunk) {
-        allItems = allItems.concat(chunk);
-        lastItemCount = chunk.length;
+        allOrders = allOrders.concat(chunk);
+        lastOrderCount = chunk.length;
         offset += pageSize;
       } else {
-        lastItemCount = 0;
+        lastOrderCount = 0;
       }
-    } while (lastItemCount === pageSize);
+    } while (lastOrderCount === pageSize);
     
-    return allItems.map(order => ({
+    return allOrders.map(order => ({
       orderId: order.order_id,
       date: order.order_date,
       customerId: order.customer_code,
@@ -188,14 +216,27 @@ export const fetchDashboardOrders = async () => {
       state: order.state,
       territory: order.territory,
       medicalRepresentative: order.mr_name,
+      mrEmployeeId: order.mr_employee_id,
       netAmount: parseFloat(order.net_amount) || 0,
       deliveredFrom: order.delivered_from,
       discountTier: order.discount_tier,
       deliveryStatus: order.delivery_status,
       products: order.products ? order.products.split(', ') : [],
       categories: order.categories ? order.categories.split(', ') : [],
+      brands: order.brands ? order.brands.split(', ') : [],
       totalQuantity: order.total_quantity,
-      lineItemsCount: order.line_items_count
+      lineItemsCount: order.line_items_count,
+      subtotal: parseFloat(order.subtotal) || 0,
+      discountAmount: parseFloat(order.discount_amount) || 0,
+      taxAmount: parseFloat(order.tax_amount) || 0,
+      shippingCharges: parseFloat(order.shipping_charges) || 0,
+      distributorName: order.distributor_name,
+      status: order.status,
+      expectedDeliveryDate: order.expected_delivery_date,
+      actualDeliveryDate: order.actual_delivery_date,
+      trackingNumber: order.tracking_number,
+      createdAt: order.created_at,
+      updatedAt: order.updated_at
     }));
   } catch (error) {
     console.error('Error in paginated fetchDashboardOrders (outer catch):', error);
@@ -275,262 +316,13 @@ export const refreshDashboardData = async () => {
   }
 };
 
-// Get existing clusters
-export const getExistingClusters = async (mrName) => {
-  try {
-    const { data, error } = await supabase
-      .from('area_coordinates')
-      .select('area_name, city, state, cluster_id, cluster_name, visit_sequence_order, estimated_travel_time_minutes, recommended_days, travel_notes')
-      .eq('mr_name', mrName)
-      .not('cluster_id', 'is', null)
-      .order('cluster_id');
-
-    if (error) throw error;
-
-    // Group by clusters
-    const clusteredResults = data.reduce((acc, area) => {
-      if (!acc[area.cluster_id]) {
-        acc[area.cluster_id] = {
-          cluster_id: area.cluster_id,
-          cluster_name: area.cluster_name,
-          areas: [],
-          estimated_travel_time_minutes: area.estimated_travel_time_minutes,
-          recommended_days: area.recommended_days,
-          travel_notes: area.travel_notes
-        };
-      }
-      
-      acc[area.cluster_id].areas.push({
-        area_name: area.area_name,
-        city: area.city,
-        state: area.state
-      });
-      
-      return acc;
-    }, {});
-
-    return Object.values(clusteredResults);
-
-  } catch (error) {
-    console.error('Error getting existing clusters:', error);
-    return [];
-  }
-};
-
-// Create visit plan
-export const createGeminiVisitPlan = async (mrName, month, year) => {
-  try {
-    console.log('🎯 Creating visit plan for:', { mrName, month, year });
-    
-    let clusters = await getExistingClusters(mrName);
-    
-    if (clusters.length === 0) {
-      console.log('🤖 No clusters found, creating Gemini clusters...');
-      const clusterResult = await createGeminiClusters(mrName);
-      
-      if (clusterResult.success) {
-        await saveClusterAssignments(mrName, clusterResult.clusters);
-        clusters = clusterResult.clusters;
-      } else {
-        throw new Error('Failed to create clusters');
-      }
-    } else {
-      console.log('✅ Using existing clusters:', clusters.length);
-    }
-
-    const { data: planId, error } = await supabase.rpc('create_smart_revisit_visit_plan', {
-      p_mr_name: mrName,
-      p_month: month,
-      p_year: year,
-      p_target_visits_per_day: 15,
-      p_min_revisit_gap_days: 7
-    });
-
-    if (error) throw error;
-
-    console.log('✅ Visit plan created with ID:', planId);
-    return planId;
-
-  } catch (error) {
-    console.error('💥 Error creating visit plan:', error);
-    throw error;
-  }
-};
-
-// Get visit plan details
-export const getVisitPlanDetails = async (planId) => {
-  try {
-    const { data, error } = await supabase
-      .from('visit_plans')
-      .select('*')
-      .eq('id', planId)
-      .single();
-    
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error getting visit plan details:', error);
-    return null;
-  }
-};
-
-// Get daily breakdown
-export const getDailyBreakdown = async (planId) => {
-  try {
-    const { data, error } = await supabase
-      .from('daily_visit_plans')
-      .select(`
-        *,
-        planned_visits (*)
-      `)
-      .eq('visit_plan_id', planId)
-      .order('visit_date');
-    
-    if (error) throw error;
-    
-    const weeks = [];
-    let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
-    let weekNumber = 1;
-
-    data.forEach((dayPlan, index) => {
-      const dayData = {
-        date: dayPlan.visit_date,
-        dayName: new Date(dayPlan.visit_date).toLocaleDateString('en-US', { weekday: 'short' }),
-        visits: dayPlan.planned_visits || [],
-        summary: {
-          totalVisits: dayPlan.planned_visits_count || 0,
-          estimatedRevenue: parseFloat(dayPlan.estimated_daily_revenue) || 0,
-          areasVisited: new Set(dayPlan.planned_visits?.map(v => v.area_name) || []).size,
-          highPriorityVisits: dayPlan.planned_visits?.filter(v => v.priority_level === 'HIGH').length || 0
-        }
-      };
-
-      currentWeek.days.push(dayData);
-      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
-      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
-
-      if (currentWeek.days.length === 6 || index === data.length - 1) {
-        weeks.push(currentWeek);
-        weekNumber++;
-        currentWeek = { 
-          week: weekNumber, 
-          days: [], 
-          summary: { totalVisits: 0, estimatedRevenue: 0 } 
-        };
-      }
-    });
-
-    return weeks;
-  } catch (error) {
-    console.error('Error getting daily breakdown:', error);
-    return [];
-  }
-};
-
-// Complete workflow for visit planning
-export const generateCompleteVisitPlan = async (mrName, month, year) => {
-  try {
-    console.log('🚀 Starting complete visit plan generation...');
-    
-    const planId = await createGeminiVisitPlan(mrName, month, year);
-    const planDetails = await getVisitPlanDetails(planId);
-    const weeklyBreakdown = await getDailyBreakdown(planId);
-    const insights = generatePlanInsights(planDetails, weeklyBreakdown);
-    
-    const completePlan = {
-      planId,
-      mrName,
-      month,
-      year,
-      summary: {
-        totalWorkingDays: planDetails?.total_working_days || 25,
-        totalPlannedVisits: planDetails?.total_planned_visits || 0,
-        estimatedRevenue: planDetails?.estimated_revenue || 0,
-        efficiencyScore: planDetails?.efficiency_score || 0,
-        coverageScore: calculateCoverageScore(weeklyBreakdown)
-      },
-      weeklyBreakdown,
-      insights
-    };
-    
-    console.log('✅ Complete visit plan generated successfully');
-    return completePlan;
-    
-  } catch (error) {
-    console.error('💥 Error generating complete visit plan:', error);
-    throw error;
-  }
-};
-
-// Helper functions for visit planning
-const generatePlanInsights = (planDetails, weeklyBreakdown) => {
-  const insights = [];
-  
-  const totalRevenue = parseFloat(planDetails?.estimated_revenue) || 0;
-  const totalVisits = planDetails?.total_planned_visits || 0;
-  const workingDays = planDetails?.total_working_days || 25;
-  
-  insights.push({
-    type: 'revenue',
-    title: 'Revenue Potential',
-    value: `₹${(totalRevenue / 100000).toFixed(1)}L`,
-    description: `Expected monthly revenue from ${totalVisits} visits`,
-    recommendation: totalRevenue > 500000 ? 'Excellent revenue potential' : 'Focus on high-value customers'
-  });
-
-  const avgVisitsPerDay = workingDays > 0 ? (totalVisits / workingDays).toFixed(1) : 0;
-  insights.push({
-    type: 'optimization',
-    title: 'Visit Efficiency',
-    value: `${avgVisitsPerDay}/day`,
-    description: 'Average visits per working day',
-    recommendation: avgVisitsPerDay >= 8 ? 'Optimal visit distribution' : 'Consider increasing daily visits'
-  });
-
-  const totalAreas = new Set(
-    weeklyBreakdown.flatMap(week => 
-      week.days.flatMap(day => 
-        day.visits?.map(v => v.area_name) || []
-      )
-    )
-  ).size;
-  
-  insights.push({
-    type: 'coverage',
-    title: 'Territory Coverage',
-    value: `${totalAreas} areas`,
-    description: 'Geographic areas covered in plan',
-    recommendation: 'AI-optimized geographic clustering'
-  });
-
-  return insights;
-};
-
-const calculateCoverageScore = (weeklyBreakdown) => {
-  if (!weeklyBreakdown || weeklyBreakdown.length === 0) return 0;
-  
-  const totalVisits = weeklyBreakdown.reduce((sum, week) => 
-    sum + week.summary.totalVisits, 0
-  );
-  
-  const totalAreas = new Set(
-    weeklyBreakdown.flatMap(week => 
-      week.days.flatMap(day => 
-        day.visits?.map(v => v.area_name) || []
-      )
-    )
-  ).size;
-  
-  return Math.min(100, (totalAreas * 4) + (totalVisits > 150 ? 20 : 10));
-};
 
 
-
-// Function to get latest order data with filters
+// Function to get latest order data with filters - Updated to use orders table
 export const fetchFilteredOrderData = async (filters = {}) => {
   try {
     let query = supabase
-      .from('order_items')
+      .from('orders')
       .select('*');
 
     // Apply filters
@@ -565,9 +357,10 @@ export const fetchFilteredOrderData = async (filters = {}) => {
   }
 };
 
-// Fetch state revenue summary for geographic heat map
+// Fetch state revenue summary for geographic heat map - Updated to use orders table
 export const fetchStateRevenueSummary = async (startDate = null, endDate = null) => {
   try {
+    // Try SQL function first
     const { data, error } = await supabase.rpc('get_state_revenue_summary', {
       p_date_start: startDate,
       p_date_end: endDate
@@ -620,7 +413,7 @@ export const fetchStateRevenueSummary = async (startDate = null, endDate = null)
   }
 };
 
-// Fetch MR state-wise analytics
+// Fetch MR state-wise analytics (unchanged - uses SQL function)
 export const fetchMRStateSalesAnalytics = async (filters = {}) => {
   try {
     const { data, error } = await supabase.rpc('get_mr_state_sales_analytics', {
