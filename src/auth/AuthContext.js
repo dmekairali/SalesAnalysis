@@ -1,4 +1,4 @@
-// src/auth/AuthContext.js - Authentication Context and Components
+// src/auth/AuthContext.js - Authentication Context (Step 1 - No Data Filtering)
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -41,10 +41,12 @@ export const AuthProvider = ({ children }) => {
           if (isValid) {
             setSessionToken(storedToken);
             setUser(userData);
+            console.log('✅ Session restored for user:', userData.full_name);
           } else {
             // Clear invalid session
             localStorage.removeItem('ayurml_session_token');
             localStorage.removeItem('ayurml_user');
+            console.log('❌ Invalid session, cleared storage');
           }
         } catch (error) {
           console.error('Session validation failed:', error);
@@ -77,6 +79,8 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const login = async (email, password) => {
     try {
+      console.log('🔐 Attempting login for:', email);
+      
       const { data, error } = await supabase.rpc('authenticate_user', {
         p_email: email,
         p_password: password
@@ -87,6 +91,8 @@ export const AuthProvider = ({ children }) => {
       if (data && data.length > 0) {
         const userData = data[0];
         const token = userData.session_token;
+
+        console.log('✅ Login successful for:', userData.full_name, 'Access Level:', userData.access_level);
 
         // Store in state
         setUser(userData);
@@ -101,7 +107,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       return { success: false, error: error.message };
     }
   };
@@ -109,6 +115,8 @@ export const AuthProvider = ({ children }) => {
   // Logout function
   const logout = async () => {
     try {
+      console.log('🚪 Logging out user:', user?.full_name);
+      
       if (sessionToken) {
         await supabase.rpc('logout_user', {
           p_session_token: sessionToken
@@ -122,40 +130,8 @@ export const AuthProvider = ({ children }) => {
       setSessionToken(null);
       localStorage.removeItem('ayurml_session_token');
       localStorage.removeItem('ayurml_user');
+      console.log('✅ Logout completed');
     }
-  };
-
-  // Check if user has access to specific data
-  const hasDataAccess = (mrName = null, territory = null, state = null) => {
-    if (!user) return false;
-
-    // Admin has access to everything
-    if (user.access_level === 'admin') return true;
-
-    // MR can only access their own data
-    if (user.access_level === 'mr') {
-      return mrName ? user.mr_name === mrName : true;
-    }
-
-    // Manager can access assigned territories/states
-    if (user.access_level === 'manager') {
-      if (user.assigned_territories?.includes('All')) return true;
-      if (territory && user.assigned_territories?.includes(territory)) return true;
-      if (state && user.assigned_states?.includes(state)) return true;
-      return false;
-    }
-
-    // Viewer has read-only access (implement based on requirements)
-    if (user.access_level === 'viewer') return true;
-
-    return false;
-  };
-
-  // Get filtered MR name for queries
-  const getFilteredMRName = () => {
-    if (!user) return null;
-    if (user.access_level === 'mr') return user.mr_name;
-    return null; // Admin and manager can see all
   };
 
   const value = {
@@ -164,8 +140,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
-    hasDataAccess,
-    getFilteredMRName,
     isAuthenticated: !!user,
     isAdmin: user?.access_level === 'admin',
     isManager: user?.access_level === 'manager',
@@ -227,6 +201,8 @@ export const LoginForm = () => {
 
         {/* Login Form */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Sign In</h2>
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center">
@@ -453,67 +429,4 @@ export const ProtectedRoute = ({ children, requiredLevel = null }) => {
   }
 
   return children;
-};
-
-// Data Access Filter Hook
-export const useDataFilter = () => {
-  const { user, getFilteredMRName } = useAuth();
-
-  const applyUserFilters = (baseFilters = {}) => {
-    if (!user) return baseFilters;
-
-    const userFilters = { ...baseFilters };
-
-    // For MR users, always filter by their MR name
-    if (user.access_level === 'mr') {
-      userFilters.selectedMR = user.mr_name;
-      userFilters.mrFilter = user.mr_name; // Additional filter key
-    }
-
-    // For manager users, apply territory/state filters if not already specified
-    if (user.access_level === 'manager') {
-      if (!userFilters.selectedState && user.assigned_states && !user.assigned_states.includes('All')) {
-        // If user has only one state, auto-select it
-        if (user.assigned_states.length === 1) {
-          userFilters.selectedState = user.assigned_states[0];
-        }
-      }
-    }
-
-    return userFilters;
-  };
-
-  const getAvailableOptions = (type, allOptions = []) => {
-    if (!user || user.access_level === 'admin') return allOptions;
-
-    switch (type) {
-      case 'mr':
-        if (user.access_level === 'mr') {
-          return [user.mr_name];
-        }
-        break;
-      
-      case 'state':
-        if (user.access_level === 'manager' && user.assigned_states && !user.assigned_states.includes('All')) {
-          return allOptions.filter(state => user.assigned_states.includes(state));
-        }
-        break;
-      
-      case 'territory':
-        if (user.access_level === 'manager' && user.assigned_territories && !user.assigned_territories.includes('All')) {
-          return allOptions.filter(territory => user.assigned_territories.includes(territory));
-        }
-        break;
-    }
-
-    return allOptions;
-  };
-
-  return {
-    applyUserFilters,
-    getAvailableOptions,
-    getFilteredMRName,
-    userAccessLevel: user?.access_level,
-    canAccessAll: user?.access_level === 'admin'
-  };
 };
