@@ -290,15 +290,14 @@ const AyurvedicDashboard = () => {
     return [...historicalData, ...predictedData];
   }, [filteredDashboardData, kpis.avgOrderValue]);
 
-  // Geographic data
+  // Geographic data - Updated to use state instead of city
   const geoData = useMemo(() => {
     const locationData = {};
     filteredDashboardData.forEach(order => {
-      const key = order.city;
+      const key = order.state; // Changed from city to state
       if (!locationData[key]) {
         locationData[key] = {
-          city: order.city,
-          state: order.state,
+          state: order.state, // Changed from city to state
           value: 0,
           orders: 0
         };
@@ -309,10 +308,19 @@ const AyurvedicDashboard = () => {
     return Object.values(locationData);
   }, [filteredDashboardData]);
 
-  const fulfillmentData = useMemo(() => [
-    { name: 'Factory', value: filteredDashboardData.filter(o => o.deliveredFrom === 'Factory').length },
-    { name: 'Distributor', value: filteredDashboardData.filter(o => o.deliveredFrom === 'Distributor').length }
-  ], [filteredDashboardData]);
+  // Updated fulfillment data to use actual distributor names
+  const fulfillmentData = useMemo(() => {
+    const fulfillmentCounts = {};
+    filteredDashboardData.forEach(order => {
+      const distributor = order.deliveredFrom || 'Unknown';
+      fulfillmentCounts[distributor] = (fulfillmentCounts[distributor] || 0) + 1;
+    });
+    
+    return Object.entries(fulfillmentCounts).map(([name, value]) => ({
+      name,
+      value
+    }));
+  }, [filteredDashboardData]);
 
   // Overview Tab Component
   const OverviewTab = () => {
