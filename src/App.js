@@ -4,7 +4,7 @@ import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon
 import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
 // Import modules
-import { initializeData, COLORS, calculateKPIs, getUniqueValues, fetchDashboardOrders, fetchStateRevenueSummary } from './data.js';
+import { initializeData, COLORS, calculateKPIs, getUniqueValues, fetchDashboardOrders } from './data.js';
 
 import { 
   Navigation, 
