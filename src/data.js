@@ -357,61 +357,6 @@ export const fetchFilteredOrderData = async (filters = {}) => {
   }
 };
 
-// Fetch state revenue summary for geographic heat map - Updated to use orders table
-export const fetchStateRevenueSummary = async (startDate = null, endDate = null) => {
-  try {
-    // Try SQL function first
-    const { data, error } = await supabase.rpc('get_state_revenue_summary', {
-      p_date_start: startDate,
-      p_date_end: endDate
-    });
-
-    if (error) {
-      console.error('Error calling get_state_revenue_summary:', error);
-      throw error;
-    }
-
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching state revenue summary:', error);
-    
-    // Fallback: try to get state data from orders table directly
-    try {
-      console.log('Attempting fallback query...');
-      let query = supabase
-        .from('orders')
-        .select('state, net_amount')
-        .not('state', 'is', null);
-
-      if (startDate) {
-        query = query.gte('order_date', startDate);
-      }
-      if (endDate) {
-        query = query.lte('order_date', endDate);
-      }
-
-      const { data: fallbackData, error: fallbackError } = await query;
-      
-      if (fallbackError) throw fallbackError;
-
-      // Aggregate by state
-      const stateMap = {};
-      fallbackData.forEach(order => {
-        const state = order.state;
-        if (!stateMap[state]) {
-          stateMap[state] = { state, orders: 0, value: 0 };
-        }
-        stateMap[state].orders += 1;
-        stateMap[state].value += parseFloat(order.net_amount) || 0;
-      });
-
-      return Object.values(stateMap).sort((a, b) => b.value - a.value);
-    } catch (fallbackError) {
-      console.error('Fallback query also failed:', fallbackError);
-      return [];
-    }
-  }
-};
 
 // Fetch MR state-wise analytics (unchanged - uses SQL function)
 export const fetchMRStateSalesAnalytics = async (filters = {}) => {
