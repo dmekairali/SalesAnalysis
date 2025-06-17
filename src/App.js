@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, RefreshCw, User, ChevronDown } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, RefreshCw, User, ChevronDown, Shield, AlertTriangle } from 'lucide-react';
 import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
 // Import modules
 import { initializeData, COLORS, calculateKPIs, getUniqueValues, fetchDashboardOrders } from './data.js';
+
+// Import data access control
+import { useDataAccess } from './utils/dataAccessControl.js';
 
 import { 
   Navigation, 
@@ -16,7 +19,7 @@ import {
 } from './components.js';
 import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
 
-// Import Authentication (Step 1 - Simple Auth)
+// Import Authentication
 import { AuthProvider, useAuth, ProtectedRoute, UserProfile } from './auth/AuthContext.js';
 
 // Import Visit Planner
@@ -32,8 +35,9 @@ const AyurvedicDashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   
-  // Auth hooks (Step 1 - Just get user info, no filtering yet)
-  const { user, isAuthenticated } = useAuth();
+  // Auth hooks with data access control
+  const { user, isAuthenticated, accessibleMRs } = useAuth();
+  const dataAccess = useDataAccess(user, accessibleMRs);
   
   const [filters, setFilters] = useState({
     dateRange: ['', ''],
@@ -46,7 +50,7 @@ const AyurvedicDashboard = () => {
   const [isFiltersVisible, setIsFiltersVisible] = useState(true);
   const [pendingFilters, setPendingFilters] = useState(filters);
 
-  // Load data (no user filtering yet)
+  // Load data with user-based filtering
   useEffect(() => {
     const loadData = async () => {
       if (!isAuthenticated) return;
@@ -54,18 +58,27 @@ const AyurvedicDashboard = () => {
       try {
         setLoading(true);
         console.log('📊 Loading dashboard data for user:', user?.full_name, '| Access Level:', user?.access_level);
+        console.log('👥 Accessible MRs:', accessibleMRs);
         
+        // Load raw data
         const { sampleOrderData: fetchedOrders } = await initializeData();
-        setOrderData(fetchedOrders || []);
-
         const fetchedDashboardOrders = await fetchDashboardOrders();
-        setDashboardOrderData(fetchedDashboardOrders || []);
 
-       
+        // Apply user-based filtering
+        const userFilteredOrders = dataAccess.filterOrderData(fetchedOrders || []);
+        const userFilteredDashboard = dataAccess.filterDashboardData(fetchedDashboardOrders || []);
+
+        setOrderData(userFilteredOrders);
+        setDashboardOrderData(userFilteredDashboard);
+
+        console.log('✅ Data loaded and filtered successfully');
+        console.log('📈 Total Orders Available:', fetchedOrders?.length || 0);
+        console.log('🔒 User Accessible Orders:', userFilteredOrders.length);
+        console.log('📊 Dashboard Orders:', userFilteredDashboard.length);
         
-        console.log('✅ Data loaded successfully');
-        console.log('📈 Orders:', fetchedOrders?.length || 0);
-        console.log('📊 Dashboard Orders:', fetchedDashboardOrders?.length || 0);
+        // Get data scope for logging
+        const scope = dataAccess.getDataScope(fetchedOrders || [], fetchedDashboardOrders || []);
+        console.log('🎯 Data Scope:', scope);
         
       } catch (error) {
         console.error("❌ Error initializing data:", error);
@@ -77,13 +90,21 @@ const AyurvedicDashboard = () => {
     };
     
     loadData();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, accessibleMRs]); // Re-load when user access changes
 
-  useEffect(() => {
-    console.log('[DataLoad_Debug] orderData state updated. Total Length:', orderData.length);
-  }, [orderData]);
+  // Create enhanced filter options based on user access
+  const filterOptions = useMemo(() => {
+    if (!orderData.length) return { mrs: [], states: [], territories: [], fulfillmentCenters: [] };
 
-  // Real-time notifications
+    return {
+      mrs: dataAccess.getAvailableMRs(orderData),
+      states: dataAccess.getAvailableStates(orderData),
+      territories: dataAccess.getAvailableTerritories(orderData),
+      fulfillmentCenters: [...new Set(orderData.map(order => order.deliveredFrom))].filter(Boolean).sort()
+    };
+  }, [orderData, dataAccess]);
+
+  // Real-time notifications (filtered for user access)
   useEffect(() => {
     if (!isAuthenticated || orderData.length === 0) return;
     
@@ -95,7 +116,8 @@ const AyurvedicDashboard = () => {
         amount: newOrder.netAmount,
         timestamp: new Date().toLocaleTimeString(),
         type: 'new_order',
-        ml_prediction: `Predicted next order: ₹${(newOrder.netAmount * 1.15).toFixed(0)}`
+        ml_prediction: `Predicted next order: ₹${(newOrder.netAmount * 1.15).toFixed(0)}`,
+        mr_name: newOrder.medicalRepresentative || newOrder.salesRepresentative
       };
       setNotifications(prev => [notification, ...prev.slice(0, 4)]);
     }, 20000);
@@ -103,7 +125,7 @@ const AyurvedicDashboard = () => {
     return () => clearInterval(interval);
   }, [orderData, isAuthenticated]);
 
-  // Create filteredData based on filters (no user filtering yet)
+  // Create filteredData based on filters (already user-filtered data)
   const filteredData = useMemo(() => {
     let data = orderData;
 
@@ -132,8 +154,8 @@ const AyurvedicDashboard = () => {
       );
     }
 
-    // Apply MR filter
-    if (filters.selectedMR) {
+    // Apply MR filter (only if user has access to multiple MRs)
+    if (filters.selectedMR && filterOptions.mrs.includes(filters.selectedMR)) {
       data = data.filter(order => 
         (order.medicalRepresentative || order.salesRepresentative || 'N/A') === filters.selectedMR
       );
@@ -144,8 +166,8 @@ const AyurvedicDashboard = () => {
       data = data.filter(order => order.deliveredFrom === filters.selectedFulfillmentCenter);
     }
 
-    // Apply state filter
-    if (filters.selectedState) {
+    // Apply state filter (only if user has access to multiple states)
+    if (filters.selectedState && filterOptions.states.includes(filters.selectedState)) {
       data = data.filter(order => order.state === filters.selectedState);
     }
 
@@ -155,32 +177,13 @@ const AyurvedicDashboard = () => {
     }
 
     return data;
-  }, [filters, orderData]);
+  }, [filters, orderData, filterOptions]);
 
-  // Create filteredDashboardData based on filters (no user filtering yet)
+  // Create filteredDashboardData based on filters (already user-filtered data)
   const filteredDashboardData = useMemo(() => {
-    let data = dashboardOrderData.map(o => ({
-      orderId: o.orderId,
-      date: o.date,
-      customerName: o.customerName,
-      customerId: o.customerId,
-      customerType: o.customerType,
-      city: o.city,
-      state: o.state,
-      territory: o.territory,
-      medicalRepresentative: o.medicalRepresentative,
-      netAmount: o.netAmount,
-      deliveredFrom: o.deliveredFrom,
-      discountTier: o.discountTier,
-      deliveryStatus: o.deliveryStatus,
-      products: o.products || [],
-      categories: o.categories || [],
-      totalQuantity: o.totalQuantity || 0,
-      lineItemsCount: o.lineItemsCount || 0
-    }));
+    let data = dashboardOrderData;
 
-    // Apply the same filters as above
-    // Apply date range filter
+    // Apply the same filters as above for dashboard data
     if (filters.dateRange?.[0] || filters.dateRange?.[1]) {
       const startDate = filters.dateRange[0] ? new Date(filters.dateRange[0]) : null;
       const endDate = filters.dateRange[1] ? new Date(filters.dateRange[1]) : null;
@@ -198,7 +201,6 @@ const AyurvedicDashboard = () => {
       });
     }
 
-    // Apply search term filter
     if (filters.searchTerm) {
       const lowerSearchTerm = filters.searchTerm.toLowerCase();
       data = data.filter(order =>
@@ -210,41 +212,48 @@ const AyurvedicDashboard = () => {
       );
     }
 
-    // Apply MR filter
-    if (filters.selectedMR) {
+    if (filters.selectedMR && filterOptions.mrs.includes(filters.selectedMR)) {
       data = data.filter(order =>
         (order.medicalRepresentative || 'N/A') === filters.selectedMR
       );
     }
 
-    // Apply fulfillment center filter
     if (filters.selectedFulfillmentCenter) {
       data = data.filter(order => order.deliveredFrom === filters.selectedFulfillmentCenter);
     }
 
-    // Apply state filter
-    if (filters.selectedState) {
+    if (filters.selectedState && filterOptions.states.includes(filters.selectedState)) {
       data = data.filter(order => order.state === filters.selectedState);
     }
 
-    // Apply fulfillment filter (existing chart filter)
     if (filters.selectedFulfillment) {
       data = data.filter(order => order.deliveredFrom === filters.selectedFulfillment);
     }
 
     return data;
-  }, [filters, dashboardOrderData]);
+  }, [filters, dashboardOrderData, filterOptions]);
 
-  // Enhanced export function with user info
+  // Enhanced export function with user info and access scope
   const exportWithMLInsights = () => {
     const kpis = calculateKPIs(filteredData);
+    const scope = dataAccess.getDataScope(filteredData, filteredDashboardData);
+    
     const exportData = [
       ['=== AYURVEDIC SALES REPORT WITH ML INSIGHTS ==='],
       [''],
       ['User Info:'],
       [`User: ${user?.full_name} (${user?.access_level})`],
-      [`Access Level: ${user?.access_level}`],
+      [`Access Level: ${user?.access_level?.toUpperCase()}`],
       user?.mr_name ? [`MR Name: ${user.mr_name}`] : [],
+      [`Data Scope: ${scope.dataScope}`],
+      [`Access Coverage: ${scope.accessPercentage}% of total system data`],
+      [''],
+      ['Data Access Summary:'],
+      [`Orders Accessible: ${scope.totalOrdersAccessible} of ${scope.totalOrdersInSystem} total`],
+      [`Unique Customers: ${scope.uniqueCustomers}`],
+      [`States Covered: ${scope.uniqueStates}`],
+      [`Territories: ${scope.uniqueTerritories}`],
+      user?.access_level === 'manager' ? [`Team MRs: ${scope.accessibleMRCount}`] : [],
       [''],
       ['Executive Summary:'],
       [`Total Revenue: ₹${kpis.totalRevenue.toLocaleString()}`],
@@ -257,20 +266,23 @@ const AyurvedicDashboard = () => {
       ['Growth Rate: +12.5% vs last month'],
       ['Top Opportunity: Chyawanprash in winter season'],
       [''],
-      ['Detailed Orders (Reflecting Current Filters):'],
-      ['Order ID', 'Date', 'Customer', 'Product', 'Amount', 'Status', 'Delivered From'],
+      ['Access Control Applied: Data filtered based on user permissions'],
+      [''],
+      ['Detailed Orders (Reflecting Current Filters & Access Level):'],
+      ['Order ID', 'Date', 'Customer', 'Product', 'Amount', 'Status', 'Delivered From', 'MR'],
       ...filteredData.map(order => [
         order.orderId, order.date, order.customerName, 
-        order.productName, order.netAmount, order.deliveryStatus, order.deliveredFrom
+        order.productName, order.netAmount, order.deliveryStatus, 
+        order.deliveredFrom, order.medicalRepresentative || order.salesRepresentative || 'N/A'
       ])
-    ].flat();
+    ].flat().filter(Boolean);
 
     const csvContent = exportData.map(row => Array.isArray(row) ? row.join(',') : row).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ayurvedic_ml_sales_report_${user?.employee_id}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `ayurvedic_ml_sales_report_${user?.employee_id}_${user?.access_level}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
   };
 
@@ -343,7 +355,7 @@ const AyurvedicDashboard = () => {
             <div className="flex flex-wrap space-x-1">
               {[
                 { id: 'overview', label: 'Overview', icon: TrendingUp },
-                { id: 'visitplanner', label: 'Visit Planner', icon: MapPin }
+                ...(dataAccess.hasAccess('mr') ? [{ id: 'visitplanner', label: 'Visit Planner', icon: MapPin }] : [])
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -424,7 +436,13 @@ const AyurvedicDashboard = () => {
     </nav>
   );
 
-  // Overview Tab Component
+  // Get data access scope for display
+  const dataScope = useMemo(() => {
+    if (!orderData.length || !dashboardOrderData.length) return null;
+    return dataAccess.getDataScope(orderData, dashboardOrderData);
+  }, [orderData, dashboardOrderData, dataAccess]);
+
+  // Overview Tab Component with Access Control
   const OverviewTab = () => {
     const { selectedFulfillment } = filters;
     const areChartFiltersActive = !!(selectedFulfillment);
@@ -438,29 +456,69 @@ const AyurvedicDashboard = () => {
 
     return (
       <div className="space-y-6">
-        {/* User Access Info Banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <User className="h-5 w-5 text-blue-600 mr-2" />
-            <div>
-              <h4 className="font-semibold text-blue-800">
-                Welcome, {user?.full_name}! 
-                <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded-full">
-                  {user?.access_level?.toUpperCase()}
-                </span>
-              </h4>
-              <p className="text-sm text-blue-700">
-                {user?.access_level === 'admin' && 'You have full access to all dashboard data and features.'}
-                {user?.access_level === 'manager' && 'You have regional access to assigned territories and states.'}
-                {user?.access_level === 'mr' && `Showing your personal data and performance metrics.`}
-                {user?.access_level === 'viewer' && 'You have read-only access to dashboard data.'}
-                {user?.mr_name && ` | MR: ${user.mr_name}`}
-              </p>
+        {/* Enhanced User Access Info Banner */}
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center">
+              <Shield className="h-6 w-6 text-blue-600 mr-3" />
+              <div>
+                <h4 className="font-semibold text-blue-800 flex items-center">
+                  Welcome, {user?.full_name}! 
+                  <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded-full">
+                    {user?.access_level?.toUpperCase()}
+                  </span>
+                  {user?.mr_name && (
+                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      MR: {user.mr_name}
+                    </span>
+                  )}
+                </h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  {dataAccess.getAccessMessage()}
+                </p>
+                {dataScope && (
+                  <div className="text-xs text-blue-600 mt-2 flex items-center space-x-4">
+                    <span>📊 Data Access: {dataScope.accessPercentage}% of system</span>
+                    <span>👥 Customers: {dataScope.uniqueCustomers}</span>
+                    <span>🗺️ States: {dataScope.uniqueStates}</span>
+                    {user?.access_level === 'manager' && (
+                      <span>👥 Team: {dataScope.accessibleMRCount} MRs</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Access Level Indicator */}
+            <div className="text-right">
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                user?.access_level === 'admin' ? 'bg-red-100 text-red-800' :
+                user?.access_level === 'manager' ? 'bg-blue-100 text-blue-800' :
+                user?.access_level === 'mr' ? 'bg-green-100 text-green-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                <Shield className="h-4 w-4 mr-1" />
+                {dataScope?.dataScope || 'Limited'} Access
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Filters */}
+        {/* Access Restrictions Warning (if applicable) */}
+        {user?.access_level !== 'admin' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="flex items-center">
+              <AlertTriangle className="h-4 w-4 text-yellow-600 mr-2" />
+              <p className="text-sm text-yellow-800">
+                <strong>Data Filtering Active:</strong> Showing data based on your access level. 
+                {user?.access_level === 'mr' && ' Only your personal performance data is displayed.'}
+                {user?.access_level === 'manager' && ` Data for your team (${accessibleMRs.length} MRs) and assigned territories.`}
+                {user?.access_level === 'viewer' && ' Read-only access to assigned territory data.'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Filters with Access-based Options */}
         <EnhancedOverviewFilters
           filters={filters}
           setFilters={setFilters}
@@ -469,6 +527,7 @@ const AyurvedicDashboard = () => {
           setIsFiltersVisible={setIsFiltersVisible}
           pendingFilters={pendingFilters}
           setPendingFilters={setPendingFilters}
+          availableOptions={filterOptions} // Pass available options based on access
         />
 
         {/* Clear Chart Filters Button */}
@@ -484,16 +543,21 @@ const AyurvedicDashboard = () => {
           </div>
         )}
 
-        {/* Results Summary */}
+        {/* Enhanced Results Summary with Access Context */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="text-lg font-semibold text-blue-900">
-                Showing {filteredData.length} of {orderData.length} orders
+                Showing {filteredData.length} of {orderData.length} accessible orders
               </div>
               {filteredData.length !== orderData.length && (
                 <span className="text-sm text-blue-600">
                   ({orderData.length - filteredData.length} orders filtered out)
+                </span>
+              )}
+              {dataScope && dataScope.totalOrdersInSystem > orderData.length && (
+                <span className="text-xs text-blue-500 bg-blue-100 px-2 py-1 rounded-full">
+                  {dataScope.totalOrdersInSystem - orderData.length} orders restricted by access level
                 </span>
               )}
             </div>
@@ -587,7 +651,33 @@ const AyurvedicDashboard = () => {
           />
         </div>
 
-       
+        {/* Data Access Summary Card */}
+        {dataScope && (
+          <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Shield className="h-5 w-5 mr-2 text-green-600" />
+              Your Data Access Summary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900">{dataScope.totalOrdersAccessible}</div>
+                <div className="text-sm text-gray-600">Orders Accessible</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{dataScope.uniqueCustomers}</div>
+                <div className="text-sm text-gray-600">Unique Customers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{dataScope.uniqueStates}</div>
+                <div className="text-sm text-gray-600">States Covered</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{dataScope.accessPercentage}%</div>
+                <div className="text-sm text-gray-600">System Coverage</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -596,7 +686,11 @@ const AyurvedicDashboard = () => {
   if (loading && !isAuthenticated) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl font-semibold">Loading Dashboard Data...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <div className="text-xl font-semibold">Loading Dashboard Data...</div>
+          <div className="text-sm text-gray-600 mt-2">Applying access controls...</div>
+        </div>
       </div>
     );
   }
@@ -617,7 +711,22 @@ const AyurvedicDashboard = () => {
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'visitplanner' && <MRVisitPlannerDashboard />}
+        {activeTab === 'visitplanner' && dataAccess.hasAccess('mr') && (
+          <MRVisitPlannerDashboard 
+            userAccessLevel={user?.access_level}
+            accessibleMRs={filterOptions.mrs}
+            defaultMR={user?.access_level === 'mr' ? user?.mr_name : null}
+          />
+        )}
+        {activeTab === 'visitplanner' && !dataAccess.hasAccess('mr') && (
+          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+            <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h3>
+            <p className="text-gray-600">
+              Visit Planner requires MR or Manager access level. Contact your administrator for access.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
