@@ -12,8 +12,7 @@ import {
   MLInsightsCompact, 
   SalesDriversCompact,
   SalesTrendChart,
-  FulfillmentChart,
-  GeoHeatMap
+  FulfillmentChart
 } from './components.js';
 import { EnhancedOverviewFilters, SearchableDropdown } from './enhancedFilters.js';
 
@@ -26,7 +25,6 @@ import MRVisitPlannerDashboard from './visitPlanner/MRVisitPlannerDashboard';
 const AyurvedicDashboard = () => {
   const [orderData, setOrderData] = useState([]);
   const [dashboardOrderData, setDashboardOrderData] = useState([]);
-  const [geoData, setGeoData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showMLAnalytics, setShowMLAnalytics] = useState(false);
@@ -63,20 +61,16 @@ const AyurvedicDashboard = () => {
         const fetchedDashboardOrders = await fetchDashboardOrders();
         setDashboardOrderData(fetchedDashboardOrders || []);
 
-        // Load geographic data using SQL function
-        const fetchedGeoData = await fetchStateRevenueSummary();
-        setGeoData(fetchedGeoData || []);
+       
         
         console.log('✅ Data loaded successfully');
         console.log('📈 Orders:', fetchedOrders?.length || 0);
         console.log('📊 Dashboard Orders:', fetchedDashboardOrders?.length || 0);
-        console.log('🗺️ Geographic Data:', fetchedGeoData?.length || 0);
         
       } catch (error) {
         console.error("❌ Error initializing data:", error);
         setOrderData([]);
         setDashboardOrderData([]);
-        setGeoData([]);
       } finally {
         setLoading(false);
       }
@@ -593,8 +587,7 @@ const AyurvedicDashboard = () => {
           />
         </div>
 
-        {/* Geographic Heat Map */}
-        <GeoHeatMap data={geoData} />
+       
       </div>
     );
   };
