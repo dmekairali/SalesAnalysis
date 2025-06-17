@@ -1,24 +1,23 @@
-// Update MRVisitPlannerDashboard.js to use real data
+// Updated MRVisitPlannerDashboard.js with Access Control
 
 import React, { useState, useEffect, useMemo } from 'react';
-//import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Route, Calendar as CalendarIcon} from 'lucide-react';
-import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus  } from 'lucide-react';
+import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus, Shield, Lock  } from 'lucide-react';
 
-// ADD IMPORT at the top:
+// Add imports
 import {COLORS, formatIndianCurrency, formatCurrencyByContext } from '../data.js';
-
-// Add these imports at the top
 import { reactVisitPlannerML } from '../visitplannerdata.js';
-
-// ADD THIS IMPORT - The real analytics component
 import VisitPlannerAnalyticsReal from './VisitPlannerAnalyticsReal.js';
-
-
-
 import { SearchableDropdown } from '../enhancedFilters.js';
+import { useAuth } from '../auth/AuthContext.js';
 
-const MRVisitPlannerDashboard = () => {
-  const [selectedMR, setSelectedMR] = useState('');
+const MRVisitPlannerDashboard = ({ 
+  userAccessLevel, 
+  accessibleMRs = [], 
+  defaultMR = null 
+}) => {
+  const { user, canAccessMRData } = useAuth();
+  
+  const [selectedMR, setSelectedMR] = useState(defaultMR || '');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [visitPlan, setVisitPlan] = useState(null);
@@ -27,6 +26,7 @@ const MRVisitPlannerDashboard = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [mrList, setMrList] = useState([]);
   const [loadingMRs, setLoadingMRs] = useState(true);
+  const [accessError, setAccessError] = useState('');
  
   const [clusterStatus, setClusterStatus] = useState(null);
   const viewToggleConfig = [
@@ -41,25 +41,142 @@ const MRVisitPlannerDashboard = () => {
     process.env.REACT_APP_SUPABASE_ANON_KEY
   );
 
+  // Fetch MR list based on user access level
   useEffect(() => {
-  const checkClusterStatus = async () => {
-    if (!selectedMR) return;
-    
-    try {
-      const clusters = await getExistingClusters(selectedMR);
-      setClusterStatus({
-        hasExistingClusters: clusters.length > 0,
-        clusterCount: clusters.length,
-        totalAreas: clusters.reduce((sum, cluster) => sum + cluster.areas.length, 0)
-      });
-    } catch (error) {
-      console.error('Error checking cluster status:', error);
-      setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0 });
+    const fetchMRs = async () => {
+      setLoadingMRs(true);
+      setAccessError('');
+      
+      try {
+        let availableMRs = [];
+        
+        // Use provided accessible MRs or fetch based on access level
+        if (accessibleMRs.length > 0) {
+          availableMRs = accessibleMRs;
+          console.log('📋 Using provided accessible MRs:', availableMRs.length);
+        } else {
+          // Fallback: fetch from database and filter by access
+          const { data, error } = await supabase
+            .from('medical_representatives')
+            .select('employee_id, name, territory, is_active')
+            .eq('is_active', true)
+            .order('name');
+
+          if (error) {
+            console.warn('Medical representatives table access failed, trying mr_visits fallback');
+            // Fallback to mr_visits table
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from('mr_visits')
+              .select('mr_name')
+              .not('mr_name', 'is', null);
+
+            if (!fallbackError && fallbackData) {
+              const uniqueMRs = [...new Set(fallbackData.map(item => item.mr_name))];
+              
+              // Filter based on user access
+              if (user?.access_level === 'admin') {
+                availableMRs = uniqueMRs;
+              } else if (user?.access_level === 'manager') {
+                // Use accessible MRs from auth context
+                availableMRs = uniqueMRs.filter(mr => canAccessMRData(mr));
+              } else if (user?.access_level === 'mr') {
+                availableMRs = user?.mr_name ? [user.mr_name] : [];
+              } else {
+                availableMRs = []; // Viewers cannot access visit planner
+              }
+            } else {
+              throw new Error('Unable to fetch MR list from any source');
+            }
+          } else {
+            const allMRs = data.map(mr => mr.name);
+            
+            // Filter based on user access
+            if (user?.access_level === 'admin') {
+              availableMRs = allMRs;
+            } else if (user?.access_level === 'manager') {
+              availableMRs = allMRs.filter(mr => canAccessMRData(mr));
+            } else if (user?.access_level === 'mr') {
+              availableMRs = user?.mr_name ? [user.mr_name] : [];
+            } else {
+              availableMRs = [];
+            }
+          }
+        }
+
+        setMrList(availableMRs.sort());
+        
+        // Auto-select MR based on access level
+        if (availableMRs.length > 0 && !selectedMR) {
+          if (user?.access_level === 'mr' && user?.mr_name) {
+            setSelectedMR(user.mr_name);
+          } else if (defaultMR && availableMRs.includes(defaultMR)) {
+            setSelectedMR(defaultMR);
+          } else {
+            setSelectedMR(availableMRs[0]);
+          }
+        }
+
+        // Check access for current selection
+        if (selectedMR && !availableMRs.includes(selectedMR)) {
+          setAccessError(`Access denied: You don't have permission to view data for ${selectedMR}`);
+          setSelectedMR(availableMRs.length > 0 ? availableMRs[0] : '');
+        }
+
+        console.log('✅ MR list loaded with access control:', {
+          userLevel: user?.access_level,
+          totalAvailable: availableMRs.length,
+          selectedMR: selectedMR || availableMRs[0]
+        });
+
+      } catch (error) {
+        console.error('Error fetching MRs:', error);
+        setAccessError('Error loading MR list. Please contact administrator.');
+      }
+      
+      setLoadingMRs(false);
+    };
+
+    fetchMRs();
+  }, [user, accessibleMRs, canAccessMRData]);
+
+  // Validate MR access when selection changes
+  useEffect(() => {
+    if (selectedMR) {
+      if (!canAccessMRData(selectedMR)) {
+        setAccessError(`Access denied: You don't have permission to view data for ${selectedMR}`);
+        return;
+      } else {
+        setAccessError('');
+      }
     }
+  }, [selectedMR, canAccessMRData]);
+
+  useEffect(() => {
+    const checkClusterStatus = async () => {
+      if (!selectedMR || !canAccessMRData(selectedMR)) return;
+      
+      try {
+        const clusters = await getExistingClusters(selectedMR);
+        setClusterStatus({
+          hasExistingClusters: clusters.length > 0,
+          clusterCount: clusters.length,
+          totalAreas: clusters.reduce((sum, cluster) => sum + cluster.areas.length, 0)
+        });
+      } catch (error) {
+        console.error('Error checking cluster status:', error);
+        setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0 });
+      }
+    };
+    
+    checkClusterStatus();
+  }, [selectedMR, canAccessMRData]);
+
+  // Function to get existing clusters (placeholder - implement based on your cluster storage)
+  const getExistingClusters = async (mrName) => {
+    // This would typically fetch from your cluster storage
+    // For now, returning empty array
+    return [];
   };
-  
-  checkClusterStatus();
-}, [selectedMR]);
   
  // Calculate customer breakdown for the entire plan
   const customerBreakdown = useMemo(() => {
@@ -108,188 +225,134 @@ const MRVisitPlannerDashboard = () => {
     return breakdown;
   }, [visitPlan]);
 
-  
-  
-  // Fetch MR list from medical_representatives table
-  useEffect(() => {
-    const fetchMRs = async () => {
-      setLoadingMRs(true);
-      try {
-        const { data, error } = await supabase
-          .from('medical_representatives')
-          .select('employee_id, name, territory, is_active')
-          .eq('is_active', true)
-          .order('name');
+  // Generate visit plan with access control
+  const generateVisitPlan = async () => {
+    if (!selectedMR) {
+      alert('Please select an MR first');
+      return;
+    }
 
-        if (error) {
-          console.error('Error fetching MRs:', error);
-          // Fallback to mr_visits table if medical_representatives doesn't have data
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('mr_visits')
-            .select('mr_name')
-            .not('mr_name', 'is', null);
+    // Check access before generating plan
+    if (!canAccessMRData(selectedMR)) {
+      setAccessError(`Access denied: You don't have permission to generate plans for ${selectedMR}`);
+      return;
+    }
 
-          if (!fallbackError && fallbackData) {
-            const uniqueMRs = [...new Set(fallbackData.map(item => item.mr_name))];
-            setMrList(uniqueMRs.sort());
-            if (uniqueMRs.length > 0 && !selectedMR) {
-              setSelectedMR(uniqueMRs[0]);
-            }
-          }
-        } else {
-          const mrNames = data.map(mr => mr.name);
-          setMrList(mrNames);
-          if (mrNames.length > 0 && !selectedMR) {
-            setSelectedMR(mrNames[0]);
-          }
-        }
-      } catch (error) {
-        console.error('Error in fetchMRs:', error);
-      }
-      setLoadingMRs(false);
-    };
-
-    fetchMRs();
-  }, []);
-/*
-const generateVisitPlan = async () => {
-  if (!selectedMR) {
-    alert('Please select an MR first');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    console.log('🎯 Generating complete visit plan...');
+    setLoading(true);
+    setAccessError('');
     
-    const completePlan = await generateCompleteVisitPlan(selectedMR, selectedMonth, selectedYear);
-    
-    setVisitPlan(completePlan);
-    console.log('✅ Visit plan generated successfully');
-    
-  } catch (error) {
-    console.error('💥 Error generating visit plan:', error);
-    alert('Error generating visit plan: ' + error.message);
-  }
-  setLoading(false);
-};
- */ 
-
-
-// Replace your existing generateVisitPlan function with this:
-const generateVisitPlan = async () => {
-  if (!selectedMR) {
-    alert('Please select an MR first');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
-    
-    // Use the new React visit planner
-    const result = await reactVisitPlannerML.generateVisitPlan(
-      selectedMR, 
-      selectedMonth, 
-      selectedYear, 
-      15 // minVisitsPerDay
-    );
-    
-    console.log('Visit Plan Result:', result);
-    
-    if (result.success) {
-      // Transform to match your component expectations
-      const transformedPlan = {
-        mrName: selectedMR,
-        month: selectedMonth,
-        year: selectedYear,
-        summary: {
-          totalWorkingDays: result.summary.total_working_days,
-          totalPlannedVisits: result.summary.total_planned_visits,
-          estimatedRevenue: result.summary.estimated_revenue,
-          efficiencyScore: parseFloat(result.summary.efficiency_score),
-          coverageScore: 90 // Default
-        },
-        weeklyBreakdown: transformDailyPlansToWeekly(result.dailyPlans),
-        insights: result.insights.map(insight => ({
-          type: insight.type,
-          title: insight.title,
-          value: insight.value,
-          description: insight.description,
-          recommendation: `Status: ${insight.status}`
-        }))
-      };
+    try {
+      console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
+      console.log('🔒 Access check passed for:', selectedMR);
       
-      setVisitPlan(transformedPlan);
-    } else {
-      console.error('Plan generation failed:', result.error);
-      alert(`Plan generation failed: ${result.error}`);
-    }
-  } catch (error) {
-    console.error('Error generating visit plan:', error);
-    alert('Error generating visit plan. Please try again.');
-  }
-  setLoading(false);
-};
-
-// Add this helper function to transform daily plans to weekly breakdown
-const transformDailyPlansToWeekly = (dailyPlans) => {
-  if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
-
-  const weeks = [];
-  let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
-  let weekNumber = 1;
-
-  const workingDays = dailyPlans.filter(d => !d.isSunday);
-
-  workingDays.forEach((dayPlan, index) => {
-    const dayData = {
-      date: dayPlan.date,
-      dayName: dayPlan.dayName,
-      visits: dayPlan.clusters.flatMap(cluster => 
-        cluster.customers.map(customer => ({
-          customer_name: customer.customer_name,
-          customer_phone: customer.customer_phone,
-          customer_type: customer.customer_type,
-          area_name: cluster.area_name,
-          scheduled_time: `${9 + Math.floor(index % 8)}:00`, // Simple time allocation
-          expected_order_value: customer.predicted_order_value || 2000,
-          order_probability: customer.prospect_generated ? 0.3 : 0.7,
-          priority: cluster.area_priority === 'PRIMARY' ? 'HIGH' : 
-                   cluster.area_priority === 'ROUTE_ROTATION' ? 'HIGH' :
-                   cluster.area_priority === 'PROSPECT' ? 'LOW' : 'MEDIUM'
-        }))
-      ),
-      summary: {
-        totalVisits: dayPlan.totalVisits,
-        estimatedRevenue: dayPlan.clusters.reduce((sum, cluster) => 
-          sum + cluster.customers.reduce((cSum, customer) => 
-            cSum + (customer.predicted_order_value || 2000), 0), 0),
-        areasVisited: new Set(dayPlan.clusters.map(c => c.area_name)).size,
-        highPriorityVisits: dayPlan.clusters.filter(c => 
-          c.area_priority === 'PRIMARY' || c.area_priority === 'ROUTE_ROTATION'
-        ).reduce((sum, c) => sum + c.customers.length, 0)
+      // Use the React visit planner
+      const result = await reactVisitPlannerML.generateVisitPlan(
+        selectedMR, 
+        selectedMonth, 
+        selectedYear, 
+        15 // minVisitsPerDay
+      );
+      
+      console.log('Visit Plan Result:', result);
+      
+      if (result.success) {
+        // Transform to match your component expectations
+        const transformedPlan = {
+          mrName: selectedMR,
+          month: selectedMonth,
+          year: selectedYear,
+          summary: {
+            totalWorkingDays: result.summary.total_working_days,
+            totalPlannedVisits: result.summary.total_planned_visits,
+            estimatedRevenue: result.summary.estimated_revenue,
+            efficiencyScore: parseFloat(result.summary.efficiency_score),
+            coverageScore: 90 // Default
+          },
+          weeklyBreakdown: transformDailyPlansToWeekly(result.dailyPlans),
+          insights: result.insights.map(insight => ({
+            type: insight.type,
+            title: insight.title,
+            value: insight.value,
+            description: insight.description,
+            recommendation: `Status: ${insight.status}`
+          }))
+        };
+        
+        setVisitPlan(transformedPlan);
+        console.log('✅ Visit plan generated successfully for', selectedMR);
+      } else {
+        console.error('Plan generation failed:', result.error);
+        alert(`Plan generation failed: ${result.error}`);
       }
-    };
-
-    currentWeek.days.push(dayData);
-    currentWeek.summary.totalVisits += dayData.summary.totalVisits;
-    currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
-
-    // If we have 6 days (Mon-Sat) or it's the last day, close the week
-    if (currentWeek.days.length === 6 || index === workingDays.length - 1) {
-      weeks.push(currentWeek);
-      weekNumber++;
-      currentWeek = { 
-        week: weekNumber, 
-        days: [], 
-        summary: { totalVisits: 0, estimatedRevenue: 0 } 
-      };
+    } catch (error) {
+      console.error('Error generating visit plan:', error);
+      if (error.message.includes('access') || error.message.includes('permission')) {
+        setAccessError('Access denied: Insufficient permissions to generate visit plan');
+      } else {
+        alert('Error generating visit plan. Please try again.');
+      }
     }
-  });
+    setLoading(false);
+  };
 
-  return weeks;
-};
+  // Add this helper function to transform daily plans to weekly breakdown
+  const transformDailyPlansToWeekly = (dailyPlans) => {
+    if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
+
+    const weeks = [];
+    let currentWeek = { week: 1, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
+    let weekNumber = 1;
+
+    const workingDays = dailyPlans.filter(d => !d.isSunday);
+
+    workingDays.forEach((dayPlan, index) => {
+      const dayData = {
+        date: dayPlan.date,
+        dayName: dayPlan.dayName,
+        visits: dayPlan.clusters.flatMap(cluster => 
+          cluster.customers.map(customer => ({
+            customer_name: customer.customer_name,
+            customer_phone: customer.customer_phone,
+            customer_type: customer.customer_type,
+            area_name: cluster.area_name,
+            scheduled_time: `${9 + Math.floor(index % 8)}:00`,
+            expected_order_value: customer.predicted_order_value || 2000,
+            order_probability: customer.prospect_generated ? 0.3 : 0.7,
+            priority: cluster.area_priority === 'PRIMARY' ? 'HIGH' : 
+                     cluster.area_priority === 'ROUTE_ROTATION' ? 'HIGH' :
+                     cluster.area_priority === 'PROSPECT' ? 'LOW' : 'MEDIUM'
+          }))
+        ),
+        summary: {
+          totalVisits: dayPlan.totalVisits,
+          estimatedRevenue: dayPlan.clusters.reduce((sum, cluster) => 
+            sum + cluster.customers.reduce((cSum, customer) => 
+              cSum + (customer.predicted_order_value || 2000), 0), 0),
+          areasVisited: new Set(dayPlan.clusters.map(c => c.area_name)).size,
+          highPriorityVisits: dayPlan.clusters.filter(c => 
+            c.area_priority === 'PRIMARY' || c.area_priority === 'ROUTE_ROTATION'
+          ).reduce((sum, c) => sum + c.customers.length, 0)
+        }
+      };
+
+      currentWeek.days.push(dayData);
+      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
+      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
+
+      // If we have 6 days (Mon-Sat) or it's the last day, close the week
+      if (currentWeek.days.length === 6 || index === workingDays.length - 1) {
+        weeks.push(currentWeek);
+        weekNumber++;
+        currentWeek = { 
+          week: weekNumber, 
+          days: [], 
+          summary: { totalVisits: 0, estimatedRevenue: 0 } 
+        };
+      }
+    });
+
+    return weeks;
+  };
 
   // Get month name
   const getMonthName = (month) => {
@@ -310,7 +373,7 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
     }
   };
 
-    // Enhanced Customer Breakdown Cards Component
+  // Enhanced Customer Breakdown Cards Component
   const CustomerBreakdownCards = () => {
     if (!customerBreakdown) return null;
 
@@ -379,7 +442,6 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
     );
   };
 
-
   // Overview component
   const OverviewComponent = () => (
     <div className="space-y-6">
@@ -410,7 +472,6 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
             <div>
               <p className="text-sm text-gray-600">Expected Revenue</p>
               <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(visitPlan?.summary?.estimatedRevenue || 0, 'card')}</p>
-
             </div>
             <TrendingUp className="h-8 w-8 text-purple-500" />
           </div>
@@ -437,35 +498,35 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
         </div>
       </div>
 
-    {/* AI Insights */}
-<div className="bg-white p-6 rounded-lg shadow-md">
-  <h3 className="text-lg font-semibold mb-4 flex items-center">
-    <Brain className="h-5 w-5 mr-2 text-purple-600" />
-    AI-Powered Insights & Recommendations
-  </h3>
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {visitPlan?.insights?.map((insight, index) => (
-      <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-medium text-gray-900">{insight.title}</h4>
-          <span className={`px-2 py-1 text-xs rounded-full ${
-            insight.type === 'risk' ? 'bg-red-100 text-red-800' :
-            insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
-            'bg-blue-100 text-blue-800'
-          }`}>
-            {insight.type.toUpperCase()}
-          </span>
+      {/* AI Insights */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <Brain className="h-5 w-5 mr-2 text-purple-600" />
+          AI-Powered Insights & Recommendations
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {visitPlan?.insights?.map((insight, index) => (
+            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-900">{insight.title}</h4>
+                <span className={`px-2 py-1 text-xs rounded-full ${
+                  insight.type === 'risk' ? 'bg-red-100 text-red-800' :
+                  insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}>
+                  {insight.type.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 mb-2">{insight.value}</p>
+              <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
+              <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
+            </div>
+          )) || []}
         </div>
-        <p className="text-2xl font-bold text-gray-900 mb-2">{insight.value}</p>
-        <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
-        <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
       </div>
-    )) || []}
-  </div>
-</div>
 
-{/* Customer Breakdown Cards - Now appears after AI insights */}
-<CustomerBreakdownCards />
+      {/* Customer Breakdown Cards - Now appears after AI insights */}
+      <CustomerBreakdownCards />
 
       {/* Weekly Calendar Overview */}
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -515,7 +576,7 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Access Control */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div>
@@ -527,42 +588,80 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
               Generate intelligent visit plans based on customer behavior, route optimization, and revenue potential
             </p>
 
-    {/* ADD THIS HERE */}
-  {clusterStatus && (
-  <div className={`mt-2 flex items-center text-sm ${
-    clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-600'
-  }`}>
-    <Brain className="h-4 w-4 mr-1" />
-    Clusters: {clusterStatus.hasExistingClusters ? `${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas` : 'No clusters created'}
-    {clusterStatus.hasExistingClusters && (
-      <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
-    )}
-  </div>
-)}
+            {/* Access Control Info */}
+            <div className="mt-3 flex items-center space-x-4 text-sm">
+              <div className="flex items-center">
+                <Shield className="h-4 w-4 mr-1 text-blue-600" />
+                <span className="text-blue-800 font-medium">
+                  Access Level: {user?.access_level?.toUpperCase()}
+                </span>
+              </div>
+              {user?.access_level === 'mr' && (
+                <div className="flex items-center">
+                  <User className="h-4 w-4 mr-1 text-green-600" />
+                  <span className="text-green-800">Personal Visit Planner</span>
+                </div>
+              )}
+              {user?.access_level === 'manager' && (
+                <div className="flex items-center">
+                  <Users className="h-4 w-4 mr-1 text-purple-600" />
+                  <span className="text-purple-800">Team Access: {mrList.length} MRs</span>
+                </div>
+              )}
+            </div>
+
+            {/* Access Error Display */}
+            {accessError && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center">
+                  <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
+                  <span className="text-red-800 text-sm font-medium">{accessError}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Cluster Status */}
+            {clusterStatus && selectedMR && canAccessMRData(selectedMR) && (
+              <div className={`mt-2 flex items-center text-sm ${
+                clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-600'
+              }`}>
+                <Brain className="h-4 w-4 mr-1" />
+                Clusters: {clusterStatus.hasExistingClusters ? `${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas` : 'No clusters created'}
+                {clusterStatus.hasExistingClusters && (
+                  <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
+                )}
+              </div>
+            )}
           </div>
           
           <div className="flex flex-wrap items-center space-x-2 sm:space-x-4">
             <button
               onClick={generateVisitPlan}
-              disabled={loading || !selectedMR}
+              disabled={loading || !selectedMR || !canAccessMRData(selectedMR) || !!accessError}
               className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'Generating...' : 'Regenerate Plan'}
             </button>
             
-            <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <button 
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={!visitPlan || !!accessError}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export Plan
             </button>
           </div>
         </div>
 
-        {/* Controls */}
+        {/* Controls with Access Control */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Medical Representative
+              {user?.access_level !== 'admin' && (
+                <Shield className="inline h-3 w-3 ml-1 text-orange-500" title="Limited by access permissions" />
+              )}
             </label>
             {loadingMRs ? (
               <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
@@ -572,13 +671,28 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
               <select
                 value={selectedMR}
                 onChange={(e) => setSelectedMR(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                disabled={user?.access_level === 'mr' || mrList.length <= 1}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                  user?.access_level === 'mr' ? 'bg-gray-50 cursor-not-allowed' : ''
+                } ${!canAccessMRData(selectedMR) ? 'border-red-300 bg-red-50' : ''}`}
               >
                 <option value="">Select an MR...</option>
                 {mrList.map(mr => (
                   <option key={mr} value={mr}>{mr}</option>
                 ))}
               </select>
+            )}
+            {user?.access_level === 'mr' && (
+              <p className="text-xs text-gray-500 mt-1">
+                <Lock className="inline h-3 w-3 mr-1" />
+                Locked to your personal account
+              </p>
+            )}
+            {user?.access_level === 'manager' && (
+              <p className="text-xs text-blue-600 mt-1">
+                <Users className="inline h-3 w-3 mr-1" />
+                {mrList.length} team members accessible
+              </p>
             )}
           </div>
           
@@ -614,46 +728,57 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
             </select>
           </div>
         </div>
-</div>
+      </div>
 
-            
-     
+      {/* Access Denied State */}
+      {accessError && (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h3>
+          <p className="text-gray-600 mb-4">{accessError}</p>
+          {user?.access_level === 'viewer' && (
+            <p className="text-sm text-blue-600">
+              Contact your manager to request MR or Manager access level for visit planning features.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Loading State */}
-      {loading && (
+      {loading && !accessError && (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <RefreshCw className="h-12 w-12 text-green-600 animate-spin mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating Optimal Visit Plan</h3>
           <p className="text-gray-600">
-            Analyzing customer patterns, route optimization, and ML predictions...
+            Analyzing customer patterns, route optimization, and ML predictions for {selectedMR}...
           </p>
         </div>
       )}
 
       {/* No MR Selected State */}
-      {(!visitPlan && !loading) && (
-  <div className="bg-white rounded-lg shadow-md p-12 text-center">
-    <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-    <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Generate Visit Plan</h3>
-    <p className="text-gray-600 mb-4">
-      {selectedMR ? 
-        `Click "Generate Plan" to create an AI-optimized visit plan for ${selectedMR}` :
-        'Select a medical representative and click "Generate Plan" to start'
-      }
-    </p>
-    {selectedMR && (
-      <button
-        onClick={generateVisitPlan}
-        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-      >
-        🤖 Generate AI Visit Plan
-      </button>
-    )}
-  </div>
-)}
+      {(!visitPlan && !loading && !accessError) && (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Generate Visit Plan</h3>
+          <p className="text-gray-600 mb-4">
+            {selectedMR && canAccessMRData(selectedMR) ? 
+              `Click "Generate Plan" to create an AI-optimized visit plan for ${selectedMR}` :
+              'Select a medical representative and click "Generate Plan" to start'
+            }
+          </p>
+          {selectedMR && canAccessMRData(selectedMR) && (
+            <button
+              onClick={generateVisitPlan}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              🤖 Generate AI Visit Plan
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Main Content */}
-      {visitPlan && !loading && selectedMR && (
+      {visitPlan && !loading && !accessError && selectedMR && canAccessMRData(selectedMR) && (
         <>
            {/* View Toggle */}
           <div className="bg-white rounded-lg shadow-md p-4">
@@ -678,89 +803,87 @@ const transformDailyPlansToWeekly = (dailyPlans) => {
           {/* Content based on active view */}
           {activeView === 'overview' && <OverviewComponent />}
           {activeView === 'analytics' && <VisitPlannerAnalyticsReal mrName={selectedMR} />}
-
         </>
       )}
 
       {/* Selected Day Detail Modal */}
-      
-{selectedDay && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[85vh] flex flex-col">
-      {/* Modal Header */}
-      <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
-        <div>
-          <h3 className="text-lg sm:text-xl font-semibold">
-            Visits for {selectedDay.date} ({selectedDay.dayName})
-          </h3>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            {selectedDay.visits?.length || 0} visits planned
-          </p>
-        </div>
-        <button
-          onClick={() => setSelectedDay(null)}
-          className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
-        >
-          ×
-        </button>
-      </div>
+      {selectedDay && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[85vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold">
+                  Visits for {selectedDay.date} ({selectedDay.dayName})
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                  {selectedDay.visits?.length || 0} visits planned for {selectedMR}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+              >
+                ×
+              </button>
+            </div>
 
-      {/* Modal Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="space-y-3">
-          {selectedDay.visits && selectedDay.visits.length > 0 ? (
-            selectedDay.visits.map((visit, index) => (
-              <div key={index} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h4 className="font-semibold text-base sm:text-lg">{visit.customer_name}</h4>
-                    <p className="text-xs sm:text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
-                    {visit.priority}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
-                  <div>
-                    <span className="font-medium">Time:</span> {visit.scheduled_time}
-                  </div>
-                  <div>
-                    <span className="font-medium">Expected:</span> {formatCurrencyByContext(visit.expected_order_value || 0, 'table')}
-                  </div>
-                  <div>
-                    <span className="font-medium">Order Probability:</span> {((visit.order_probability || 0) * 100).toFixed(0)}%
-                  </div>
-                  <div>
-                    <span className="font-medium">Purpose:</span> {visit.visit_purpose?.replace('_', ' ') || 'Standard'}
-                  </div>
-                </div>
-                {visit.customer_phone && (
-                  <div className="mt-2 pt-2 sm:mt-3 sm:pt-3 border-t border-gray-100">
-                    <span className="text-xs sm:text-sm text-gray-600">📞 {visit.customer_phone}</span>
+            {/* Modal Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="space-y-3">
+                {selectedDay.visits && selectedDay.visits.length > 0 ? (
+                  selectedDay.visits.map((visit, index) => (
+                    <div key={index} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-semibold text-base sm:text-lg">{visit.customer_name}</h4>
+                          <p className="text-xs sm:text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</p>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
+                          {visit.priority}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">Time:</span> {visit.scheduled_time}
+                        </div>
+                        <div>
+                          <span className="font-medium">Expected:</span> {formatCurrencyByContext(visit.expected_order_value || 0, 'table')}
+                        </div>
+                        <div>
+                          <span className="font-medium">Order Probability:</span> {((visit.order_probability || 0) * 100).toFixed(0)}%
+                        </div>
+                        <div>
+                          <span className="font-medium">Purpose:</span> {visit.visit_purpose?.replace('_', ' ') || 'Standard'}
+                        </div>
+                      </div>
+                      {visit.customer_phone && (
+                        <div className="mt-2 pt-2 sm:mt-3 sm:pt-3 border-t border-gray-100">
+                          <span className="text-xs sm:text-sm text-gray-600">📞 {visit.customer_phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500 text-center text-lg">No visits planned for this day</p>
                   </div>
                 )}
               </div>
-            ))
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-gray-500 text-center text-lg">No visits planned for this day</p>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Modal Footer */}
-      <div className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
-        <button
-          onClick={() => setSelectedDay(null)}
-          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors ml-auto block text-sm sm:text-base"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            {/* Modal Footer */}
+            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors ml-auto block text-sm sm:text-base"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
