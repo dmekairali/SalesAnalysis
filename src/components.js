@@ -93,7 +93,7 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
               )}
             </button>
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border z-50">
+              <div className="absolute right-0 mt-2 w-full sm:w-96 md:w-[400px] bg-white rounded-lg shadow-lg border z-50">
                 <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
                   <h3 className="font-semibold flex items-center">
                     <Brain className="h-4 w-4 mr-2 text-purple-600" />
@@ -102,11 +102,13 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
                 </div>
                 <div className="max-h-64 overflow-y-auto">
                   {notifications.map(notification => (
-                    <div key={notification.id} className="p-4 border-b hover:bg-gray-50">
-                      <p className="text-sm font-medium">{notification.message}</p>
-                      <p className="text-xs text-gray-500">{notification.timestamp}</p>
-                      <p className="text-sm text-green-600">₹{notification.amount.toLocaleString()}</p>
-                      <p className="text-xs text-blue-600 italic">{notification.ml_prediction}</p>
+                    <div key={notification.id} className="p-3 sm:p-4 border-b hover:bg-gray-50">
+                      <p className="text-sm font-medium text-gray-800">{notification.message}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{notification.timestamp}</p>
+                      <p className="text-sm text-green-700 font-semibold mt-1">₹{notification.amount.toLocaleString()}</p>
+                      {notification.ml_prediction && (
+                        <p className="text-xs text-blue-700 italic mt-1">{notification.ml_prediction}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -148,7 +150,7 @@ export const MLInsightsCompact = () => (
       <Brain className="h-4 w-4 mr-2 text-purple-600" />
       AI Insights
     </h3>
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {ML_INSIGHTS.map((insight, index) => (
         <div key={index} className="text-center">
           <p className="text-lg font-bold text-blue-600">{insight.value}</p>
