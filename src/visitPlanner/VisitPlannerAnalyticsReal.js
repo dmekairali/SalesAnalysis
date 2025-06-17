@@ -881,7 +881,7 @@ const VisitPlannerAnalyticsReal = ({ mrName = "RAJESH KUMAR" }) => {
               Comprehensive visit planning analysis for {mrName} - Last {selectedTimeframe}
             </p>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
             <select 
               value={selectedTimeframe}
               onChange={(e) => setSelectedTimeframe(e.target.value)}
