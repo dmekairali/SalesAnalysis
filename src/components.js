@@ -306,30 +306,4 @@ export const FulfillmentChart = ({ data, filters, setFilters }) => {
   );
 };
 
-// Geographic Heat Map Component - Updated to use state
-export const GeoHeatMap = ({ data }) => (
-  <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-    <h3 className="text-lg font-semibold mb-4">Geographic Revenue Distribution by State</h3>
-    <div className="grid grid-cols-2 gap-4">
-      {data.map((location, index) => (
-        <div key={index} className="p-4 bg-gray-50 rounded-lg">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium">{location.state}</p>
-              <p className="text-sm text-gray-600">{location.orders} orders</p>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-green-600">{formatCurrencyByContext(location.value, 'card')}</p>
-              <div className="w-16 h-2 bg-green-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-green-500 transition-all duration-300"
-                  style={{ width: `${(location.value / Math.max(...data.map(d => d.value))) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+
