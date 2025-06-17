@@ -1,8 +1,8 @@
-// src/auth/AuthContext.js - Authentication Context (Step 1 - No Data Filtering)
+// src/auth/AuthContext.js - With Hierarchy Support
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Lock, User, AlertCircle, Eye, EyeOff, LogOut, Shield } from 'lucide-react';
+import { Lock, User, AlertCircle, Eye, EyeOff, LogOut, Shield, Users } from 'lucide-react';
 
 // Supabase configuration
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
@@ -26,6 +26,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState(null);
+  const [teamHierarchy, setTeamHierarchy] = useState(null);
+  const [accessibleMRs, setAccessibleMRs] = useState([]);
 
   // Initialize auth state
   useEffect(() => {
@@ -41,6 +43,7 @@ export const AuthProvider = ({ children }) => {
           if (isValid) {
             setSessionToken(storedToken);
             setUser(userData);
+            await loadUserHierarchy(userData.email);
             console.log('✅ Session restored for user:', userData.full_name);
           } else {
             // Clear invalid session
@@ -60,6 +63,34 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth();
   }, []);
+
+  // Load user hierarchy and accessible MRs
+  const loadUserHierarchy = async (email) => {
+    try {
+      // Get team hierarchy
+      const { data: hierarchyData, error: hierarchyError } = await supabase.rpc('get_team_hierarchy', {
+        p_user_email: email
+      });
+
+      if (!hierarchyError && hierarchyData && hierarchyData.length > 0) {
+        setTeamHierarchy(hierarchyData[0]);
+        console.log('📊 Team hierarchy loaded:', hierarchyData[0]);
+      }
+
+      // Get accessible MRs
+      const { data: accessibleData, error: accessibleError } = await supabase.rpc('get_accessible_mrs', {
+        p_user_email: email
+      });
+
+      if (!accessibleError && accessibleData) {
+        setAccessibleMRs(accessibleData);
+        console.log('👥 Accessible MRs:', accessibleData);
+      }
+
+    } catch (error) {
+      console.error('Error loading user hierarchy:', error);
+    }
+  };
 
   // Validate session with backend
   const validateSession = async (token) => {
@@ -102,6 +133,9 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('ayurml_session_token', token);
         localStorage.setItem('ayurml_user', JSON.stringify(userData));
 
+        // Load hierarchy data
+        await loadUserHierarchy(userData.email);
+
         return { success: true, user: userData };
       } else {
         throw new Error('Invalid response from server');
@@ -128,10 +162,25 @@ export const AuthProvider = ({ children }) => {
       // Clear state and localStorage
       setUser(null);
       setSessionToken(null);
+      setTeamHierarchy(null);
+      setAccessibleMRs([]);
       localStorage.removeItem('ayurml_session_token');
       localStorage.removeItem('ayurml_user');
       console.log('✅ Logout completed');
     }
+  };
+
+  // Check if user can access specific MR data
+  const canAccessMRData = (mrName) => {
+    if (!user) return false;
+    if (user.access_level === 'admin') return true;
+    return accessibleMRs.includes(mrName);
+  };
+
+  // Get team members for current user
+  const getTeamMembers = () => {
+    if (!teamHierarchy) return [];
+    return teamHierarchy.direct_reports || [];
   };
 
   const value = {
@@ -140,6 +189,10 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
+    teamHierarchy,
+    accessibleMRs,
+    canAccessMRData,
+    getTeamMembers,
     isAuthenticated: !!user,
     isAdmin: user?.access_level === 'admin',
     isManager: user?.access_level === 'manager',
@@ -150,7 +203,7 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Login Form Component
+// Login Form Component (unchanged)
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -175,9 +228,11 @@ export const LoginForm = () => {
 
   const demoCredentials = [
     { email: 'admin@ayurml.com', role: 'Admin (Full Access)', password: 'admin123' },
-    { email: 'manager@ayurml.com', role: 'Manager (Regional Access)', password: 'admin123' },
-    { email: 'rajesh.kumar@ayurml.com', role: 'MR (Own Data Only)', password: 'admin123' },
-    { email: 'vikram.sain@ayurml.com', role: 'MR (Own Data Only)', password: 'admin123' }
+    { email: 'suresh.kumar@ayurml.com', role: 'RSM (Regional Manager)', password: 'admin123' },
+    { email: 'priya.patel@ayurml.com', role: 'ASM (Area Manager)', password: 'admin123' },
+    { email: 'amit.sharma@ayurml.com', role: 'RM (Reporting Manager)', password: 'admin123' },
+    { email: 'rajesh.kumar@ayurml.com', role: 'MR (Medical Rep)', password: 'admin123' },
+    { email: 'vikram.sain@ayurml.com', role: 'MR (Medical Rep)', password: 'admin123' }
   ];
 
   const fillCredentials = (email, password) => {
@@ -262,9 +317,9 @@ export const LoginForm = () => {
           </form>
         </div>
 
-        {/* Demo Credentials */}
+        {/* Demo Credentials with Hierarchy */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Demo Credentials</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Demo Accounts - Management Hierarchy</h3>
           <div className="space-y-2">
             {demoCredentials.map((cred, index) => (
               <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
@@ -282,7 +337,12 @@ export const LoginForm = () => {
             ))}
           </div>
           <div className="mt-4 text-xs text-gray-500">
-            Click "Use" to auto-fill credentials. Default password for all accounts: admin123
+            <p className="mb-2">📊 <strong>Hierarchy Structure:</strong></p>
+            <p>• <strong>Admin:</strong> All data access</p>
+            <p>• <strong>RSM:</strong> Regional team (5+ MRs)</p>
+            <p>• <strong>ASM:</strong> Area team (3-4 MRs)</p>
+            <p>• <strong>RM:</strong> Direct reports (1-2 MRs)</p>
+            <p>• <strong>MR:</strong> Personal data only</p>
           </div>
         </div>
       </div>
@@ -290,9 +350,9 @@ export const LoginForm = () => {
   );
 };
 
-// User Profile Component
+// Enhanced User Profile Component with Hierarchy
 export const UserProfile = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, teamHierarchy, accessibleMRs, getTeamMembers } = useAuth();
 
   if (!user) return null;
 
@@ -309,15 +369,17 @@ export const UserProfile = () => {
   const getAccessLevelDescription = (level) => {
     switch (level) {
       case 'admin': return 'Full system access';
-      case 'manager': return 'Regional data access';
+      case 'manager': return `Team access (${accessibleMRs.length} MRs)`;
       case 'mr': return 'Personal data only';
       case 'viewer': return 'Read-only access';
       default: return 'Limited access';
     }
   };
 
+  const teamMembers = getTeamMembers();
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-4 w-80">
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-4 w-96 max-h-96 overflow-y-auto">
       <div className="flex items-center space-x-3 mb-3">
         <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
           <User className="h-6 w-6 text-white" />
@@ -348,6 +410,39 @@ export const UserProfile = () => {
           </div>
         )}
 
+        {/* Hierarchy Information */}
+        {user.access_level === 'mr' && (
+          <div className="text-sm border-t pt-2">
+            <span className="text-gray-600 block mb-1">Reporting Structure:</span>
+            {user.reporting_manager && (
+              <div className="text-xs text-gray-500">RM: {user.reporting_manager}</div>
+            )}
+            {user.area_sales_manager && (
+              <div className="text-xs text-gray-500">ASM: {user.area_sales_manager}</div>
+            )}
+            {user.regional_sales_manager && (
+              <div className="text-xs text-gray-500">RSM: {user.regional_sales_manager}</div>
+            )}
+          </div>
+        )}
+
+        {/* Team Members for Managers */}
+        {user.access_level === 'manager' && teamMembers.length > 0 && (
+          <div className="text-sm border-t pt-2">
+            <div className="flex items-center mb-1">
+              <Users className="h-3 w-3 text-gray-600 mr-1" />
+              <span className="text-gray-600">Team Members ({teamMembers.length}):</span>
+            </div>
+            <div className="space-y-1 max-h-20 overflow-y-auto">
+              {teamMembers.map((member, index) => (
+                <div key={index} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
+                  {member.full_name} ({member.mr_name})
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {user.assigned_territories && user.assigned_territories.length > 0 && (
           <div className="text-sm">
             <span className="text-gray-600">Territories:</span>
@@ -373,6 +468,21 @@ export const UserProfile = () => {
             </div>
           </div>
         )}
+
+        {/* Data Access Summary */}
+        {accessibleMRs.length > 0 && (
+          <div className="text-sm border-t pt-2">
+            <span className="text-gray-600">Data Access ({accessibleMRs.length} MRs):</span>
+            <div className="mt-1 max-h-16 overflow-y-auto">
+              {accessibleMRs.slice(0, 5).map((mrName, index) => (
+                <div key={index} className="text-xs text-gray-600">• {mrName}</div>
+              ))}
+              {accessibleMRs.length > 5 && (
+                <div className="text-xs text-gray-500">...and {accessibleMRs.length - 5} more</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="text-xs text-gray-500 mb-4">
@@ -390,7 +500,7 @@ export const UserProfile = () => {
   );
 };
 
-// Protected Route Component
+// Protected Route Component (unchanged)
 export const ProtectedRoute = ({ children, requiredLevel = null }) => {
   const { user, loading } = useAuth();
 
