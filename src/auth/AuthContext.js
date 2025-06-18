@@ -1,4 +1,4 @@
-// src/auth/AuthContext.js - With Hierarchy Support
+// src/auth/AuthContext.js - With Hierarchy Support (Demo Credentials Removed)
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -203,7 +203,7 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Login Form Component (unchanged)
+// Login Form Component - Demo Credentials Removed
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -226,20 +226,6 @@ export const LoginForm = () => {
     setLoading(false);
   };
 
-  const demoCredentials = [
-    { email: 'admin@ayurml.com', role: 'Admin (Full Access)', password: 'admin123' },
-    { email: 'suresh.kumar@ayurml.com', role: 'RSM (Regional Manager)', password: 'admin123' },
-    { email: 'priya.patel@ayurml.com', role: 'ASM (Area Manager)', password: 'admin123' },
-    { email: 'amit.sharma@ayurml.com', role: 'RM (Reporting Manager)', password: 'admin123' },
-    { email: 'rajesh.kumar@ayurml.com', role: 'MR (Medical Rep)', password: 'admin123' },
-    { email: 'vikram.sain@ayurml.com', role: 'MR (Medical Rep)', password: 'admin123' }
-  ];
-
-  const fillCredentials = (email, password) => {
-    setEmail(email);
-    setPassword(password);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
@@ -255,7 +241,7 @@ export const LoginForm = () => {
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Sign In</h2>
           
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -315,9 +301,18 @@ export const LoginForm = () => {
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
-        </div>
 
-       
+          {/* Optional: Add forgot password link */}
+          <div className="mt-4 text-center">
+            <a href="#" className="text-sm text-green-600 hover:text-green-700">
+              Forgot your password?
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Enhanced User Profile Component with Hierarchy
 export const UserProfile = () => {
@@ -469,7 +464,7 @@ export const UserProfile = () => {
   );
 };
 
-// Protected Route Component (unchanged)
+// Protected Route Component
 export const ProtectedRoute = ({ children, requiredLevel = null }) => {
   const { user, loading } = useAuth();
 
