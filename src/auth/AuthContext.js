@@ -317,38 +317,7 @@ export const LoginForm = () => {
           </form>
         </div>
 
-        {/* Demo Credentials with Hierarchy */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Demo Accounts - Management Hierarchy</h3>
-          <div className="space-y-2">
-            {demoCredentials.map((cred, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                <div>
-                  <div className="font-medium text-sm">{cred.role}</div>
-                  <div className="text-xs text-gray-600">{cred.email}</div>
-                </div>
-                <button
-                  onClick={() => fillCredentials(cred.email, cred.password)}
-                  className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors"
-                >
-                  Use
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 text-xs text-gray-500">
-            <p className="mb-2">📊 <strong>Hierarchy Structure:</strong></p>
-            <p>• <strong>Admin:</strong> All data access</p>
-            <p>• <strong>RSM:</strong> Regional team (5+ MRs)</p>
-            <p>• <strong>ASM:</strong> Area team (3-4 MRs)</p>
-            <p>• <strong>RM:</strong> Direct reports (1-2 MRs)</p>
-            <p>• <strong>MR:</strong> Personal data only</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+       
 
 // Enhanced User Profile Component with Hierarchy
 export const UserProfile = () => {
