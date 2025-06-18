@@ -350,7 +350,7 @@ const AyurvedicDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-center py-4 md:space-y-0 space-y-4">
           <div className="flex flex-col md:flex-row items-center md:space-x-8 md:space-y-0 space-y-4">
             <h1 className="text-2xl font-bold" style={{ color: COLORS.primary }}>
-              AyurML Analytics
+              Kairali ML Analytics
             </h1>
             <div className="flex flex-wrap space-x-1">
               {[
