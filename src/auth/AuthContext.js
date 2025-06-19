@@ -2,17 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Lock, User, AlertCircle, Eye, EyeOff, LogOut, Shield, Users } from 'lucide-react';
 
-// Supabase configuration
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Create Auth Context
 const AuthContext = createContext();
 
-// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -21,35 +13,41 @@ export const useAuth = () => {
   return context;
 };
 
-// Auth Provider Component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [sessionToken, setSessionToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [initialDataLoading, setInitialDataLoading] = useState(true); // NEW: Initial data loading state
   const [teamHierarchy, setTeamHierarchy] = useState(null);
   const [accessibleMRs, setAccessibleMRs] = useState([]);
 
-  // Initialize auth state
+  const supabase = createClient(
+    process.env.REACT_APP_SUPABASE_URL,
+    process.env.REACT_APP_SUPABASE_ANON_KEY
+  );
+
+  // Enhanced initialization with data loading tracking
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('ayurml_session_token');
-      const storedUser = localStorage.getItem('ayurml_user');
+      const token = localStorage.getItem('ayurml_session_token');
+      const userData = localStorage.getItem('ayurml_user');
 
-      if (storedToken && storedUser) {
+      if (token && userData) {
         try {
-          const userData = JSON.parse(storedUser);
-          const isValid = await validateSession(storedToken);
-          
+          const isValid = await validateSession(token);
           if (isValid) {
-            setSessionToken(storedToken);
-            setUser(userData);
-            await loadUserHierarchy(userData.email);
-            console.log('✅ Session restored for user:', userData.full_name);
+            const parsedUser = JSON.parse(userData);
+            setUser(parsedUser);
+            setSessionToken(token);
+            
+            // Load hierarchy and initial data
+            await loadUserHierarchy(parsedUser.email);
+            
+            console.log('🔐 Session restored for:', parsedUser.full_name);
           } else {
-            // Clear invalid session
             localStorage.removeItem('ayurml_session_token');
             localStorage.removeItem('ayurml_user');
-            console.log('❌ Invalid session, cleared storage');
+            console.log('🔐 Invalid session, cleared storage');
           }
         } catch (error) {
           console.error('Session validation failed:', error);
@@ -59,38 +57,59 @@ export const AuthProvider = ({ children }) => {
       }
       
       setLoading(false);
+      // Set initial data loading to false after auth check
+      setTimeout(() => setInitialDataLoading(false), 1500);
     };
 
     initializeAuth();
   }, []);
 
+  
   // Load user hierarchy and accessible MRs
-  const loadUserHierarchy = async (email) => {
+ const loadUserHierarchy = async (email) => {
     try {
-      // Get team hierarchy
       const { data: hierarchyData, error: hierarchyError } = await supabase.rpc('get_team_hierarchy', {
         p_user_email: email
       });
 
       if (!hierarchyError && hierarchyData && hierarchyData.length > 0) {
         setTeamHierarchy(hierarchyData[0]);
-        console.log('📊 Team hierarchy loaded:', hierarchyData[0]);
       }
 
-      // Get accessible MRs
       const { data: accessibleData, error: accessibleError } = await supabase.rpc('get_accessible_mrs', {
         p_user_email: email
       });
 
       if (!accessibleError && accessibleData) {
         setAccessibleMRs(accessibleData);
-        console.log('👥 Accessible MRs:', accessibleData);
       }
-
     } catch (error) {
       console.error('Error loading user hierarchy:', error);
     }
   };
+
+  const value = {
+    user,
+    sessionToken,
+    loading,
+    initialDataLoading, // NEW: Expose initial data loading state
+    login,
+    logout: async () => {
+      // Your existing logout logic
+      setUser(null);
+      setSessionToken(null);
+      setTeamHierarchy(null);
+      setAccessibleMRs([]);
+      localStorage.removeItem('ayurml_session_token');
+      localStorage.removeItem('ayurml_user');
+    },
+    teamHierarchy,
+    accessibleMRs,
+    isAuthenticated: !!user
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
 
   // Validate session with backend
   const validateSession = async (token) => {
@@ -108,8 +127,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Login function
+ / Enhanced login with data loading indication
   const login = async (email, password) => {
     try {
+      setInitialDataLoading(true); // Start data loading
       console.log('🔐 Attempting login for:', email);
       
       const { data, error } = await supabase.rpc('authenticate_user', {
@@ -123,29 +144,32 @@ export const AuthProvider = ({ children }) => {
         const userData = data[0];
         const token = userData.session_token;
 
-        console.log('✅ Login successful for:', userData.full_name, 'Access Level:', userData.access_level);
-
-        // Store in state
         setUser(userData);
         setSessionToken(token);
 
-        // Store in localStorage
         localStorage.setItem('ayurml_session_token', token);
         localStorage.setItem('ayurml_user', JSON.stringify(userData));
 
-        // Load hierarchy data
+        // Load hierarchy data and wait for it
         await loadUserHierarchy(userData.email);
+        
+        // Simulate additional data loading (adjust timing based on your needs)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        setInitialDataLoading(false); // Data loading complete
 
         return { success: true, user: userData };
       } else {
         throw new Error('Invalid response from server');
       }
     } catch (error) {
+      setInitialDataLoading(false);
       console.error('❌ Login error:', error);
       return { success: false, error: error.message };
     }
   };
 
+  
   // Logout function
   const logout = async () => {
     try {
