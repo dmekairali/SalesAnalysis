@@ -236,7 +236,7 @@ export const LoginForm = () => {
               <Shield className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">AyurML Analytics</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Kairali ML Analytics</h1>
           <p className="text-gray-600 mt-2">AI-Powered Sales Intelligence Platform</p>
         </div>
 
