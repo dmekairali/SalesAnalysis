@@ -127,7 +127,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Login function
- / Enhanced login with data loading indication
+ // Enhanced login with data loading indication
   const login = async (email, password) => {
     try {
       setInitialDataLoading(true); // Start data loading
