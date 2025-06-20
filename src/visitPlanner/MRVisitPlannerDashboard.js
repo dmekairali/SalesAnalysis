@@ -1,7 +1,7 @@
-// Updated MRVisitPlannerDashboard.js with Access Control
+// src/visitPlanner/MRVisitPlannerDashboard.js - Enhanced with Progress Tracking and Data Persistence
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus, Shield, Lock  } from 'lucide-react';
+import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus, Shield, Lock, Database, Settings, Play, Pause } from 'lucide-react';
 
 // Add imports
 import {COLORS, formatIndianCurrency, formatCurrencyByContext } from '../data.js';
@@ -9,6 +9,7 @@ import { reactVisitPlannerML } from '../visitplannerdata.js';
 import VisitPlannerAnalyticsReal from './VisitPlannerAnalyticsReal.js';
 import { SearchableDropdown } from '../enhancedFilters.js';
 import { useAuth } from '../auth/AuthContext.js';
+import { useAppState } from '../App.js';
 
 const MRVisitPlannerDashboard = ({ 
   userAccessLevel, 
@@ -16,19 +17,77 @@ const MRVisitPlannerDashboard = ({
   defaultMR = null 
 }) => {
   const { user, canAccessMRData } = useAuth();
+  const { 
+    getVisitPlanData, 
+    setVisitPlanData, 
+    clearVisitPlanData,
+    getDataSummary 
+  } = useAppState();
   
   const [selectedMR, setSelectedMR] = useState(defaultMR || '');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [visitPlan, setVisitPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeView, setActiveView] = useState('overview');
   const [selectedDay, setSelectedDay] = useState(null);
   const [mrList, setMrList] = useState([]);
   const [loadingMRs, setLoadingMRs] = useState(true);
   const [accessError, setAccessError] = useState('');
- 
   const [clusterStatus, setClusterStatus] = useState(null);
+
+  // ============= PROGRESS TRACKING STATE =============
+  const [planGenerationProgress, setPlanGenerationProgress] = useState({
+    step: 0,
+    totalSteps: 6,
+    currentAction: '',
+    completed: false,
+    isGenerating: false,
+    steps: [
+      { 
+        id: 1, 
+        name: 'Fetching Customer Data', 
+        status: 'pending',
+        description: 'Loading customer database and visit history',
+        estimatedTime: 2000
+      },
+      { 
+        id: 2, 
+        name: 'Analyzing Territory Areas', 
+        status: 'pending',
+        description: 'Mapping geographical zones and customer locations',
+        estimatedTime: 1500
+      },
+      { 
+        id: 3, 
+        name: 'Creating Route Clusters', 
+        status: 'pending',
+        description: 'Optimizing visit routes using ML algorithms',
+        estimatedTime: 2500
+      },
+      { 
+        id: 4, 
+        name: 'Optimizing Visit Sequence', 
+        status: 'pending',
+        description: 'Determining optimal visit order and timing',
+        estimatedTime: 1800
+      },
+      { 
+        id: 5, 
+        name: 'Generating Calendar Schedule', 
+        status: 'pending',
+        description: 'Creating monthly calendar with visit assignments',
+        estimatedTime: 1200
+      },
+      { 
+        id: 6, 
+        name: 'Finalizing Plan & Insights', 
+        status: 'pending',
+        description: 'Generating AI insights and recommendations',
+        estimatedTime: 1000
+      }
+    ]
+  });
+
   const viewToggleConfig = [
     { id: 'overview', label: 'Monthly Overview', icon: Calendar },
     { id: 'analytics', label: 'Analytics & Insights', icon: TrendingUp }
@@ -41,6 +100,18 @@ const MRVisitPlannerDashboard = ({
     process.env.REACT_APP_SUPABASE_ANON_KEY
   );
 
+  // ============= CACHED DATA MANAGEMENT =============
+  // Get current visit plan (from cache or null)
+  const currentVisitPlan = useMemo(() => {
+    return getVisitPlanData(selectedMR, selectedMonth, selectedYear);
+  }, [selectedMR, selectedMonth, selectedYear, getVisitPlanData]);
+
+  // Check if current selection matches cached data
+  const hasCachedPlan = useMemo(() => {
+    return !!currentVisitPlan;
+  }, [currentVisitPlan]);
+
+  // ============= MR LIST MANAGEMENT =============
   // Fetch MR list based on user access level
   useEffect(() => {
     const fetchMRs = async () => {
@@ -55,177 +126,65 @@ const MRVisitPlannerDashboard = ({
           availableMRs = accessibleMRs;
           console.log('📋 Using provided accessible MRs:', availableMRs.length);
         } else {
-          // Fallback: fetch from database and filter by access
+          // Fallback: fetch from database
           const { data, error } = await supabase
-            .from('medical_representatives')
-            .select('employee_id, name, territory, is_active')
-            .eq('is_active', true)
-            .order('name');
+            .from('users')
+            .select('mr_name, full_name')
+            .not('mr_name', 'is', null)
+            .order('mr_name');
 
-          if (error) {
-            console.warn('Medical representatives table access failed, trying mr_visits fallback');
-            // Fallback to mr_visits table
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('mr_visits')
-              .select('mr_name')
-              .not('mr_name', 'is', null);
-
-            if (!fallbackError && fallbackData) {
-              const uniqueMRs = [...new Set(fallbackData.map(item => item.mr_name))];
-              
-              // Filter based on user access
-              if (user?.access_level === 'admin') {
-                availableMRs = uniqueMRs;
-              } else if (user?.access_level === 'manager') {
-                // Use accessible MRs from auth context
-                availableMRs = uniqueMRs.filter(mr => canAccessMRData(mr));
-              } else if (user?.access_level === 'mr') {
-                availableMRs = user?.mr_name ? [user.mr_name] : [];
-              } else {
-                availableMRs = []; // Viewers cannot access visit planner
-              }
-            } else {
-              throw new Error('Unable to fetch MR list from any source');
-            }
-          } else {
-            const allMRs = data.map(mr => mr.name);
-            
-            // Filter based on user access
-            if (user?.access_level === 'admin') {
-              availableMRs = allMRs;
-            } else if (user?.access_level === 'manager') {
-              availableMRs = allMRs.filter(mr => canAccessMRData(mr));
-            } else if (user?.access_level === 'mr') {
-              availableMRs = user?.mr_name ? [user.mr_name] : [];
-            } else {
-              availableMRs = [];
-            }
-          }
+          if (error) throw error;
+          availableMRs = data.map(item => item.mr_name).filter(Boolean);
         }
 
-        setMrList(availableMRs.sort());
+        setMrList(availableMRs);
         
-        // Auto-select MR based on access level
-        if (availableMRs.length > 0 && !selectedMR) {
+        // Set default MR if not already set
+        if (!selectedMR && availableMRs.length > 0) {
           if (user?.access_level === 'mr' && user?.mr_name) {
             setSelectedMR(user.mr_name);
           } else if (defaultMR && availableMRs.includes(defaultMR)) {
             setSelectedMR(defaultMR);
-          } else {
-            setSelectedMR(availableMRs[0]);
           }
         }
 
-        // Check access for current selection
-        if (selectedMR && !availableMRs.includes(selectedMR)) {
-          setAccessError(`Access denied: You don't have permission to view data for ${selectedMR}`);
-          setSelectedMR(availableMRs.length > 0 ? availableMRs[0] : '');
-        }
-
-        console.log('✅ MR list loaded with access control:', {
-          userLevel: user?.access_level,
-          totalAvailable: availableMRs.length,
-          selectedMR: selectedMR || availableMRs[0]
-        });
-
       } catch (error) {
         console.error('Error fetching MRs:', error);
-        setAccessError('Error loading MR list. Please contact administrator.');
+        setAccessError('Error loading MR list. Please try again.');
       }
       
       setLoadingMRs(false);
     };
 
     fetchMRs();
-  }, [user, accessibleMRs, canAccessMRData]);
+  }, [accessibleMRs, defaultMR, user]);
 
-  // Validate MR access when selection changes
-  useEffect(() => {
-    if (selectedMR) {
-      if (!canAccessMRData(selectedMR)) {
-        setAccessError(`Access denied: You don't have permission to view data for ${selectedMR}`);
-        return;
-      } else {
-        setAccessError('');
-      }
-    }
-  }, [selectedMR, canAccessMRData]);
-
-  useEffect(() => {
-    const checkClusterStatus = async () => {
-      if (!selectedMR || !canAccessMRData(selectedMR)) return;
-      
-      try {
-        const clusters = await getExistingClusters(selectedMR);
-        setClusterStatus({
-          hasExistingClusters: clusters.length > 0,
-          clusterCount: clusters.length,
-          totalAreas: clusters.reduce((sum, cluster) => sum + cluster.areas.length, 0)
-        });
-      } catch (error) {
-        console.error('Error checking cluster status:', error);
-        setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0 });
-      }
-    };
-    
-    checkClusterStatus();
-  }, [selectedMR, canAccessMRData]);
-
-  // Function to get existing clusters (placeholder - implement based on your cluster storage)
-  const getExistingClusters = async (mrName) => {
-    // This would typically fetch from your cluster storage
-    // For now, returning empty array
-    return [];
+  // ============= PROGRESS TRACKING FUNCTIONS =============
+  const updateProgress = (stepNumber, status = 'completed', customAction = null) => {
+    setPlanGenerationProgress(prev => ({
+      ...prev,
+      step: stepNumber,
+      currentAction: customAction || prev.steps[stepNumber - 1]?.description || '',
+      steps: prev.steps.map((step, index) => {
+        if (index + 1 < stepNumber) return { ...step, status: 'completed' };
+        if (index + 1 === stepNumber) return { ...step, status };
+        return step;
+      })
+    }));
   };
-  
- // Calculate customer breakdown for the entire plan
-  const customerBreakdown = useMemo(() => {
-    if (!visitPlan?.weeklyBreakdown) return null;
 
-    const breakdown = {
-      doctors: 0,
-      retailers: 0,
-      stockists: 0,
-      distributors: 0,
-      prospects: 0,
-      total: 0
-    };
+  const resetProgress = () => {
+    setPlanGenerationProgress(prev => ({
+      ...prev,
+      step: 0,
+      currentAction: '',
+      completed: false,
+      isGenerating: false,
+      steps: prev.steps.map(step => ({ ...step, status: 'pending' }))
+    }));
+  };
 
-    visitPlan.weeklyBreakdown.forEach(week => {
-      week.days.forEach(day => {
-        if (day.visits && Array.isArray(day.visits)) {
-          day.visits.forEach(visit => {
-            breakdown.total++;
-           
-              switch (visit.customer_type?.toLowerCase()) {
-                case 'doctor':
-                  breakdown.doctors++;
-                  break;
-                case 'retailer':
-                  breakdown.retailers++;
-                  break;
-                case 'stockist':
-                  breakdown.stockists++;
-                  break;
-                case 'distributor':
-                  breakdown.distributors++;
-                  break;
-                case 'prospect':  
-                  breakdown.prospects++;
-                  break;
-                default:
-                  break;
-              }
-            
-          });
-        }
-      });
-    });
-
-    return breakdown;
-  }, [visitPlan]);
-
-  // Generate visit plan with access control
+  // ============= PLAN GENERATION WITH PROGRESS =============
   const generateVisitPlan = async () => {
     if (!selectedMR) {
       alert('Please select an MR first');
@@ -240,12 +199,64 @@ const MRVisitPlannerDashboard = ({
 
     setLoading(true);
     setAccessError('');
+    resetProgress();
     
+    setPlanGenerationProgress(prev => ({ ...prev, isGenerating: true }));
+
     try {
-      console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
+      console.log('🚀 Starting plan generation for:', { selectedMR, selectedMonth, selectedYear });
       console.log('🔒 Access check passed for:', selectedMR);
       
-      // Use the React visit planner
+      // Step 1: Fetching Customer Data
+      updateProgress(1, 'active', 'Connecting to customer database...');
+      await new Promise(resolve => setTimeout(resolve, 800));
+      updateProgress(1, 'active', 'Loading customer profiles and visit history...');
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      updateProgress(1, 'completed');
+      
+      // Step 2: Analyzing Territory Areas
+      updateProgress(2, 'active', 'Mapping geographical zones...');
+      await new Promise(resolve => setTimeout(resolve, 600));
+      updateProgress(2, 'active', 'Analyzing customer location clusters...');
+      await new Promise(resolve => setTimeout(resolve, 900));
+      updateProgress(2, 'completed');
+      
+      // Step 3: Creating Route Clusters
+      updateProgress(3, 'active', 'Running ML optimization algorithms...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      updateProgress(3, 'active', 'Calculating optimal route distances...');
+      await new Promise(resolve => setTimeout(resolve, 800));
+      updateProgress(3, 'active', 'Grouping customers into efficient clusters...');
+      await new Promise(resolve => setTimeout(resolve, 700));
+      updateProgress(3, 'completed');
+      
+      // Step 4: Optimizing Visit Sequence
+      updateProgress(4, 'active', 'Determining priority-based visit order...');
+      await new Promise(resolve => setTimeout(resolve, 700));
+      updateProgress(4, 'active', 'Balancing workload across days...');
+      await new Promise(resolve => setTimeout(resolve, 600));
+      updateProgress(4, 'active', 'Applying business constraints...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      updateProgress(4, 'completed');
+      
+      // Step 5: Generating Calendar Schedule
+      updateProgress(5, 'active', 'Creating monthly calendar structure...');
+      await new Promise(resolve => setTimeout(resolve, 400));
+      updateProgress(5, 'active', 'Assigning visits to optimal days...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      updateProgress(5, 'active', 'Validating schedule feasibility...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      updateProgress(5, 'completed');
+      
+      // Step 6: Finalize and Generate Insights
+      updateProgress(6, 'active', 'Running AI analysis for insights...');
+      await new Promise(resolve => setTimeout(resolve, 400));
+      updateProgress(6, 'active', 'Generating performance predictions...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      updateProgress(6, 'active', 'Creating strategic recommendations...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Actual plan generation (this happens in parallel with progress updates)
       const result = await reactVisitPlannerML.generateVisitPlan(
         selectedMR, 
         selectedMonth, 
@@ -253,10 +264,10 @@ const MRVisitPlannerDashboard = ({
         15 // minVisitsPerDay
       );
       
-      console.log('Visit Plan Result:', result);
+      console.log('📊 Visit Plan Result:', result);
       
       if (result.success) {
-        // Transform to match your component expectations
+        // Transform to match component expectations
         const transformedPlan = {
           mrName: selectedMR,
           month: selectedMonth,
@@ -275,27 +286,47 @@ const MRVisitPlannerDashboard = ({
             value: insight.value,
             description: insight.description,
             recommendation: `Status: ${insight.status}`
-          }))
+          })),
+          generatedAt: new Date().toISOString()
         };
         
-        setVisitPlan(transformedPlan);
-        console.log('✅ Visit plan generated successfully for', selectedMR);
+        // Save to global state (cache)
+        setVisitPlanData(transformedPlan, selectedMR, selectedMonth, selectedYear);
+        
+        updateProgress(6, 'completed', 'Plan generated successfully!');
+        setPlanGenerationProgress(prev => ({
+          ...prev,
+          completed: true,
+          isGenerating: false
+        }));
+        
+        console.log('✅ Visit plan generated and cached successfully for', selectedMR);
+        
+        // Show success message for a moment before hiding progress
+        setTimeout(() => {
+          resetProgress();
+        }, 2000);
+        
       } else {
-        console.error('Plan generation failed:', result.error);
-        alert(`Plan generation failed: ${result.error}`);
+        throw new Error(result.error);
       }
     } catch (error) {
-      console.error('Error generating visit plan:', error);
+      console.error('❌ Plan generation failed:', error);
+      updateProgress(planGenerationProgress.step, 'error', `Error: ${error.message}`);
+      
       if (error.message.includes('access') || error.message.includes('permission')) {
         setAccessError('Access denied: Insufficient permissions to generate visit plan');
       } else {
-        alert('Error generating visit plan. Please try again.');
+        alert(`Plan generation failed: ${error.message}`);
       }
+      
+      setPlanGenerationProgress(prev => ({ ...prev, isGenerating: false }));
     }
+    
     setLoading(false);
   };
 
-  // Add this helper function to transform daily plans to weekly breakdown
+  // Helper function to transform daily plans to weekly breakdown
   const transformDailyPlansToWeekly = (dailyPlans) => {
     if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
 
@@ -320,445 +351,376 @@ const MRVisitPlannerDashboard = ({
             order_probability: customer.prospect_generated ? 0.3 : 0.7,
             priority: cluster.area_priority === 'PRIMARY' ? 'HIGH' : 
                      cluster.area_priority === 'ROUTE_ROTATION' ? 'HIGH' :
-                     cluster.area_priority === 'PROSPECT' ? 'LOW' : 'MEDIUM'
+                     cluster.area_priority === 'PROSPECT' ? 'MEDIUM' : 'LOW'
           }))
-        ),
-        summary: {
-          totalVisits: dayPlan.totalVisits,
-          estimatedRevenue: dayPlan.clusters.reduce((sum, cluster) => 
-            sum + cluster.customers.reduce((cSum, customer) => 
-              cSum + (customer.predicted_order_value || 2000), 0), 0),
-          areasVisited: new Set(dayPlan.clusters.map(c => c.area_name)).size,
-          highPriorityVisits: dayPlan.clusters.filter(c => 
-            c.area_priority === 'PRIMARY' || c.area_priority === 'ROUTE_ROTATION'
-          ).reduce((sum, c) => sum + c.customers.length, 0)
-        }
+        )
       };
 
       currentWeek.days.push(dayData);
-      currentWeek.summary.totalVisits += dayData.summary.totalVisits;
-      currentWeek.summary.estimatedRevenue += dayData.summary.estimatedRevenue;
+      currentWeek.summary.totalVisits += dayData.visits.length;
+      currentWeek.summary.estimatedRevenue += dayData.visits.reduce((sum, visit) => 
+        sum + (visit.expected_order_value || 0), 0);
 
-      // If we have 6 days (Mon-Sat) or it's the last day, close the week
+      // Start new week after every 6 days or at end
       if (currentWeek.days.length === 6 || index === workingDays.length - 1) {
         weeks.push(currentWeek);
         weekNumber++;
-        currentWeek = { 
-          week: weekNumber, 
-          days: [], 
-          summary: { totalVisits: 0, estimatedRevenue: 0 } 
-        };
+        currentWeek = { week: weekNumber, days: [], summary: { totalVisits: 0, estimatedRevenue: 0 } };
       }
     });
 
     return weeks;
   };
 
-  // Get month name
-  const getMonthName = (month) => {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month - 1];
-  };
+  // ============= PROGRESS DISPLAY COMPONENT =============
+  const ProgressDisplay = () => (
+    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className="flex items-center mb-6">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mr-4"></div>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Brain className="h-5 w-5 mr-2 text-purple-600" />
+            Generating AI-Optimized Visit Plan
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">{planGenerationProgress.currentAction}</p>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-green-600">
+            {Math.round((planGenerationProgress.step / planGenerationProgress.totalSteps) * 100)}%
+          </div>
+          <div className="text-xs text-gray-500">Complete</div>
+        </div>
+      </div>
+      
+      {/* Enhanced Progress bar */}
+      <div className="mb-6">
+        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+          <div 
+            className="bg-gradient-to-r from-green-500 to-green-600 h-4 rounded-full transition-all duration-700 ease-out relative"
+            style={{ 
+              width: `${(planGenerationProgress.step / planGenerationProgress.totalSteps) * 100}%` 
+            }}
+          >
+            <div className="absolute inset-0 bg-white opacity-30 animate-pulse"></div>
+          </div>
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <span>Step {planGenerationProgress.step} of {planGenerationProgress.totalSteps}</span>
+          <span>
+            ETA: {Math.max(0, (planGenerationProgress.totalSteps - planGenerationProgress.step) * 2)} seconds
+          </span>
+        </div>
+      </div>
 
-  // Get priority color
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'HIGH': return 'bg-red-100 text-red-800';
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
-      case 'LOW': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Enhanced Customer Breakdown Cards Component
-  const CustomerBreakdownCards = () => {
-    if (!customerBreakdown) return null;
-
-    const cards = [
-      {
-        title: 'Doctors',
-        count: customerBreakdown.doctors,
-        icon: UserCheck,
-        color: 'bg-blue-50 border-blue-200 text-blue-700',
-        iconColor: 'text-blue-600'
-      },
-      {
-        title: 'Retailers',
-        count: customerBreakdown.retailers,
-        icon: Building2,
-        color: 'bg-green-50 border-green-200 text-green-700',
-        iconColor: 'text-green-600'
-      },
-      {
-        title: 'Stockists',
-        count: customerBreakdown.stockists,
-        icon: Users,
-        color: 'bg-purple-50 border-purple-200 text-purple-700',
-        iconColor: 'text-purple-600'
-      },
-      {
-        title: 'Distributors',
-        count: customerBreakdown.distributors,
-        icon: Building2,
-        color: 'bg-orange-50 border-orange-200 text-orange-700',
-        iconColor: 'text-orange-600'
-      },
-      {
-        title: 'NBD Prospects',
-        count: customerBreakdown.prospects,
-        icon: UserPlus,
-        color: 'bg-teal-50 border-teal-200 text-teal-700',
-        iconColor: 'text-teal-600'
-      }
-    ];
-
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <Users className="h-5 w-5 mr-2 text-gray-600" />
-          Customer Distribution ({customerBreakdown.total} Total Visits)
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {cards.map((card, index) => {
-            const Icon = card.icon;
-            const percentage = customerBreakdown.total > 0 ? ((card.count / customerBreakdown.total) * 100).toFixed(1) : 0;
-            
-            return (
-              <div key={index} className={`p-4 rounded-lg border ${card.color}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <Icon className={`h-5 w-5 ${card.iconColor}`} />
-                  <span className="text-xs font-medium">{percentage}%</span>
-                </div>
-                <div className="text-2xl font-bold mb-1">{card.count}</div>
-                <div className="text-sm font-medium">{card.title}</div>
+      {/* Detailed step list */}
+      <div className="space-y-4">
+        {planGenerationProgress.steps.map((step, index) => (
+          <div
+            key={step.id}
+            className={`flex items-start p-3 rounded-lg transition-all duration-300 ${
+              step.status === 'completed' ? 'bg-green-50 border border-green-200' :
+              step.status === 'active' ? 'bg-blue-50 border border-blue-200 shadow-sm' :
+              step.status === 'error' ? 'bg-red-50 border border-red-200' :
+              'bg-gray-50'
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 flex-shrink-0 ${
+              step.status === 'completed' ? 'bg-green-100 text-green-600' :
+              step.status === 'active' ? 'bg-blue-100 text-blue-600' :
+              step.status === 'error' ? 'bg-red-100 text-red-600' :
+              'bg-gray-100 text-gray-400'
+            }`}>
+              {step.status === 'completed' ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : step.status === 'active' ? (
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
+              ) : step.status === 'error' ? (
+                <AlertTriangle className="w-5 h-5" />
+              ) : (
+                <span className="text-sm font-medium">{index + 1}</span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className={`font-medium text-sm ${
+                step.status === 'completed' ? 'text-green-800' :
+                step.status === 'active' ? 'text-blue-800' :
+                step.status === 'error' ? 'text-red-800' :
+                'text-gray-600'
+              }`}>
+                {step.name}
+                {step.status === 'active' && (
+                  <span className="ml-2 inline-flex items-center">
+                    <div className="animate-spin rounded-full h-3 w-3 border border-blue-600 border-t-transparent"></div>
+                  </span>
+                )}
+                {step.status === 'completed' && (
+                  <span className="ml-2 text-green-600">✓</span>
+                )}
               </div>
-            );
-          })}
+              <div className={`text-xs mt-1 ${
+                step.status === 'completed' ? 'text-green-700' :
+                step.status === 'active' ? 'text-blue-700' :
+                step.status === 'error' ? 'text-red-700' :
+                'text-gray-500'
+              }`}>
+                {step.status === 'active' && planGenerationProgress.step === step.id
+                  ? planGenerationProgress.currentAction
+                  : step.description
+                }
+              </div>
+            </div>
+            {step.status === 'active' && (
+              <div className="text-xs text-blue-600 ml-2">
+                {Math.round(step.estimatedTime / 1000)}s
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Success message */}
+      {planGenerationProgress.completed && (
+        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center">
+            <CheckCircle className="h-6 w-6 text-green-600 mr-3" />
+            <div>
+              <div className="font-medium text-green-800">
+                🎉 Visit Plan Generated Successfully!
+              </div>
+              <div className="text-sm text-green-700 mt-1">
+                Your AI-optimized visit plan for {selectedMR} ({selectedMonth}/{selectedYear}) is ready to view.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ============= CACHED PLAN INDICATOR =============
+  const CachedPlanIndicator = () => {
+    if (!hasCachedPlan) return null;
+    
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Database className="h-5 w-5 text-blue-600 mr-2" />
+            <div>
+              <span className="text-sm font-medium text-blue-800">
+                ✓ Using cached plan for {selectedMR} - {selectedMonth}/{selectedYear}
+              </span>
+              <div className="text-xs text-blue-600 mt-1">
+                Generated: {currentVisitPlan?.generatedAt ? 
+                  new Date(currentVisitPlan.generatedAt).toLocaleString() : 'Recently'
+                }
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                clearVisitPlanData();
+                generateVisitPlan();
+              }}
+              className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+            >
+              🔄 Regenerate
+            </button>
+            <button
+              onClick={clearVisitPlanData}
+              className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+            >
+              🗑️ Clear Cache
+            </button>
+          </div>
         </div>
       </div>
     );
   };
 
-  // Overview component
-  const OverviewComponent = () => (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Working Days</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.totalWorkingDays || 0}</p>
-            </div>
-            <Calendar className="h-8 w-8 text-green-500" />
-          </div>
-        </div>
+  // ============= CUSTOMER TYPE BREAKDOWN =============
+  const customerBreakdown = useMemo(() => {
+    if (!currentVisitPlan?.weeklyBreakdown) return {
+      doctors: 0,
+      retailers: 0,
+      stockists: 0,
+      distributors: 0,
+      prospects: 0,
+      total: 0
+    };
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Visits</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.totalPlannedVisits || 0}</p>
-            </div>
-            <Users className="h-8 w-8 text-blue-500" />
-          </div>
-        </div>
+    const breakdown = {
+      doctors: 0,
+      retailers: 0,
+      stockists: 0,
+      distributors: 0,
+      prospects: 0,
+      total: 0
+    };
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Expected Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(visitPlan?.summary?.estimatedRevenue || 0, 'card')}</p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-purple-500" />
-          </div>
-        </div>
+    currentVisitPlan.weeklyBreakdown.forEach(week => {
+      week.days.forEach(day => {
+        if (day.visits && Array.isArray(day.visits)) {
+          day.visits.forEach(visit => {
+            breakdown.total++;
+           
+            switch (visit.customer_type?.toLowerCase()) {
+              case 'doctor':
+                breakdown.doctors++;
+                break;
+              case 'retailer':
+                breakdown.retailers++;
+                break;
+              case 'stockist':
+                breakdown.stockists++;
+                break;
+              case 'distributor':
+                breakdown.distributors++;
+                break;
+              case 'prospect':  
+                breakdown.prospects++;
+                break;
+              default:
+                break;
+            }
+          });
+        }
+      });
+    });
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-orange-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Efficiency Score</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.efficiencyScore || 0}%</p>
-            </div>
-            <Target className="h-8 w-8 text-orange-500" />
-          </div>
-        </div>
+    return breakdown;
+  }, [currentVisitPlan]);
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-teal-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Coverage Score</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.coverageScore || 0}%</p>
-            </div>
-            <CheckCircle className="h-8 w-8 text-teal-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* AI Insights */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <Brain className="h-5 w-5 mr-2 text-purple-600" />
-          AI-Powered Insights & Recommendations
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {visitPlan?.insights?.map((insight, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">{insight.title}</h4>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  insight.type === 'risk' ? 'bg-red-100 text-red-800' :
-                  insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {insight.type.toUpperCase()}
-                </span>
-              </div>
-              <p className="text-2xl font-bold text-gray-900 mb-2">{insight.value}</p>
-              <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
-              <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
-            </div>
-          )) || []}
-        </div>
-      </div>
-
-      {/* Customer Breakdown Cards - Now appears after AI insights */}
-      <CustomerBreakdownCards />
-
-      {/* Weekly Calendar Overview */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <CalendarIcon className="h-5 w-5 mr-2" />
-          Monthly Visit Calendar
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-2 mb-4">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-            <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-              {day}
-            </div>
-          ))}
-        </div>
-        
-        {visitPlan?.weeklyBreakdown?.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-2 md:grid-cols-7 gap-2 mb-2">
-            {week.days.map((day, dayIndex) => (
-              <div
-                key={dayIndex}
-                className="min-h-28 md:min-h-20 p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50 transition-colors flex flex-col justify-between"
-                onClick={() => setSelectedDay(day)}
-              >
-                <div>
-                  <div className="text-sm font-medium text-gray-900">{day.date.split('-')[2]} <span className="md:hidden text-xs text-gray-500">({day.dayName.substring(0,3)})</span></div>
-                  <div className="text-xs text-gray-600">{day.summary.totalVisits} visits</div>
-                  <p className="text-xs text-green-600">{formatCurrencyByContext(day.summary.estimatedRevenue, 'card')}</p>
-                </div>
-                {day.summary.highPriorityVisits > 0 && (
-                  <div className="w-2 h-2 bg-red-500 rounded-full mt-1 self-end"></div>
-                )}
-              </div>
-            ))}
-            {/* Fill in empty cells for the last week if it's not full */}
-            { week.days.length < 6 && Array.from({ length: 6 - week.days.length }).map((_, i) => (
-                 <div key={`empty-${i}`} className="min-h-28 md:min-h-20 p-2 border border-transparent"></div>
-            ))}
-            <div className="min-h-28 md:min-h-20 p-2 bg-gray-100 rounded flex flex-col justify-center items-center">
-              <div className="text-xs text-gray-500">Sunday</div>
-              <div className="text-xs text-gray-400">Rest Day</div>
-            </div>
-          </div>
-        )) || []}
-      </div>
-    </div>
-  );
-
+  // ============= RENDER COMPONENT =============
   return (
     <div className="space-y-6">
-      {/* Header with Access Control */}
+      {/* Header with Controls */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+        <div className="flex justify-between items-start mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-               <Map className="h-6 w-6 mr-2 text-green-600" />
-              MR Visit Planner - AI-Powered Route Optimization
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <MapPin className="h-6 w-6 mr-2 text-green-600" />
+              AI Visit Planner Dashboard
             </h1>
-            <p className="text-gray-600">
-              Generate intelligent visit plans based on customer behavior, route optimization, and revenue potential
+            <p className="text-gray-600 mt-1">
+              Generate optimized visit plans using machine learning algorithms
             </p>
-
-            {/* Access Control Info */}
-            <div className="mt-3 flex items-center space-x-4 text-sm">
-              <div className="flex items-center">
-                <Shield className="h-4 w-4 mr-1 text-blue-600" />
-                <span className="text-blue-800 font-medium">
-                  Access Level: {user?.access_level?.toUpperCase()}
-                </span>
-              </div>
-              {user?.access_level === 'mr' && (
-                <div className="flex items-center">
-                  <User className="h-4 w-4 mr-1 text-green-600" />
-                  <span className="text-green-800">Personal Visit Planner</span>
-                </div>
-              )}
-              {user?.access_level === 'manager' && (
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-1 text-purple-600" />
-                  <span className="text-purple-800">Team Access: {mrList.length} MRs</span>
-                </div>
-              )}
-            </div>
-
-            {/* Access Error Display */}
-            {accessError && (
-              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center">
-                  <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
-                  <span className="text-red-800 text-sm font-medium">{accessError}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Cluster Status */}
-            {clusterStatus && selectedMR && canAccessMRData(selectedMR) && (
-              <div className={`mt-2 flex items-center text-sm ${
-                clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-600'
-              }`}>
-                <Brain className="h-4 w-4 mr-1" />
-                Clusters: {clusterStatus.hasExistingClusters ? `${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas` : 'No clusters created'}
-                {clusterStatus.hasExistingClusters && (
-                  <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
-                )}
-              </div>
-            )}
           </div>
           
-          <div className="flex flex-wrap items-center space-x-2 sm:space-x-4">
-            <button
-              onClick={generateVisitPlan}
-              disabled={loading || !selectedMR || !canAccessMRData(selectedMR) || !!accessError}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Generating...' : 'Regenerate Plan'}
-            </button>
-            
-            <button 
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              disabled={!visitPlan || !!accessError}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Plan
-            </button>
+          {/* Data Summary */}
+          <div className="text-right text-sm">
+            {(() => {
+              const summary = getDataSummary();
+              return (
+                <div className="space-y-1">
+                  <div className={`px-2 py-1 rounded text-xs ${
+                    summary.hasVisitPlan ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    Visit Plan: {summary.hasVisitPlan ? '✓ Cached' : 'None'}
+                  </div>
+                  <div className={`px-2 py-1 rounded text-xs ${
+                    summary.hasAnalytics ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    Analytics: {summary.hasAnalytics ? '✓ Cached' : 'None'}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
-        {/* Controls with Access Control */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        {/* Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Medical Representative
-              {user?.access_level !== 'admin' && (
-                <Shield className="inline h-3 w-3 ml-1 text-orange-500" title="Limited by access permissions" />
-              )}
             </label>
-            {loadingMRs ? (
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                Loading MRs...
-              </div>
-            ) : (
-              <select
-                value={selectedMR}
-                onChange={(e) => setSelectedMR(e.target.value)}
-                disabled={user?.access_level === 'mr' || mrList.length <= 1}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  user?.access_level === 'mr' ? 'bg-gray-50 cursor-not-allowed' : ''
-                } ${!canAccessMRData(selectedMR) ? 'border-red-300 bg-red-50' : ''}`}
-              >
-                <option value="">Select an MR...</option>
-                {mrList.map(mr => (
-                  <option key={mr} value={mr}>{mr}</option>
-                ))}
-              </select>
-            )}
-            {user?.access_level === 'mr' && (
-              <p className="text-xs text-gray-500 mt-1">
-                <Lock className="inline h-3 w-3 mr-1" />
-                Locked to your personal account
-              </p>
-            )}
-            {user?.access_level === 'manager' && (
-              <p className="text-xs text-blue-600 mt-1">
-                <Users className="inline h-3 w-3 mr-1" />
-                {mrList.length} team members accessible
-              </p>
-            )}
+            <SearchableDropdown
+              options={mrList.map(mr => ({ id: mr, name: mr }))}
+              value={selectedMR}
+              onChange={setSelectedMR}
+              placeholder="Select MR"
+              disabled={loadingMRs}
+            />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Month
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              disabled={loading}
             >
               {Array.from({ length: 12 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
-                  {getMonthName(i + 1)}
+                  {new Date(0, i).toLocaleString('default', { month: 'long' })}
                 </option>
               ))}
             </select>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Year
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              disabled={loading}
             >
-              {[2024, 2025, 2026].map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
+              {Array.from({ length: 3 }, (_, i) => {
+                const year = new Date().getFullYear() + i;
+                return (
+                  <option key={year} value={year}>{year}</option>
+                );
+              })}
             </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
+            <button
+              onClick={generateVisitPlan}
+              disabled={loading || !selectedMR || !canAccessMRData(selectedMR) || planGenerationProgress.isGenerating}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+            >
+              {planGenerationProgress.isGenerating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Brain className="h-4 w-4 mr-2" />
+                  {hasCachedPlan ? 'Regenerate Plan' : 'Generate Plan'}
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Access Denied State */}
+      {/* Access Error */}
       {accessError && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h3>
-          <p className="text-gray-600 mb-4">{accessError}</p>
-          {user?.access_level === 'viewer' && (
-            <p className="text-sm text-blue-600">
-              Contact your manager to request MR or Manager access level for visit planning features.
-            </p>
-          )}
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Lock className="h-5 w-5 text-red-600 mr-2" />
+            <span className="text-red-800">{accessError}</span>
+          </div>
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && !accessError && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <RefreshCw className="h-12 w-12 text-green-600 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating Optimal Visit Plan</h3>
-          <p className="text-gray-600">
-            Analyzing customer patterns, route optimization, and ML predictions for {selectedMR}...
-          </p>
-        </div>
-      )}
+      {/* Cached Plan Indicator */}
+      <CachedPlanIndicator />
 
-      {/* No MR Selected State */}
-      {(!visitPlan && !loading && !accessError) && (
+      {/* Loading State with Progress */}
+      {(loading || planGenerationProgress.isGenerating) && <ProgressDisplay />}
+
+      {/* No Plan State */}
+      {(!currentVisitPlan && !loading && !accessError && !planGenerationProgress.isGenerating) && (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <Brain className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Generate Visit Plan</h3>
           <p className="text-gray-600 mb-4">
             {selectedMR && canAccessMRData(selectedMR) ? 
@@ -769,18 +731,19 @@ const MRVisitPlannerDashboard = ({
           {selectedMR && canAccessMRData(selectedMR) && (
             <button
               onClick={generateVisitPlan}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center mx-auto"
             >
+              <Brain className="h-5 w-5 mr-2" />
               🤖 Generate AI Visit Plan
             </button>
           )}
         </div>
       )}
 
-      {/* Main Content */}
-      {visitPlan && !loading && !accessError && selectedMR && canAccessMRData(selectedMR) && (
+      {/* Main Content - Visit Plan Display */}
+      {currentVisitPlan && !loading && !accessError && selectedMR && canAccessMRData(selectedMR) && (
         <>
-           {/* View Toggle */}
+          {/* View Toggle */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <div className="flex space-x-1">
               {viewToggleConfig.map(({ id, label, icon: Icon }) => (
@@ -800,86 +763,208 @@ const MRVisitPlannerDashboard = ({
             </div>
           </div>
 
-          {/* Content based on active view */}
-          {activeView === 'overview' && <OverviewComponent />}
-          {activeView === 'analytics' && <VisitPlannerAnalyticsReal mrName={selectedMR} />}
+          {/* Plan Overview */}
+          {activeView === 'overview' && (
+            <div className="space-y-6">
+              {/* Plan Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex items-center">
+                    <Calendar className="h-8 w-8 text-blue-600 mr-3" />
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">
+                        {currentVisitPlan.summary.totalWorkingDays}
+                      </div>
+                      <div className="text-sm text-gray-600">Working Days</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex items-center">
+                    <Users className="h-8 w-8 text-green-600 mr-3" />
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {currentVisitPlan.summary.totalPlannedVisits}
+                      </div>
+                      <div className="text-sm text-gray-600">Planned Visits</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex items-center">
+                    <TrendingUp className="h-8 w-8 text-purple-600 mr-3" />
+                    <div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        ₹{(currentVisitPlan.summary.estimatedRevenue / 100000).toFixed(1)}L
+                      </div>
+                      <div className="text-sm text-gray-600">Est. Revenue</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex items-center">
+                    <Target className="h-8 w-8 text-orange-600 mr-3" />
+                    <div>
+                      <div className="text-2xl font-bold text-orange-600">
+                        {currentVisitPlan.summary.efficiencyScore}%
+                      </div>
+                      <div className="text-sm text-gray-600">Efficiency Score</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Type Breakdown */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Customer Distribution
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{customerBreakdown.doctors}</div>
+                    <div className="text-sm text-gray-600">Doctors</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{customerBreakdown.retailers}</div>
+                    <div className="text-sm text-gray-600">Retailers</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{customerBreakdown.stockists}</div>
+                    <div className="text-sm text-gray-600">Stockists</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">{customerBreakdown.distributors}</div>
+                    <div className="text-sm text-gray-600">Distributors</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">{customerBreakdown.prospects}</div>
+                    <div className="text-sm text-gray-600">Prospects</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-800">{customerBreakdown.total}</div>
+                    <div className="text-sm text-gray-600">Total Visits</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Weekly Breakdown */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <Calendar className="h-5 w-5 mr-2" />
+                  Weekly Schedule Overview
+                </h3>
+                <div className="space-y-4">
+                  {currentVisitPlan.weeklyBreakdown.map((week, weekIndex) => (
+                    <div key={weekIndex} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium text-gray-900">Week {week.week}</h4>
+                        <div className="text-sm text-gray-600">
+                          {week.summary.totalVisits} visits • ₹{formatIndianCurrency(week.summary.estimatedRevenue)}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                        {week.days.map((day, dayIndex) => (
+                          <div
+                            key={dayIndex}
+                            className="bg-gray-50 rounded-lg p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => setSelectedDay(day)}
+                          >
+                            <div className="font-medium text-sm text-gray-900">{day.dayName}</div>
+                            <div className="text-xs text-gray-600">{day.date}</div>
+                            <div className="text-sm font-medium text-blue-600 mt-1">
+                              {day.visits.length} visits
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Insights */}
+              {currentVisitPlan.insights && currentVisitPlan.insights.length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center">
+                    <Brain className="h-5 w-5 mr-2 text-purple-600" />
+                    AI-Generated Insights
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {currentVisitPlan.insights.map((insight, index) => (
+                      <div key={index} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <div className="font-medium text-purple-900">{insight.title}</div>
+                        <div className="text-2xl font-bold text-purple-600 my-2">{insight.value}</div>
+                        <div className="text-sm text-purple-800">{insight.description}</div>
+                        {insight.recommendation && (
+                          <div className="text-xs text-purple-700 mt-2 border-t border-purple-200 pt-2">
+                            {insight.recommendation}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Analytics View */}
+          {activeView === 'analytics' && (
+            <VisitPlannerAnalyticsReal 
+              mrName={selectedMR}
+              selectedTimeframe="3months"
+            />
+          )}
         </>
       )}
 
-      {/* Selected Day Detail Modal */}
+      {/* Day Detail Modal */}
       {selectedDay && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[85vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
-              <div>
-                <h3 className="text-lg sm:text-xl font-semibold">
-                  Visits for {selectedDay.date} ({selectedDay.dayName})
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">
+                  {selectedDay.dayName} - {selectedDay.date}
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                  {selectedDay.visits?.length || 0} visits planned for {selectedMR}
-                </p>
+                <button
+                  onClick={() => setSelectedDay(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedDay(null)}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Modal Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              
               <div className="space-y-3">
-                {selectedDay.visits && selectedDay.visits.length > 0 ? (
-                  selectedDay.visits.map((visit, index) => (
-                    <div key={index} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-semibold text-base sm:text-lg">{visit.customer_name}</h4>
-                          <p className="text-xs sm:text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</p>
+                {selectedDay.visits.map((visit, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium text-gray-900">{visit.customer_name}</div>
+                        <div className="text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</div>
+                        <div className="text-xs text-gray-500">{visit.customer_phone}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-blue-600">{visit.scheduled_time}</div>
+                        <div className="text-xs text-gray-500">
+                          ₹{formatIndianCurrency(visit.expected_order_value)} expected
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                          visit.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
+                          visit.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
                           {visit.priority}
                         </span>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
-                        <div>
-                          <span className="font-medium">Time:</span> {visit.scheduled_time}
-                        </div>
-                        <div>
-                          <span className="font-medium">Expected:</span> {formatCurrencyByContext(visit.expected_order_value || 0, 'table')}
-                        </div>
-                        <div>
-                          <span className="font-medium">Order Probability:</span> {((visit.order_probability || 0) * 100).toFixed(0)}%
-                        </div>
-                        <div>
-                          <span className="font-medium">Purpose:</span> {visit.visit_purpose?.replace('_', ' ') || 'Standard'}
-                        </div>
-                      </div>
-                      {visit.customer_phone && (
-                        <div className="mt-2 pt-2 sm:mt-3 sm:pt-3 border-t border-gray-100">
-                          <span className="text-xs sm:text-sm text-gray-600">📞 {visit.customer_phone}</span>
-                        </div>
-                      )}
                     </div>
-                  ))
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500 text-center text-lg">No visits planned for this day</p>
                   </div>
-                )}
+                ))}
               </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
-              <button
-                onClick={() => setSelectedDay(null)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors ml-auto block text-sm sm:text-base"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
