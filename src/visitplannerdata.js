@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getCache, setCache } from './utils/cache.js';
 
 // Supabase configuration
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
@@ -19,6 +20,16 @@ export class ReactVisitPlannerML {
    * Generate visit plan for MR with cluster-based rotation
    */
   async generateVisitPlan(mrName, month, year, minVisitsPerDay = 15) {
+    const cacheKey = `visitPlan_${mrName}_${month}_${year}`;
+    const cachedPlan = getCache(cacheKey);
+
+    if (cachedPlan) {
+      console.log(`[Cache] Returning cached visit plan for key: ${cacheKey}`);
+      return cachedPlan; // Return a deep copy if plan objects can be mutated
+    }
+
+    console.log(`[Cache] No valid cached visit plan found for key: ${cacheKey}. Generating new plan.`);
+
     try {
       console.log(`Generating visit plan for ${mrName} - ${month}/${year}`);
       
@@ -30,13 +41,13 @@ export class ReactVisitPlannerML {
 
       // 2. Prepare area data
       const areaData = await this.prepareAreaData(customers);
-      console.log(areaData);
+      // console.log(areaData); // Keep console.log commented or remove for production
       // 3. Create clusters (simplified version for React)
       const clusteredAreas = await this.createOptimizedClusters(areaData);
-      console.log(clusteredAreas);
+      // console.log(clusteredAreas); // Keep console.log commented or remove for production
       // 4. Generate calendar
       const calendar = await this.generateWorkingDaysCalendar(month, year);
-      console.log(calendar);
+      // console.log(calendar); // Keep console.log commented or remove for production
       // 5. Create visit plan with rotation logic
       const visitPlan = await this.createVisitPlanWithRotation(
         customers, 
@@ -45,7 +56,7 @@ export class ReactVisitPlannerML {
         minVisitsPerDay
       );
 
-      return {
+      const result = {
         success: true,
         mrName,
         month,
@@ -55,8 +66,12 @@ export class ReactVisitPlannerML {
         insights: this.generatePlanInsights(visitPlan, customers.length)
       };
 
+      setCache(cacheKey, result); // Cache the successful result
+      return result;
+
     } catch (error) {
       console.error('Error generating visit plan:', error);
+      // Do not cache errors, or cache them differently if needed
       return {
         success: false,
         error: error.message,

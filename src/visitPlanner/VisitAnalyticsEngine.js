@@ -1,5 +1,6 @@
 // src/visitPlanner/VisitAnalyticsEngine.js
 import { createClient } from '@supabase/supabase-js';
+import { getCache, setCache } from '../utils/cache.js';
 
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL,
@@ -815,6 +816,16 @@ async fetchOnCallSummary(mrName, timeframe) {
 
 // Update the main generateAnalytics method to include on call orders
 async generateAnalytics(mrName, timeframe = '3months') {
+  const cacheKey = `analytics_${mrName}_${timeframe}`;
+  const cachedAnalytics = getCache(cacheKey);
+
+  if (cachedAnalytics) {
+    console.log(`[Cache] Returning cached analytics for key: ${cacheKey}`);
+    return cachedAnalytics; // Return a deep copy if analytics objects can be mutated
+  }
+
+  console.log(`[Cache] No valid cached analytics found for key: ${cacheKey}. Generating new analytics.`);
+
   try {
     console.log(`🔍 Generating analytics for ${mrName} - ${timeframe}`);
     
@@ -855,15 +866,28 @@ async generateAnalytics(mrName, timeframe = '3months') {
     };
 
     // Generate AI insights
-    analytics.aiInsights = await this.generateAIInsights(analytics);
+    // Make sure this part is also inside the try if it can fail,
+    // or handle its errors appropriately so a partially successful result isn't cached if AI fails.
+    try {
+        analytics.aiInsights = await this.generateAIInsights(analytics);
+    } catch (aiError) {
+        console.error('Error generating AI insights, proceeding with analytics without AI insights:', aiError);
+        // Decide if you want to cache data even if AI insights fail.
+        // For now, it will cache with aiInsights as null or whatever fallback generateAIInsights provides.
+    }
 
-    return {
+
+    const result = {
       success: true,
       analytics
     };
 
+    setCache(cacheKey, result); // Cache the successful result
+    return result;
+
   } catch (error) {
     console.error('Error generating analytics:', error);
+    // Do not cache errors
     return {
       success: false,
       error: error.message
