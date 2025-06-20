@@ -683,7 +683,7 @@ const AyurvedicDashboard = () => {
   };
 
   // Loading state
-  if (loading && !isAuthenticated) {
+  if (loading) { // Changed condition here
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center">
