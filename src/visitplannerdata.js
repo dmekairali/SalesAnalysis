@@ -19,7 +19,7 @@ export class ReactVisitPlannerML {
   /**
    * Generate visit plan for MR with cluster-based rotation
    */
-  async generateVisitPlan(mrName, month, year, minVisitsPerDay = 15) {
+  async generateVisitPlan(mrName, month, year, minVisitsPerDay = 10) {
     const cacheKey = `visitPlan_${mrName}_${month}_${year}`;
     const cachedPlan = getCache(cacheKey);
 
