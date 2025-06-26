@@ -29,7 +29,7 @@ const AyurvedicDashboard = () => {
   const [orderData, setOrderData] = useState([]);
   const [dashboardOrderData, setDashboardOrderData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('visitplanner'); //const [activeTab, setActiveTab] = useState('overview');
   const [showMLAnalytics, setShowMLAnalytics] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -354,9 +354,8 @@ const AyurvedicDashboard = () => {
             </h1>
             <div className="flex flex-wrap space-x-1">
               {[
-                { id: 'overview', label: 'Overview', icon: TrendingUp },
-                ...(dataAccess.hasAccess('mr') ? [{ id: 'visitplanner', label: 'Visit Planner', icon: MapPin }] : [])
-              ].map(tab => (
+              ...(dataAccess.hasAccess('mr') ? [{ id: 'visitplanner', label: 'Visit Planner', icon: MapPin }] : [])
+               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
