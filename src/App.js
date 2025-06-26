@@ -77,13 +77,13 @@ const AyurvedicDashboard = () => {
         console.log('✅ Data loading skipped - Overview disabled');
 
         console.log('✅ Data loaded and filtered successfully');
-        console.log('📈 Total Orders Available:', fetchedOrders?.length || 0);
-        console.log('🔒 User Accessible Orders:', userFilteredOrders.length);
-        console.log('📊 Dashboard Orders:', userFilteredDashboard.length);
+        //console.log('📈 Total Orders Available:', fetchedOrders?.length || 0);
+        //console.log('🔒 User Accessible Orders:', userFilteredOrders.length);
+        //console.log('📊 Dashboard Orders:', userFilteredDashboard.length);
         
         // Get data scope for logging
-        const scope = dataAccess.getDataScope(fetchedOrders || [], fetchedDashboardOrders || []);
-        console.log('🎯 Data Scope:', scope);
+       // const scope = dataAccess.getDataScope(fetchedOrders || [], fetchedDashboardOrders || []);
+       // console.log('🎯 Data Scope:', scope);
         
       } catch (error) {
         console.error("❌ Error initializing data:", error);
