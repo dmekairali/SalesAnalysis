@@ -57,19 +57,24 @@ const AyurvedicDashboard = () => {
       
       try {
         setLoading(true);
-        console.log('📊 Loading dashboard data for user:', user?.full_name, '| Access Level:', user?.access_level);
-        console.log('👥 Accessible MRs:', accessibleMRs);
-        
+        //console.log('📊 Loading dashboard data for user:', user?.full_name, '| Access Level:', user?.access_level);
+        //console.log('👥 Accessible MRs:', accessibleMRs);
+        console.log('📊 Skipping overview data loading - Overview tab disabled');
+
         // Load raw data
-        const { sampleOrderData: fetchedOrders } = await initializeData();
-        const fetchedDashboardOrders = await fetchDashboardOrders();
+        //const { sampleOrderData: fetchedOrders } = await initializeData();
+        //const fetchedDashboardOrders = await fetchDashboardOrders();
 
         // Apply user-based filtering
-        const userFilteredOrders = dataAccess.filterOrderData(fetchedOrders || []);
-        const userFilteredDashboard = dataAccess.filterDashboardData(fetchedDashboardOrders || []);
+        //const userFilteredOrders = dataAccess.filterOrderData(fetchedOrders || []);
+        //const userFilteredDashboard = dataAccess.filterDashboardData(fetchedDashboardOrders || []);
 
-        setOrderData(userFilteredOrders);
-        setDashboardOrderData(userFilteredDashboard);
+        //setOrderData(userFilteredOrders);
+        //setDashboardOrderData(userFilteredDashboard);
+        setOrderData([]);
+        setDashboardOrderData([]);
+
+        console.log('✅ Data loading skipped - Overview disabled');
 
         console.log('✅ Data loaded and filtered successfully');
         console.log('📈 Total Orders Available:', fetchedOrders?.length || 0);
