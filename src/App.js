@@ -9,6 +9,8 @@ import { initializeData, COLORS, calculateKPIs, getUniqueValues, fetchDashboardO
 // Import data access control
 import { useDataAccess } from './utils/dataAccessControl.js';
 
+import DistributorForecastDashboard from './forecasting/DistributorForecastDashboard';
+
 import { 
   Navigation, 
   KPICard, 
