@@ -81,46 +81,46 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-500 rounded-lg">
-              <Settings className="h-5 w-5 text-white" />
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+      <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md md:max-w-4xl h-[95vh] md:max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header - Mobile Responsive */}
+        <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50 flex-shrink-0">
+          <div className="flex items-center space-x-2 md:space-x-3 min-w-0 flex-1">
+            <div className="p-1.5 md:p-2 bg-blue-500 rounded-lg flex-shrink-0">
+              <Settings className="h-4 w-4 md:h-5 md:w-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Forecasting Settings</h2>
-              <p className="text-sm text-slate-600">Configure forecasting parameters and preferences</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg md:text-xl font-bold text-slate-900 truncate">Forecasting Settings</h2>
+              <p className="text-xs md:text-sm text-slate-600 hidden sm:block">Configure forecasting parameters and preferences</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 flex-shrink-0"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 md:h-5 md:w-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Content - Mobile Responsive Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
             
             {/* Forecast Parameters */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-slate-900">Forecast Parameters</h3>
+            <div className="space-y-4 md:space-y-6">
+              <div className="flex items-center space-x-2 mb-3 md:mb-4">
+                <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                <h3 className="text-base md:text-lg font-semibold text-slate-900">Forecast Parameters</h3>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                   Default Forecast Period
                 </label>
                 <select
                   value={settings.defaultForecastMonths}
                   onChange={(e) => handleSettingChange('defaultForecastMonths', Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm md:text-base border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value={1}>1 Month</option>
                   <option value={3}>3 Months</option>
@@ -130,7 +130,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                   Confidence Level: {(settings.confidenceLevel * 100).toFixed(0)}%
                 </label>
                 <input
@@ -149,7 +149,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                   Safety Stock Multiplier: {settings.safetyStockMultiplier.toFixed(2)}x
                 </label>
                 <input
@@ -167,7 +167,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 md:space-y-3">
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -176,7 +176,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                     onChange={(e) => handleSettingChange('includeSeasonality', e.target.checked)}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
                   />
-                  <label htmlFor="includeSeasonality" className="ml-2 text-sm text-slate-700">
+                  <label htmlFor="includeSeasonality" className="ml-2 text-xs md:text-sm text-slate-700">
                     Include Seasonality Analysis
                   </label>
                 </div>
@@ -189,7 +189,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                     onChange={(e) => handleSettingChange('includeTrends', e.target.checked)}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
                   />
-                  <label htmlFor="includeTrends" className="ml-2 text-sm text-slate-700">
+                  <label htmlFor="includeTrends" className="ml-2 text-xs md:text-sm text-slate-700">
                     Include Trend Analysis
                   </label>
                 </div>
@@ -197,20 +197,20 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
             </div>
 
             {/* Display Preferences */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <Calendar className="h-5 w-5 text-emerald-600" />
-                <h3 className="text-lg font-semibold text-slate-900">Display Preferences</h3>
+            <div className="space-y-4 md:space-y-6">
+              <div className="flex items-center space-x-2 mb-3 md:mb-4">
+                <Calendar className="h-4 w-4 md:h-5 md:w-5 text-emerald-600" />
+                <h3 className="text-base md:text-lg font-semibold text-slate-900">Display Preferences</h3>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                   Default View Mode
                 </label>
                 <select
                   value={settings.defaultView}
                   onChange={(e) => handleSettingChange('defaultView', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm md:text-base border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="forecast">Forecast View</option>
                   <option value="performance">Performance Analytics</option>
@@ -225,7 +225,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                   onChange={(e) => handleSettingChange('showDetailsDefault', e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
                 />
-                <label htmlFor="showDetailsDefault" className="ml-2 text-sm text-slate-700">
+                <label htmlFor="showDetailsDefault" className="ml-2 text-xs md:text-sm text-slate-700">
                   Show detailed view by default
                 </label>
               </div>
@@ -238,14 +238,14 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                   onChange={(e) => handleSettingChange('autoRefresh', e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
                 />
-                <label htmlFor="autoRefresh" className="ml-2 text-sm text-slate-700">
+                <label htmlFor="autoRefresh" className="ml-2 text-xs md:text-sm text-slate-700">
                   Enable auto-refresh
                 </label>
               </div>
 
               {settings.autoRefresh && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                     Refresh Interval: {settings.refreshInterval} minutes
                   </label>
                   <input
@@ -266,14 +266,14 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
             </div>
 
             {/* Data Quality */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <Database className="h-5 w-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-slate-900">Data Quality</h3>
+            <div className="space-y-4 md:space-y-6">
+              <div className="flex items-center space-x-2 mb-3 md:mb-4">
+                <Database className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
+                <h3 className="text-base md:text-lg font-semibold text-slate-900">Data Quality</h3>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                   Minimum Data Points Required: {settings.minDataPointsRequired}
                 </label>
                 <input
@@ -292,7 +292,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                   Data Quality Threshold: {(settings.dataQualityThreshold * 100).toFixed(0)}%
                 </label>
                 <input
@@ -318,17 +318,17 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                   onChange={(e) => handleSettingChange('outlierDetection', e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
                 />
-                <label htmlFor="outlierDetection" className="ml-2 text-sm text-slate-700">
+                <label htmlFor="outlierDetection" className="ml-2 text-xs md:text-sm text-slate-700">
                   Enable outlier detection
                 </label>
               </div>
             </div>
 
             {/* Alerts & Notifications */}
-            <div className="space-y-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
-                <h3 className="text-lg font-semibold text-slate-900">Alerts & Notifications</h3>
+            <div className="space-y-4 md:space-y-6">
+              <div className="flex items-center space-x-2 mb-3 md:mb-4">
+                <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-amber-600" />
+                <h3 className="text-base md:text-lg font-semibold text-slate-900">Alerts & Notifications</h3>
               </div>
 
               <div className="flex items-center">
@@ -339,7 +339,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                   onChange={(e) => handleSettingChange('enableAlerts', e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
                 />
-                <label htmlFor="enableAlerts" className="ml-2 text-sm text-slate-700">
+                <label htmlFor="enableAlerts" className="ml-2 text-xs md:text-sm text-slate-700">
                   Enable risk alerts
                 </label>
               </div>
@@ -347,7 +347,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
               {settings.enableAlerts && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                       High Risk Threshold: {(settings.highRiskThreshold * 100).toFixed(0)}%
                     </label>
                     <input
@@ -362,7 +362,7 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <label className="block text-xs md:text-sm font-medium text-slate-700 mb-2">
                       Low Confidence Alert: {(settings.lowConfidenceThreshold * 100).toFixed(0)}%
                     </label>
                     <input
@@ -381,28 +381,28 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
+        {/* Footer - Mobile Responsive */}
+        <div className="flex flex-col sm:flex-row items-center justify-between p-4 md:p-6 border-t border-slate-200 bg-slate-50 flex-shrink-0 space-y-3 sm:space-y-0">
           <button
             onClick={handleReset}
-            className="flex items-center px-4 py-2 text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            className="w-full sm:w-auto flex items-center justify-center px-3 md:px-4 py-2 text-xs md:text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            <RotateCcw className="h-4 w-4 mr-2" />
+            <RotateCcw className="h-3 w-3 md:h-4 md:w-4 mr-2" />
             Reset to Defaults
           </button>
           
-          <div className="flex space-x-3">
+          <div className="flex w-full sm:w-auto space-x-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 text-xs md:text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center px-3 md:px-4 py-2 text-xs md:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Save className="h-4 w-4 mr-2" />
+              <Save className="h-3 w-3 md:h-4 md:w-4 mr-2" />
               Save Settings
             </button>
           </div>
