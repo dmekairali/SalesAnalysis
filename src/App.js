@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, RefreshCw, User, ChevronDown, Shield, AlertTriangle } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Star, XOctagon, Search, X, RefreshCw, User, ChevronDown, Shield, AlertTriangle, BarChart3 } from 'lucide-react';
 import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
 // Import modules
@@ -350,97 +350,121 @@ const AyurvedicDashboard = () => {
     }));
   }, [filteredDashboardData]);
 
-  // Enhanced Navigation Component with User Profile
-  const EnhancedNavigation = ({ activeTab, setActiveTab, notifications, showNotifications, setShowNotifications, exportWithMLInsights, showMLAnalytics, setShowMLAnalytics, filters, setFilters }) => (
-    <nav className="bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row justify-between items-center py-4 md:space-y-0 space-y-4">
-          <div className="flex flex-col md:flex-row items-center md:space-x-8 md:space-y-0 space-y-4">
-            <h1 className="text-2xl font-bold" style={{ color: COLORS.primary }}>
-              Kairali ML Analytics
-            </h1>
-            <div className="flex flex-wrap space-x-1">
-              {[
-              ...(dataAccess.hasAccess('mr') ? [{ id: 'visitplanner', label: 'Visit Planner', icon: MapPin }] : [])
-               ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-green-100 text-green-700'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <tab.icon className="h-4 w-4 mr-2" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="flex flex-col md:flex-row items-center w-full md:w-auto md:space-x-4 md:space-y-0 space-y-4">
-            {/* Search */}
-            <div className="relative w-full md:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={filters.searchTerm}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* User Profile Dropdown */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowUserProfile(!showUserProfile)}
-                className="flex items-center space-x-2 p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                  <User className="h-5 w-5 text-white" />
-                </div>
-                <div className="hidden md:block text-left">
-                  <div className="text-sm font-medium">{user?.full_name}</div>
-                  <div className="text-xs text-gray-500">{user?.access_level}</div>
-                </div>
-                <ChevronDown className="h-4 w-4" />
-              </button>
+ // Enhanced Navigation Component with User Profile and Forecasting
+const EnhancedNavigation = ({ 
+  activeTab, 
+  setActiveTab, 
+  notifications, 
+  showNotifications, 
+  setShowNotifications, 
+  exportWithMLInsights, 
+  showMLAnalytics, 
+  setShowMLAnalytics, 
+  filters, 
+  setFilters 
+}) => (
+  <nav className="bg-white shadow-sm border-b">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col md:flex-row justify-between items-center py-4 md:space-y-0 space-y-4">
+        <div className="flex flex-col md:flex-row items-center md:space-x-8 md:space-y-0 space-y-4">
+          <h1 className="text-2xl font-bold" style={{ color: COLORS.primary }}>
+            Kairali ML Analytics
+          </h1>
+          <div className="flex flex-wrap space-x-1">
+            {[
+              // Base tabs available to all users
+              { id: 'overview', label: 'Overview', icon: Home },
               
-              {showUserProfile && (
-                <div className="absolute right-0 mt-2 z-50">
-                  <UserProfile />
-                </div>
-              )}
-            </div>
-
-            {/* ML Analytics Toggle */}
-            <button 
-              onClick={() => setShowMLAnalytics(!showMLAnalytics)}
-              className={`flex items-center justify-center w-full md:w-auto px-3 py-2 rounded-lg text-sm transition-colors ${
-                showMLAnalytics 
-                  ? 'bg-purple-100 text-purple-700' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Brain className="h-4 w-4 mr-1" />
-              ML
-            </button>
-
-            {/* Export */}
-            <button 
-              onClick={exportWithMLInsights}
-              className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <Package className="h-4 w-4 mr-2" />
-              Export
-            </button>
+              // MR-specific tabs
+              ...(dataAccess.hasAccess('mr') ? [
+                { id: 'visitplanner', label: 'Visit Planner', icon: MapPin }
+              ] : []),
+              
+              // Management/Admin tabs - Add forecasting for managers and admins
+              ...(dataAccess.hasAccess('manager') || dataAccess.hasAccess('admin') ? [
+                { id: 'forecasting', label: 'Demand Forecasting', icon: BarChart3 }
+              ] : [])
+              
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-green-100 text-green-700'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <tab.icon className="h-4 w-4 mr-2" />
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
+        
+        <div className="flex flex-col md:flex-row items-center w-full md:w-auto md:space-x-4 md:space-y-0 space-y-4">
+          {/* Search */}
+          <div className="relative w-full md:w-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={filters.searchTerm}
+              onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* User Profile Dropdown */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowUserProfile(!showUserProfile)}
+              className="flex items-center space-x-2 p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div className="hidden md:block text-left">
+                <div className="text-sm font-medium">{user?.full_name}</div>
+                <div className="text-xs text-gray-500">{user?.access_level}</div>
+              </div>
+              <ChevronDown className="h-4 w-4" />
+            </button>
+            
+            {showUserProfile && (
+              <div className="absolute right-0 mt-2 z-50">
+                <UserProfile />
+              </div>
+            )}
+          </div>
+
+          {/* ML Analytics Toggle */}
+          <button 
+            onClick={() => setShowMLAnalytics(!showMLAnalytics)}
+            className={`flex items-center justify-center w-full md:w-auto px-3 py-2 rounded-lg text-sm transition-colors ${
+              showMLAnalytics 
+                ? 'bg-purple-100 text-purple-700' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <Brain className="h-4 w-4 mr-1" />
+            ML
+          </button>
+
+          {/* Export */}
+          <button 
+            onClick={exportWithMLInsights}
+            className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <Package className="h-4 w-4 mr-2" />
+            Export
+          </button>
+        </div>
       </div>
-    </nav>
-  );
+    </div>
+  </nav>
+);
+
 
   // Get data access scope for display
   const dataScope = useMemo(() => {
