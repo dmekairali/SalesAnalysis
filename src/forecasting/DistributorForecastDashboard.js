@@ -159,19 +159,30 @@ const DistributorForecastDashboard = () => {
     setSortConfig({ key, direction });
   };
 
-  const sortedForecastData = (products) => {
-    if (!sortConfig.key) return products;
+  const sortedData = (data, config) => {
+    if (!config.key) return data;
 
-    return [...products].sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
-        return sortConfig.direction === 'ascending' ? -1 : 1;
+    return [...data].sort((a, b) => {
+      // Handle cases where values might be null or undefined for robust sorting
+      const valA = a[config.key];
+      const valB = b[config.key];
+
+      if (valA === null || valA === undefined) return config.direction === 'ascending' ? -1 : 1;
+      if (valB === null || valB === undefined) return config.direction === 'ascending' ? 1 : -1;
+
+      if (valA < valB) {
+        return config.direction === 'ascending' ? -1 : 1;
       }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
-        return sortConfig.direction === 'ascending' ? 1 : -1;
+      if (valA > valB) {
+        return config.direction === 'ascending' ? 1 : -1;
       }
       return 0;
     });
   };
+
+  const sortedForecastData = (products) => sortedData(products, sortConfig);
+  const sortedPerformanceData = () => sortedData(performanceData, sortConfig);
+
 
   const handleFilterChange = (column, value) => {
     setFilters(prevFilters => ({
@@ -440,21 +451,18 @@ const DistributorForecastDashboard = () => {
                           <div onClick={() => requestSort('product_description')} className="cursor-pointer">Product Details {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
                           <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('product_description', e.target.value)} className="mt-1 p-1 border rounded w-full" />
                         </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">
-                          <div onClick={() => requestSort('predicted_quantity')} className="cursor-pointer">Predicted Qty {sortConfig.key === 'predicted_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
-                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('predicted_quantity', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_quantity')}>
+Predicted Qty {sortConfig.key === 'predicted_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                         </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">
-                          <div onClick={() => requestSort('predicted_value')} className="cursor-pointer">Predicted Value {sortConfig.key === 'predicted_value' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
-                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('predicted_value', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_value')}>
+Predicted Value {sortConfig.key === 'predicted_value' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
                           <div onClick={() => requestSort('category')} className="cursor-pointer">Category {sortConfig.key === 'category' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
                           <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('category', e.target.value)} className="mt-1 p-1 border rounded w-full" />
                         </th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
-                          <div onClick={() => requestSort('confidence_score')} className="cursor-pointer">Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
-                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('confidence_score', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('confidence_score')}>
+Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                         </th>
                         <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
                           <div onClick={() => requestSort('risk_level')} className="cursor-pointer">Risk Level {sortConfig.key === 'risk_level' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
@@ -526,16 +534,16 @@ const DistributorForecastDashboard = () => {
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Product</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Avg Monthly</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Total Value</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Growth Trend</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Velocity</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('product_description')}>Product {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('avg_monthly_quantity')}>Avg Monthly {sortConfig.key === 'avg_monthly_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('total_value_sold')}>Total Value {sortConfig.key === 'total_value_sold' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('growth_rate')}>Growth Trend {sortConfig.key === 'growth_rate' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('stock_velocity')}>Velocity {sortConfig.key === 'stock_velocity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('product_status')}>Status {sortConfig.key === 'product_status' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {performanceData.map((product, index) => (
+                      {sortedPerformanceData().map((product, index) => (
                         <tr key={index} className="hover:bg-slate-50 transition-colors">
                           <td className="px-8 py-6">
                             <div className="flex items-center space-x-4">
