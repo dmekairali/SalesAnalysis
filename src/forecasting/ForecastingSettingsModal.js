@@ -209,7 +209,9 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
       Active products only
     </label>
   </div>
-</div>
+
+   </div>
+  </div>
 
             
 
