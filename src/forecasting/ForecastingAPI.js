@@ -48,86 +48,89 @@ export class ForecastingAPI {
   /**
    * Generate product demand forecast using SQL function
    */
-  async generateProductForecast(distributorCode, variantCode = null, forecastMonths = 6) {
-    const cacheKey = `forecast_${distributorCode}_${variantCode || 'all'}_${forecastMonths}_${activeProductsOnly}`;
-    const cached = getCache(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      console.log(`Generating forecast for distributor: ${distributorCode}, months: ${forecastMonths}`);
-
-      const { data, error } = await supabase.rpc('predict_distributor_product_demand', {
-        p_distributor_code: distributorCode,
-        p_variant_code: variantCode,
-        p_forecast_months: forecastMonths,
-        p_confidence_level: 0.95,
-        p_include_seasonality: true,
-        p_include_trends: true,
-        p_active_products_only: activeProductsOnly
-      });
-
-      if (error) throw error;
-
-      const result = {
-        success: true,
-        data: data || [],
-        timestamp: new Date().toISOString(),
-        distributorCode,
-        forecastMonths
-      };
-
-      setCache(cacheKey, result, 1800000); // Cache for 30 minutes
-      return result;
-    } catch (error) {
-      console.error('Error generating forecast:', error);
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
-    }
-  }
-
   /**
-   * Get product performance summary
-   */
-  async getProductPerformance(distributorCode, monthsBack = 12) {
-    const cacheKey = `performance_${distributorCode}_${monthsBack}_${activeProductsOnly}`;
-    const cached = getCache(cacheKey);
-    
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('get_distributor_product_performance', {
-        p_distributor_code: distributorCode,
-        p_months_back: monthsBack,
-        p_active_products_only: activeProductsOnly
-      });
-
-      if (error) throw error;
-
-      const result = {
-        success: true,
-        data: data || [],
-        timestamp: new Date().toISOString()
-      };
-
-      setCache(cacheKey, result, 600000); // Cache for 10 minutes
-      return result;
-    } catch (error) {
-      console.error('Error fetching product performance:', error);
-      return {
-        success: false,
-        error: error.message,
-        data: []
-      };
-    }
+ * Generate product demand forecast using SQL function
+ */
+async generateProductForecast(distributorCode, variantCode = null, forecastMonths = 6, activeProductsOnly = true) {
+  const cacheKey = `forecast_${distributorCode}_${variantCode || 'all'}_${forecastMonths}_${activeProductsOnly}`;
+  const cached = getCache(cacheKey);
+  
+  if (cached) {
+    return cached;
   }
+
+  try {
+    console.log(`Generating forecast for distributor: ${distributorCode}, months: ${forecastMonths}`);
+
+    const { data, error } = await supabase.rpc('predict_distributor_product_demand', {
+      p_distributor_code: distributorCode,
+      p_variant_code: variantCode,
+      p_forecast_months: forecastMonths,
+      p_confidence_level: 0.95,
+      p_include_seasonality: true,
+      p_include_trends: true,
+      p_active_products_only: activeProductsOnly
+    });
+
+    if (error) throw error;
+
+    const result = {
+      success: true,
+      data: data || [],
+      timestamp: new Date().toISOString(),
+      distributorCode,
+      forecastMonths
+    };
+
+    setCache(cacheKey, result, 1800000); // Cache for 30 minutes
+    return result;
+  } catch (error) {
+    console.error('Error generating forecast:', error);
+    return {
+      success: false,
+      error: error.message,
+      data: []
+    };
+  }
+}
+
+/**
+ * Get product performance summary
+ */
+async getProductPerformance(distributorCode, monthsBack = 12, activeProductsOnly = true) {
+  const cacheKey = `performance_${distributorCode}_${monthsBack}_${activeProductsOnly}`;
+  const cached = getCache(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('get_distributor_product_performance', {
+      p_distributor_code: distributorCode,
+      p_months_back: monthsBack,
+      p_active_products_only: activeProductsOnly
+    });
+
+    if (error) throw error;
+
+    const result = {
+      success: true,
+      data: data || [],
+      timestamp: new Date().toISOString()
+    };
+
+    setCache(cacheKey, result, 600000); // Cache for 10 minutes
+    return result;
+  } catch (error) {
+    console.error('Error fetching product performance:', error);
+    return {
+      success: false,
+      error: error.message,
+      data: []
+    };
+  }
+}
 
   /**
    * Get forecast accuracy metrics
