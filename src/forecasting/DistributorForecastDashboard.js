@@ -60,6 +60,7 @@ const DistributorForecastDashboard = () => {
     showDetailsDefault: false,
     autoRefresh: false,
     refreshInterval: 30,
+    activeProductsOnly: true,
     minDataPointsRequired: 3,
     outlierDetection: true,
     dataQualityThreshold: 0.7,
@@ -121,8 +122,8 @@ const DistributorForecastDashboard = () => {
     try {
       // Fetch both forecast and performance data
       const [forecastResult, performanceResult] = await Promise.all([
-        forecastingAPI.generateProductForecast(selectedDistributor, null, forecastMonths),
-        forecastingAPI.getProductPerformance(selectedDistributor, 12)
+        forecastingAPI.generateProductForecast(selectedDistributor, null, forecastMonths, settings.activeProductsOnly),
+        forecastingAPI.getProductPerformance(selectedDistributor, 12, settings.activeProductsOnly)
       ]);
 
       if (forecastResult.success) {
