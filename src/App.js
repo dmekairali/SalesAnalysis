@@ -726,41 +726,57 @@ const EnhancedNavigation = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <EnhancedNavigation 
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        notifications={notifications}
-        showNotifications={showNotifications}
-        setShowNotifications={setShowNotifications}
-        exportWithMLInsights={exportWithMLInsights}
-        showMLAnalytics={showMLAnalytics}
-        setShowMLAnalytics={setShowMLAnalytics}
-        filters={filters}
-        setFilters={setFilters}
-      />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'visitplanner' && dataAccess.hasAccess('mr') && (
-          <MRVisitPlannerDashboard 
-            userAccessLevel={user?.access_level}
-            accessibleMRs={filterOptions.mrs}
-            defaultMR={user?.access_level === 'mr' ? user?.mr_name : null}
-          />
-        )}
-        {activeTab === 'visitplanner' && !dataAccess.hasAccess('mr') && (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h3>
-            <p className="text-gray-600">
-              Visit Planner requires MR or Manager access level. Contact your administrator for access.
-            </p>
-          </div>
-        )}
-      </div>
+  <div className="min-h-screen bg-gray-50">
+    <EnhancedNavigation 
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      notifications={notifications}
+      showNotifications={showNotifications}
+      setShowNotifications={setShowNotifications}
+      exportWithMLInsights={exportWithMLInsights}
+      showMLAnalytics={showMLAnalytics}
+      setShowMLAnalytics={setShowMLAnalytics}
+      filters={filters}
+      setFilters={setFilters}
+    />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {activeTab === 'overview' && <OverviewTab />}
+      
+      {activeTab === 'visitplanner' && dataAccess.hasAccess('mr') && (
+        <MRVisitPlannerDashboard 
+          userAccessLevel={user?.access_level}
+          accessibleMRs={filterOptions.mrs}
+          defaultMR={user?.access_level === 'mr' ? user?.mr_name : null}
+        />
+      )}
+      
+      {activeTab === 'visitplanner' && !dataAccess.hasAccess('mr') && (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h3>
+          <p className="text-gray-600">
+            Visit Planner requires MR or Manager access level. Contact your administrator for access.
+          </p>
+        </div>
+      )}
+      
+      {/* NEW FORECASTING TAB */}
+      {activeTab === 'forecasting' && (dataAccess.hasAccess('manager') || dataAccess.hasAccess('admin')) && (
+        <DistributorForecastDashboard />
+      )}
+      
+      {activeTab === 'forecasting' && !(dataAccess.hasAccess('manager') || dataAccess.hasAccess('admin')) && (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <AlertTriangle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h3>
+          <p className="text-gray-600">
+            Demand Forecasting requires Manager or Admin access level. Contact your administrator for access.
+          </p>
+        </div>
+      )}
     </div>
-  );
-};
+  </div>
+);
 
 // Main App Component with Authentication Provider
 const App = () => {
