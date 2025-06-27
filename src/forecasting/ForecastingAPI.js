@@ -49,7 +49,7 @@ export class ForecastingAPI {
    * Generate product demand forecast using SQL function
    */
   async generateProductForecast(distributorCode, variantCode = null, forecastMonths = 6) {
-    const cacheKey = `forecast_${distributorCode}_${variantCode || 'all'}_${forecastMonths}`;
+    const cacheKey = `forecast_${distributorCode}_${variantCode || 'all'}_${forecastMonths}_${activeProductsOnly}`;
     const cached = getCache(cacheKey);
     
     if (cached) {
@@ -65,7 +65,8 @@ export class ForecastingAPI {
         p_forecast_months: forecastMonths,
         p_confidence_level: 0.95,
         p_include_seasonality: true,
-        p_include_trends: true
+        p_include_trends: true,
+        p_active_products_only: activeProductsOnly
       });
 
       if (error) throw error;
@@ -94,7 +95,7 @@ export class ForecastingAPI {
    * Get product performance summary
    */
   async getProductPerformance(distributorCode, monthsBack = 12) {
-    const cacheKey = `performance_${distributorCode}_${monthsBack}`;
+    const cacheKey = `performance_${distributorCode}_${monthsBack}_${activeProductsOnly}`;
     const cached = getCache(cacheKey);
     
     if (cached) {
@@ -104,7 +105,8 @@ export class ForecastingAPI {
     try {
       const { data, error } = await supabase.rpc('get_distributor_product_performance', {
         p_distributor_code: distributorCode,
-        p_months_back: monthsBack
+        p_months_back: monthsBack,
+        p_active_products_only: activeProductsOnly
       });
 
       if (error) throw error;
