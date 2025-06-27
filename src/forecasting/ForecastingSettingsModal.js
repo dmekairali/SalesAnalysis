@@ -199,6 +199,22 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
               </div>
             </div>
 
+              {/* ADD THIS NEW CHECKBOX */}
+  <div className="flex items-center">
+    <input
+      type="checkbox"
+      id="activeProductsOnly"
+      checked={settings.activeProductsOnly}
+      onChange={(e) => handleSettingChange('activeProductsOnly', e.target.checked)}
+      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+    />
+    <label htmlFor="activeProductsOnly" className="ml-2 text-sm text-slate-700">
+      Active products only
+    </label>
+  </div>
+</div>
+
+
             {/* Display Preferences */}
             <div className="space-y-4 md:space-y-6">
               <div className="flex items-center space-x-2 mb-3 md:mb-4">
@@ -269,31 +285,6 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
             </div>
 
           
-{/* NEW CONTROL - Active products only */}
-<div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-  <div className="flex items-center">
-    <input
-      type="checkbox"
-      id="activeProductsOnly"
-      checked={settings.activeProductsOnly}
-      onChange={(e) => handleSettingChange('activeProductsOnly', e.target.checked)}
-      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-    />
-    <label htmlFor="activeProductsOnly" className="ml-3 flex flex-col">
-      <span className="text-sm font-medium text-slate-700">Active products only</span>
-      <span className="text-xs text-slate-500">Filter out discontinued and inactive products</span>
-    </label>
-  </div>
-  <div className="flex items-center">
-    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-      settings.activeProductsOnly 
-        ? 'bg-green-100 text-green-700' 
-        : 'bg-slate-100 text-slate-600'
-    }`}>
-      {settings.activeProductsOnly ? 'Filtered' : 'All Products'}
-    </span>
-  </div>
-</div>
 
             {/* Data Quality */}
             <div className="space-y-4 md:space-y-6">
