@@ -170,49 +170,48 @@ const ForecastingSettingsModal = ({ isOpen, onClose, onSave }) => {
                 </div>
               </div>
 
-              <div className="space-y-2 md:space-y-3">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="includeSeasonality"
-                    checked={settings.includeSeasonality}
-                    onChange={(e) => handleSettingChange('includeSeasonality', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-                  />
-                  <label htmlFor="includeSeasonality" className="ml-2 text-xs md:text-sm text-slate-700">
-                    Include Seasonality Analysis
-                  </label>
-                </div>
-                
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="includeTrends"
-                    checked={settings.includeTrends}
-                    onChange={(e) => handleSettingChange('includeTrends', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
-                  />
-                  <label htmlFor="includeTrends" className="ml-2 text-xs md:text-sm text-slate-700">
-                    Include Trend Analysis
-                  </label>
-                </div>
-              </div>
-            </div>
+<div className="space-y-1.5 md:space-y-2">
+  <div className="flex items-center">
+    <input
+      type="checkbox"
+      id="includeSeasonality"
+      checked={settings.includeSeasonality}
+      onChange={(e) => handleSettingChange('includeSeasonality', e.target.checked)}
+      className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+    />
+    <label htmlFor="includeSeasonality" className="ml-2 text-xs md:text-sm text-slate-700">
+      Include Seasonality Analysis
+    </label>
+  </div>
+  
+  <div className="flex items-center">
+    <input
+      type="checkbox"
+      id="includeTrends"
+      checked={settings.includeTrends}
+      onChange={(e) => handleSettingChange('includeTrends', e.target.checked)}
+      className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+    />
+    <label htmlFor="includeTrends" className="ml-2 text-xs md:text-sm text-slate-700">
+      Include Trend Analysis
+    </label>
+  </div>
 
-              {/* ADD THIS NEW CHECKBOX */}
   <div className="flex items-center">
     <input
       type="checkbox"
       id="activeProductsOnly"
       checked={settings.activeProductsOnly}
       onChange={(e) => handleSettingChange('activeProductsOnly', e.target.checked)}
-      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+      className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
     />
-    <label htmlFor="activeProductsOnly" className="ml-2 text-sm text-slate-700">
+    <label htmlFor="activeProductsOnly" className="ml-2 text-xs md:text-sm text-slate-700">
       Active products only
     </label>
   </div>
 </div>
+
+            
 
 
             {/* Display Preferences */}
