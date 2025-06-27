@@ -41,6 +41,8 @@ const DistributorForecastDashboard = () => {
   const [activeTab, setActiveTab] = useState('forecast');
   const [activeDistributors, setActiveDistributors] = useState([]);
   const [error, setError] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'predicted_quantity', direction: 'descending' });
+  const [filters, setFilters] = useState({});
 
   // Fetch active distributors on component mount
   useEffect(() => {
@@ -74,7 +76,9 @@ const DistributorForecastDashboard = () => {
       ]);
 
       if (forecastResult.success) {
-        setForecastData(forecastResult.data);
+        // Sort forecast data by predicted_quantity in descending order
+        const sortedData = forecastResult.data.sort((a, b) => b.predicted_quantity - a.predicted_quantity);
+        setForecastData(sortedData);
       } else {
         throw new Error(forecastResult.error || 'Failed to generate forecast');
       }
@@ -146,6 +150,56 @@ const DistributorForecastDashboard = () => {
     acc[month].push(item);
     return acc;
   }, {});
+
+  const requestSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedData = (data, config) => {
+    if (!config.key) return data;
+
+    return [...data].sort((a, b) => {
+      // Handle cases where values might be null or undefined for robust sorting
+      const valA = a[config.key];
+      const valB = b[config.key];
+
+      if (valA === null || valA === undefined) return config.direction === 'ascending' ? -1 : 1;
+      if (valB === null || valB === undefined) return config.direction === 'ascending' ? 1 : -1;
+
+      if (valA < valB) {
+        return config.direction === 'ascending' ? -1 : 1;
+      }
+      if (valA > valB) {
+        return config.direction === 'ascending' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
+  const sortedForecastData = (products) => sortedData(products, sortConfig);
+  const sortedPerformanceData = () => sortedData(performanceData, sortConfig);
+
+
+  const handleFilterChange = (column, value) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [column]: value,
+    }));
+  };
+
+  const filteredForecastData = (products) => {
+    return products.filter(product => {
+      return Object.keys(filters).every(key => {
+        const filterValue = filters[key];
+        if (!filterValue) return true;
+        return String(product[key]).toLowerCase().includes(filterValue.toLowerCase());
+      });
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -393,15 +447,31 @@ const DistributorForecastDashboard = () => {
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Product Details</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Predicted Qty</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Predicted Value</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Confidence</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Risk Level</th>
+                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                          <div onClick={() => requestSort('product_description')} className="cursor-pointer">Product Details {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('product_description', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_quantity')}>
+Predicted Qty {sortConfig.key === 'predicted_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_value')}>
+Predicted Value {sortConfig.key === 'predicted_value' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                          <div onClick={() => requestSort('category')} className="cursor-pointer">Category {sortConfig.key === 'category' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('category', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                        </th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('confidence_score')}>
+Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        </th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                          <div onClick={() => requestSort('risk_level')} className="cursor-pointer">Risk Level {sortConfig.key === 'risk_level' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('risk_level', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {products.map((product, index) => (
+                      {sortedForecastData(filteredForecastData(products)).map((product, index) => (
                         <tr key={index} className="hover:bg-slate-50 transition-colors">
                           <td className="px-8 py-6">
                             <div className="flex items-center space-x-4">
@@ -411,7 +481,6 @@ const DistributorForecastDashboard = () => {
                               <div>
                                 <div className="text-sm font-bold text-slate-900">{product.product_description}</div>
                                 <div className="text-xs text-slate-500 mt-1">{product.variant_code} • {product.size_display}</div>
-                                <div className="text-xs text-slate-400">{product.category}</div>
                               </div>
                             </div>
                           </td>
@@ -422,6 +491,9 @@ const DistributorForecastDashboard = () => {
                           <td className="px-6 py-6 text-right">
                             <div className="text-lg font-bold text-slate-900">₹{(product.predicted_value || 0).toLocaleString()}</div>
                             <div className="text-xs text-slate-500">@₹{product.unit_price}</div>
+                          </td>
+                          <td className="px-6 py-6 text-left">
+                            <span className="text-sm text-slate-900">{product.category}</span>
                           </td>
                           <td className="px-6 py-6 text-center">
                             <div className="inline-flex items-center space-x-1">
@@ -462,16 +534,16 @@ const DistributorForecastDashboard = () => {
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Product</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Avg Monthly</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Total Value</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Growth Trend</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Velocity</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('product_description')}>Product {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('avg_monthly_quantity')}>Avg Monthly {sortConfig.key === 'avg_monthly_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('total_value_sold')}>Total Value {sortConfig.key === 'total_value_sold' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('growth_rate')}>Growth Trend {sortConfig.key === 'growth_rate' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('stock_velocity')}>Velocity {sortConfig.key === 'stock_velocity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('product_status')}>Status {sortConfig.key === 'product_status' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {performanceData.map((product, index) => (
+                      {sortedPerformanceData().map((product, index) => (
                         <tr key={index} className="hover:bg-slate-50 transition-colors">
                           <td className="px-8 py-6">
                             <div className="flex items-center space-x-4">
