@@ -33,9 +33,23 @@ import {
 import ForecastingSettingsModal from './ForecastingSettingsModal';
 
 
-// Add state for settings
-const [showSettings, setShowSettings] = useState(false);
-const [settings, setSettings] = useState({
+const DistributorForecastDashboard = () => {
+  const { user } = useAuth();
+  
+  // State declarations
+  const [selectedDistributor, setSelectedDistributor] = useState('');
+  const [forecastMonths, setForecastMonths] = useState(3);
+  const [loading, setLoading] = useState(false);
+  const [forecastData, setForecastData] = useState([]);
+  const [performanceData, setPerformanceData] = useState([]);
+  const [showDetails, setShowDetails] = useState(false);
+  const [activeTab, setActiveTab] = useState('forecast');
+  const [activeDistributors, setActiveDistributors] = useState([]);
+  const [error, setError] = useState(null);
+  
+  // Settings state
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState({
     defaultForecastMonths: 6,
     confidenceLevel: 0.95,
     includeSeasonality: true,
@@ -56,19 +70,28 @@ const [settings, setSettings] = useState({
     includeBusinessInsights: true
   });
 
-const DistributorForecastDashboard = () => {
-  const { user } = useAuth();
-  const [selectedDistributor, setSelectedDistributor] = useState('');
-  const [forecastMonths, setForecastMonths] = useState(3);
-  const [loading, setLoading] = useState(false);
-  const [forecastData, setForecastData] = useState([]);
-  const [performanceData, setPerformanceData] = useState([]);
-  const [showDetails, setShowDetails] = useState(false);
-  const [activeTab, setActiveTab] = useState('forecast');
-  const [activeDistributors, setActiveDistributors] = useState([]);
-  const [error, setError] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: 'predicted_quantity', direction: 'descending' });
-  const [filters, setFilters] = useState({});
+  // Settings handler
+  const handleSettingsSave = (newSettings) => {
+    setSettings(newSettings);
+    
+    // Apply settings immediately
+    if (newSettings.defaultView !== activeTab) {
+      setActiveTab(newSettings.defaultView);
+    }
+    
+    if (newSettings.showDetailsDefault !== showDetails) {
+      setShowDetails(newSettings.showDetailsDefault);
+    }
+    
+    if (newSettings.defaultForecastMonths !== forecastMonths) {
+      setForecastMonths(newSettings.defaultForecastMonths);
+    }
+    
+    // Save to localStorage for persistence
+    localStorage.setItem('forecastingSettings', JSON.stringify(newSettings));
+    
+    console.log('Settings saved:', newSettings);
+  };
 
   // Fetch active distributors on component mount
   useEffect(() => {
