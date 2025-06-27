@@ -48,6 +48,8 @@ const DistributorForecastDashboard = () => {
   const [activeTab, setActiveTab] = useState('forecast');
   const [activeDistributors, setActiveDistributors] = useState([]);
   const [error, setError] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'predicted_quantity', direction: 'descending' });
+  const [filters, setFilters] = useState({});
   
   // Settings state
   const [showSettings, setShowSettings] = useState(false);
