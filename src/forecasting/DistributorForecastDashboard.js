@@ -497,78 +497,79 @@ const DistributorForecastDashboard = () => {
                 
                 {/* Mobile Table - Horizontal Scroll */}
                 <div className="overflow-x-auto">
-  <table className="w-full table-fixed">
-    <thead className="bg-slate-50 border-b border-slate-200">
-      <tr>
-        <th className="w-1/3 px-3 md:px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-          <div onClick={() => requestSort('product_description')} className="cursor-pointer">
-            Product Details {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
-          </div>
-          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('product_description', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
-        </th>
-        <th className="w-1/6 px-2 md:px-3 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_quantity')}>
-          Predicted Qty {sortConfig.key === 'predicted_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
-        </th>
-        <th className="w-1/6 px-2 md:px-3 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_value')}>
-          Predicted Value {sortConfig.key === 'predicted_value' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
-        </th>
-        <th className="w-1/8 px-2 md:px-3 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-          <div onClick={() => requestSort('category')} className="cursor-pointer">
-            Category {sortConfig.key === 'category' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
-          </div>
-          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('category', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
-        </th>
-        <th className="w-1/8 px-2 md:px-3 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('confidence_score')}>
-          Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
-        </th>
-        <th className="w-1/8 px-2 md:px-3 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
-          <div onClick={() => requestSort('risk_level')} className="cursor-pointer">
-            Risk {sortConfig.key === 'risk_level' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
-          </div>
-          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('risk_level', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
-        </th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-slate-100">
-      {sortedForecastData(filteredForecastData(products)).map((product, index) => (
-        <tr key={index} className="hover:bg-slate-50 transition-colors">
-          <td className="px-3 md:px-4 py-4">
-            {/* Optimized product details cell as shown above */}
-          </td>
-          <td className="px-2 md:px-3 py-4 text-right">
-            <div className="text-sm md:text-lg font-bold text-slate-900">{product.predicted_quantity}</div>
-            <div className="text-xs text-slate-500">units</div>
-          </td>
-          <td className="px-2 md:px-3 py-4 text-right">
-            <div className="text-sm md:text-lg font-bold text-slate-900">₹{(product.predicted_value || 0).toLocaleString()}</div>
-            <div className="text-xs text-slate-500">@₹{product.unit_price}</div>
-          </td>
-          <td className="px-2 md:px-3 py-4 text-left">
-            <span className="text-sm text-slate-900 truncate block">{product.category}</span>
-          </td>
-          <td className="px-2 md:px-3 py-4 text-center">
-            <div className="inline-flex items-center space-x-1">
-              <div className={`w-2 h-2 md:w-3 md:h-3 rounded-full ${
-                (product.confidence_score || 0) >= 0.9 ? 'bg-emerald-400' :
-                (product.confidence_score || 0) >= 0.8 ? 'bg-amber-400' : 'bg-red-400'
-              }`}></div>
-              <span className="text-xs md:text-sm font-semibold text-slate-900">
-                {((product.confidence_score || 0) * 100).toFixed(0)}%
-              </span>
-            </div>
-          </td>
-          <td className="px-2 md:px-3 py-4 text-center">
-            <span className={`inline-flex px-2 md:px-3 py-1 md:py-1.5 text-xs font-bold rounded-lg md:rounded-xl border ${getRiskColor(product.risk_level)}`}>
-              {product.risk_level}
-            </span>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-              
-        </div>
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="px-3 md:px-8 py-3 md:py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider min-w-48">
+                          <div onClick={() => requestSort('product_description')} className="cursor-pointer">Product Details {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('product_description', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
+                        </th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-24" onClick={() => requestSort('predicted_quantity')}>
+                          Qty {sortConfig.key === 'predicted_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        </th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-28" onClick={() => requestSort('predicted_value')}>
+                          Value {sortConfig.key === 'predicted_value' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        </th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider min-w-24">
+                          <div onClick={() => requestSort('category')} className="cursor-pointer">Category {sortConfig.key === 'category' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('category', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
+                        </th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-24" onClick={() => requestSort('confidence_score')}>
+                          Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        </th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider min-w-20">
+                          <div onClick={() => requestSort('risk_level')} className="cursor-pointer">Risk {sortConfig.key === 'risk_level' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('risk_level', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {sortedForecastData(filteredForecastData(products)).map((product, index) => (
+                        <tr key={index} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-3 md:px-8 py-4 md:py-6">
+                            <div className="flex items-center space-x-2 md:space-x-4">
+                              <div className="w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
+                                <Package className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs md:text-sm font-bold text-slate-900 truncate">{product.product_description}</div>
+                                <div className="text-xs text-slate-500 mt-1 truncate">{product.variant_code} • {product.size_display}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-right">
+                            <div className="text-sm md:text-lg font-bold text-slate-900">{product.predicted_quantity}</div>
+                            <div className="text-xs text-slate-500">units</div>
+                          </td>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-right">
+                            <div className="text-sm md:text-lg font-bold text-slate-900">₹{(product.predicted_value || 0).toLocaleString()}</div>
+                            <div className="text-xs text-slate-500">@₹{product.unit_price}</div>
+                          </td>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-left">
+                            <span className="text-xs md:text-sm text-slate-900 truncate block">{product.category}</span>
+                          </td>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-center">
+                            <div className="inline-flex items-center space-x-1">
+                              <div className={`w-2 h-2 md:w-3 md:h-3 rounded-full ${
+                                (product.confidence_score || 0) >= 0.9 ? 'bg-emerald-400' :
+                                (product.confidence_score || 0) >= 0.8 ? 'bg-amber-400' : 'bg-red-400'
+                              }`}></div>
+                              <span className="text-xs md:text-sm font-semibold text-slate-900">
+                                {((product.confidence_score || 0) * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-center">
+                            <span className={`inline-flex px-2 md:px-3 py-1 md:py-1.5 text-xs font-bold rounded-lg md:rounded-xl border ${getRiskColor(product.risk_level)}`}>
+                              {product.risk_level}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             ))}
 
             {/* Performance Analytics Tab - Mobile Responsive */}
