@@ -1,4 +1,4 @@
-// src/auth/AuthContext.js - Enhanced with Loading States and Data Persistence
+// src/auth/AuthContext.js - Enhanced with Loading States, Data Persistence, and Mobile Responsiveness
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -281,7 +281,7 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Enhanced Login Form Component with Better Loading States
+// Enhanced Login Form Component with Better Loading States - Mobile Responsive
 export const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -304,31 +304,31 @@ export const LoginForm = () => {
     setLoading(false);
   };
 
-  // Show loading progress during login
+  // Show loading progress during login - Mobile Responsive
   if (loading || initialDataLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-3 md:p-4">
         <div className="max-w-md w-full">
-          <div className="bg-white rounded-lg shadow-md p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="h-8 w-8 text-white" />
+          <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+            <div className="text-center mb-4 md:mb-6">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                <Shield className="h-6 w-6 md:h-8 md:w-8 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">
+              <h3 className="text-lg md:text-xl font-semibold text-gray-900">
                 {loading ? 'Signing You In...' : 'Loading Dashboard...'}
               </h3>
-              <p className="text-sm text-gray-600 mt-2">Please wait while we prepare your workspace</p>
+              <p className="text-xs md:text-sm text-gray-600 mt-2">Please wait while we prepare your workspace</p>
             </div>
 
-            {/* Progress bar */}
-            <div className="mb-6">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
+            {/* Progress bar - Mobile Responsive */}
+            <div className="mb-4 md:mb-6">
+              <div className="flex justify-between text-xs md:text-sm text-gray-600 mb-2">
                 <span>Progress</span>
                 <span>{Math.round((loadingProgress.step / loadingProgress.totalSteps) * 100)}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
                 <div 
-                  className="bg-green-600 h-3 rounded-full transition-all duration-500"
+                  className="bg-green-600 h-2 md:h-3 rounded-full transition-all duration-500"
                   style={{ 
                     width: `${(loadingProgress.step / loadingProgress.totalSteps) * 100}%` 
                   }}
@@ -336,24 +336,24 @@ export const LoginForm = () => {
               </div>
             </div>
 
-            {/* Step list */}
-            <div className="space-y-3">
+            {/* Step list - Mobile Responsive */}
+            <div className="space-y-2 md:space-y-3">
               {loadingProgress.steps.map((step, index) => (
                 <div key={step.id} className="flex items-center">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                  <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center mr-2 md:mr-3 flex-shrink-0 ${
                     step.status === 'completed' ? 'bg-green-100 text-green-600' :
                     step.status === 'active' ? 'bg-blue-100 text-blue-600' :
                     'bg-gray-100 text-gray-400'
                   }`}>
                     {step.status === 'completed' ? (
-                      <CheckCircle className="w-4 h-4" />
+                      <CheckCircle className="w-3 h-3 md:w-4 md:h-4" />
                     ) : step.status === 'active' ? (
-                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                      <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-blue-600 rounded-full animate-pulse"></div>
                     ) : (
                       <span className="text-xs">{index + 1}</span>
                     )}
                   </div>
-                  <span className={`text-sm ${
+                  <span className={`text-xs md:text-sm ${
                     step.status === 'completed' ? 'text-green-700' :
                     step.status === 'active' ? 'text-blue-700' :
                     'text-gray-500'
@@ -371,42 +371,42 @@ export const LoginForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-3 md:p-4">
       <div className="max-w-md w-full">
-        {/* Logo and Title */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center">
-              <Shield className="h-8 w-8 text-white" />
+        {/* Logo and Title - Mobile Responsive */}
+        <div className="text-center mb-6 md:mb-8">
+          <div className="flex justify-center mb-3 md:mb-4">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-green-600 rounded-full flex items-center justify-center">
+              <Shield className="h-6 w-6 md:h-8 md:w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Kairali ML Analytics</h1>
-          <p className="text-gray-600 mt-2">AI-Powered Sales Intelligence Platform</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Kairali ML Analytics</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-2">AI-Powered Sales Intelligence Platform</p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Sign In</h2>
+        {/* Login Form - Mobile Responsive */}
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+          <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Sign In</h2>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-                <span className="text-red-700">{error}</span>
+                <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-red-600 mr-2 flex-shrink-0" />
+                <span className="text-sm md:text-base text-red-700">{error}</span>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
                 Email Address
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full pl-9 md:pl-10 pr-4 py-2.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   placeholder="Enter your email"
                   required
                 />
@@ -414,16 +414,16 @@ export const LoginForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full pl-9 md:pl-10 pr-11 md:pr-12 py-2.5 md:py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   placeholder="Enter your password"
                   required
                 />
@@ -432,7 +432,7 @@ export const LoginForm = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="h-4 w-4 md:h-5 md:w-5" /> : <Eye className="h-4 w-4 md:h-5 md:w-5" />}
                 </button>
               </div>
             </div>
@@ -440,15 +440,15 @@ export const LoginForm = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-green-600 text-white py-2.5 md:py-2 px-4 text-sm md:text-base rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
 
           {/* Optional: Add forgot password link */}
-          <div className="mt-4 text-center">
-            <a href="#" className="text-sm text-green-600 hover:text-green-700">
+          <div className="mt-3 md:mt-4 text-center">
+            <a href="#" className="text-xs md:text-sm text-green-600 hover:text-green-700">
               Forgot your password?
             </a>
           </div>
@@ -458,7 +458,7 @@ export const LoginForm = () => {
   );
 };
 
-// Enhanced User Profile Component with Hierarchy
+// Enhanced User Profile Component with Hierarchy - Mobile Responsive
 export const UserProfile = () => {
   const { user, logout, teamHierarchy, accessibleMRs, getTeamMembers } = useAuth();
 
@@ -487,24 +487,24 @@ export const UserProfile = () => {
   const teamMembers = getTeamMembers();
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-4 w-96 max-h-96 overflow-y-auto">
-      <div className="flex items-center space-x-3 mb-3">
-        <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-          <User className="h-6 w-6 text-white" />
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-3 md:p-4 w-80 md:w-96 max-h-80 md:max-h-96 overflow-y-auto">
+      <div className="flex items-center space-x-2 md:space-x-3 mb-3">
+        <div className="w-8 h-8 md:w-10 md:h-10 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <User className="h-4 w-4 md:h-6 md:w-6 text-white" />
         </div>
-        <div>
-          <div className="font-semibold text-gray-900">{user.full_name}</div>
-          <div className="text-sm text-gray-600">{user.email}</div>
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-sm md:text-base text-gray-900 truncate">{user.full_name}</div>
+          <div className="text-xs md:text-sm text-gray-600 truncate">{user.email}</div>
         </div>
       </div>
 
-      <div className="space-y-2 mb-4">
-        <div className="flex justify-between text-sm">
+      <div className="space-y-2 mb-3 md:mb-4">
+        <div className="flex justify-between text-xs md:text-sm">
           <span className="text-gray-600">Employee ID:</span>
           <span className="font-medium">{user.employee_id}</span>
         </div>
         
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between text-xs md:text-sm items-center">
           <span className="text-gray-600">Access Level:</span>
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAccessLevelColor(user.access_level)}`}>
             {user.access_level.toUpperCase()}
@@ -512,38 +512,38 @@ export const UserProfile = () => {
         </div>
 
         {user.mr_name && (
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between text-xs md:text-sm">
             <span className="text-gray-600">MR Name:</span>
-            <span className="font-medium">{user.mr_name}</span>
+            <span className="font-medium truncate ml-2">{user.mr_name}</span>
           </div>
         )}
 
-        {/* Hierarchy Information */}
+        {/* Hierarchy Information - Mobile Responsive */}
         {user.access_level === 'mr' && (
-          <div className="text-sm border-t pt-2">
+          <div className="text-xs md:text-sm border-t pt-2">
             <span className="text-gray-600 block mb-1">Reporting Structure:</span>
             {user.reporting_manager && (
-              <div className="text-xs text-gray-500">RM: {user.reporting_manager}</div>
+              <div className="text-xs text-gray-500 truncate">RM: {user.reporting_manager}</div>
             )}
             {user.area_sales_manager && (
-              <div className="text-xs text-gray-500">ASM: {user.area_sales_manager}</div>
+              <div className="text-xs text-gray-500 truncate">ASM: {user.area_sales_manager}</div>
             )}
             {user.regional_sales_manager && (
-              <div className="text-xs text-gray-500">RSM: {user.regional_sales_manager}</div>
+              <div className="text-xs text-gray-500 truncate">RSM: {user.regional_sales_manager}</div>
             )}
           </div>
         )}
 
-        {/* Team Members for Managers */}
+        {/* Team Members for Managers - Mobile Responsive */}
         {user.access_level === 'manager' && teamMembers.length > 0 && (
-          <div className="text-sm border-t pt-2">
+          <div className="text-xs md:text-sm border-t pt-2">
             <div className="flex items-center mb-1">
-              <Users className="h-3 w-3 text-gray-600 mr-1" />
+              <Users className="h-3 w-3 text-gray-600 mr-1 flex-shrink-0" />
               <span className="text-gray-600">Team Members ({teamMembers.length}):</span>
             </div>
-            <div className="space-y-1 max-h-20 overflow-y-auto">
+            <div className="space-y-1 max-h-16 md:max-h-20 overflow-y-auto">
               {teamMembers.map((member, index) => (
-                <div key={index} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs">
+                <div key={index} className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs truncate">
                   {member.full_name} ({member.mr_name})
                 </div>
               ))}
@@ -551,8 +551,9 @@ export const UserProfile = () => {
           </div>
         )}
 
+        {/* Territories - Mobile Responsive */}
         {user.assigned_territories && user.assigned_territories.length > 0 && (
-          <div className="text-sm">
+          <div className="text-xs md:text-sm">
             <span className="text-gray-600">Territories:</span>
             <div className="mt-1 flex flex-wrap gap-1">
               {user.assigned_territories.map((territory, index) => (
@@ -564,8 +565,9 @@ export const UserProfile = () => {
           </div>
         )}
 
+        {/* States - Mobile Responsive */}
         {user.assigned_states && user.assigned_states.length > 0 && (
-          <div className="text-sm">
+          <div className="text-xs md:text-sm">
             <span className="text-gray-600">States:</span>
             <div className="mt-1 flex flex-wrap gap-1">
               {user.assigned_states.map((state, index) => (
@@ -577,13 +579,13 @@ export const UserProfile = () => {
           </div>
         )}
 
-        {/* Data Access Summary */}
+        {/* Data Access Summary - Mobile Responsive */}
         {accessibleMRs.length > 0 && (
-          <div className="text-sm border-t pt-2">
+          <div className="text-xs md:text-sm border-t pt-2">
             <span className="text-gray-600">Data Access ({accessibleMRs.length} MRs):</span>
-            <div className="mt-1 max-h-16 overflow-y-auto">
+            <div className="mt-1 max-h-12 md:max-h-16 overflow-y-auto">
               {accessibleMRs.slice(0, 5).map((mrName, index) => (
-                <div key={index} className="text-xs text-gray-600">• {mrName}</div>
+                <div key={index} className="text-xs text-gray-600 truncate">• {mrName}</div>
               ))}
               {accessibleMRs.length > 5 && (
                 <div className="text-xs text-gray-500">...and {accessibleMRs.length - 5} more</div>
@@ -593,35 +595,35 @@ export const UserProfile = () => {
         )}
       </div>
 
-      <div className="text-xs text-gray-500 mb-4">
+      <div className="text-xs text-gray-500 mb-3 md:mb-4">
         {getAccessLevelDescription(user.access_level)}
       </div>
 
       <button
         onClick={logout}
-        className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+        className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white py-2 px-4 text-sm rounded-lg hover:bg-red-700 transition-colors"
       >
-        <LogOut className="h-4 w-4" />
+        <LogOut className="h-3 w-3 md:h-4 md:w-4" />
         <span>Sign Out</span>
       </button>
     </div>
   );
 };
 
-// Enhanced Protected Route Component
+// Enhanced Protected Route Component - Mobile Responsive
 export const ProtectedRoute = ({ children, requiredLevel = null }) => {
   const { user, loading, initialDataLoading, loadingProgress } = useAuth();
 
   if (loading || initialDataLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white rounded-lg shadow-md p-8 max-w-md w-full mx-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-green-600 mx-auto mb-6"></div>
-          <div className="space-y-3">
-            <h3 className="text-xl font-semibold text-gray-900">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-3 md:p-4">
+        <div className="text-center bg-white rounded-lg shadow-md p-6 md:p-8 max-w-md w-full">
+          <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-b-4 border-green-600 mx-auto mb-4 md:mb-6"></div>
+          <div className="space-y-2 md:space-y-3">
+            <h3 className="text-lg md:text-xl font-semibold text-gray-900">
               {initialDataLoading ? 'Loading Dashboard Data...' : 'Authenticating...'}
             </h3>
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-xs md:text-sm text-gray-600 space-y-1">
               {loadingProgress.steps.map((step, index) => (
                 <p key={step.id} className={
                   step.status === 'completed' ? 'text-green-600' :
@@ -633,7 +635,7 @@ export const ProtectedRoute = ({ children, requiredLevel = null }) => {
                 </p>
               ))}
             </div>
-            <div className="mt-4 bg-gray-200 rounded-full h-2">
+            <div className="mt-3 md:mt-4 bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-green-600 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${(loadingProgress.step / loadingProgress.totalSteps) * 100}%` }}
@@ -657,11 +659,19 @@ export const ProtectedRoute = ({ children, requiredLevel = null }) => {
 
     if (userLevel < reqLevel) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-            <p className="text-gray-600">You don't have permission to access this page.</p>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-3 md:p-4">
+          <div className="text-center bg-white rounded-lg shadow-md p-6 md:p-8 max-w-md w-full">
+            <AlertCircle className="h-12 w-12 md:h-16 md:w-16 text-red-500 mx-auto mb-3 md:mb-4" />
+            <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-sm md:text-base text-gray-600">You don't have permission to access this page.</p>
+            <div className="mt-4 p-3 bg-red-50 rounded-lg">
+              <p className="text-xs md:text-sm text-red-700">
+                Required: <span className="font-semibold">{requiredLevel.toUpperCase()}</span> level access
+              </p>
+              <p className="text-xs md:text-sm text-red-700">
+                Your level: <span className="font-semibold">{user.access_level.toUpperCase()}</span>
+              </p>
+            </div>
           </div>
         </div>
       );
