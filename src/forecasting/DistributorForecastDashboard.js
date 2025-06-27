@@ -1,4 +1,3 @@
-
 // ========================================
 // 2. src/forecasting/DistributorForecastDashboard.js
 // ========================================
@@ -31,9 +30,7 @@ import {
   Building2
 } from 'lucide-react';
 
-
 import ForecastingSettingsModal from './ForecastingSettingsModal';
-
 
 const DistributorForecastDashboard = () => {
   const { user } = useAuth();
@@ -181,9 +178,9 @@ const DistributorForecastDashboard = () => {
   };
 
   const getGrowthIcon = (rate) => {
-    if (rate > 5) return <ArrowUpRight className="h-4 w-4 text-emerald-600" />;
-    if (rate < -5) return <ArrowDownRight className="h-4 w-4 text-red-600" />;
-    return <Minus className="h-4 w-4 text-gray-600" />;
+    if (rate > 5) return <ArrowUpRight className="h-3 w-3 md:h-4 md:w-4 text-emerald-600" />;
+    if (rate < -5) return <ArrowDownRight className="h-3 w-3 md:h-4 md:w-4 text-red-600" />;
+    return <Minus className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />;
   };
 
   // Calculate summary metrics
@@ -236,7 +233,6 @@ const DistributorForecastDashboard = () => {
   const sortedForecastData = (products) => sortedData(products, sortConfig);
   const sortedPerformanceData = () => sortedData(performanceData, sortConfig);
 
-
   const handleFilterChange = (column, value) => {
     setFilters(prevFilters => ({
       ...prevFilters,
@@ -256,46 +252,46 @@ const DistributorForecastDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 space-y-4 md:space-y-8">
         
-        {/* Professional Header */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-                <BarChart3 className="h-8 w-8 text-white" />
+        {/* Professional Header - Mobile Responsive */}
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border border-slate-200 p-4 md:p-8">
+          <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+            <div className="flex items-center space-x-3 md:space-x-4">
+              <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg md:rounded-xl shadow-lg">
+                <BarChart3 className="h-5 w-5 md:h-8 md:w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">Demand Forecasting Hub</h1>
-                <p className="text-slate-600 mt-1">AI-powered product demand prediction and inventory planning</p>
+                <h1 className="text-xl md:text-3xl font-bold text-slate-900">Demand Forecasting Hub</h1>
+                <p className="text-sm md:text-base text-slate-600 mt-1">AI-powered product demand prediction</p>
                 {user && (
-                  <p className="text-sm text-slate-500 mt-1">Welcome, {user.full_name}</p>
+                  <p className="text-xs md:text-sm text-slate-500 mt-1">Welcome, {user.full_name}</p>
                 )}
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
               <button 
-  onClick={() => setShowSettings(true)}
-  className="flex items-center px-4 py-2.5 text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all duration-200"
->
-  <Settings className="h-4 w-4 mr-2" />
-  Settings
-</button>
+                onClick={() => setShowSettings(true)}
+                className="flex items-center justify-center px-3 md:px-4 py-2 md:py-2.5 text-sm text-slate-600 bg-slate-100 rounded-lg md:rounded-xl hover:bg-slate-200 transition-all duration-200"
+              >
+                <Settings className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                Settings
+              </button>
               <button 
                 onClick={handleExport}
                 disabled={!selectedDistributor || forecastData.length === 0}
-                className="flex items-center px-4 py-2.5 text-emerald-600 bg-emerald-100 rounded-xl hover:bg-emerald-200 disabled:opacity-50 transition-all duration-200"
+                className="flex items-center justify-center px-3 md:px-4 py-2 md:py-2.5 text-sm text-emerald-600 bg-emerald-100 rounded-lg md:rounded-xl hover:bg-emerald-200 disabled:opacity-50 transition-all duration-200"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export Report
+                <Download className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                Export
               </button>
               <button 
                 onClick={fetchForecastData}
                 disabled={!selectedDistributor || loading}
-                className="flex items-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
+                className="flex items-center justify-center px-4 md:px-6 py-2 md:py-2.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg md:rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3 w-3 md:h-4 md:w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 {loading ? 'Generating...' : 'Generate Forecast'}
               </button>
             </div>
@@ -304,32 +300,32 @@ const DistributorForecastDashboard = () => {
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg md:rounded-xl p-3 md:p-4">
             <div className="flex items-center">
-              <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
-              <span className="text-red-800">{error}</span>
+              <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-red-600 mr-2" />
+              <span className="text-sm md:text-base text-red-800">{error}</span>
             </div>
           </div>
         )}
 
-        {/* Enhanced Filters */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
-          <div className="flex items-center mb-6">
-            <Filter className="h-5 w-5 text-slate-600 mr-2" />
-            <h3 className="text-lg font-semibold text-slate-900">Forecast Configuration</h3>
+        {/* Enhanced Filters - Mobile Responsive */}
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border border-slate-200 p-4 md:p-6">
+          <div className="flex items-center mb-4 md:mb-6">
+            <Filter className="h-4 w-4 md:h-5 md:w-5 text-slate-600 mr-2" />
+            <h3 className="text-base md:text-lg font-semibold text-slate-900">Forecast Configuration</h3>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {/* Distributor Selection */}
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
+            <div className="md:col-span-2">
+              <label className="block text-xs md:text-sm font-semibold text-slate-700 mb-2 md:mb-3">
                 Select Distributor Partner
               </label>
               <div className="relative">
                 <select
                   value={selectedDistributor}
                   onChange={(e) => setSelectedDistributor(e.target.value)}
-                  className="w-full pl-4 pr-12 py-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 shadow-sm transition-all duration-200"
+                  className="w-full pl-3 md:pl-4 pr-10 md:pr-12 py-2.5 md:py-3.5 text-sm md:text-base border border-slate-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 shadow-sm transition-all duration-200"
                 >
                   <option value="">Choose distributor partner...</option>
                   {activeDistributors.map((dist) => (
@@ -338,13 +334,13 @@ const DistributorForecastDashboard = () => {
                     </option>
                   ))}
                 </select>
-                <Building2 className="absolute right-4 top-4 h-5 w-5 text-slate-400" />
+                <Building2 className="absolute right-3 md:right-4 top-3 md:top-4 h-4 w-4 md:h-5 md:w-5 text-slate-400" />
               </div>
               {selectedDistributorData && (
-                <div className="mt-2 flex items-center space-x-3 text-sm">
+                <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:space-x-3 text-xs md:text-sm space-y-1 sm:space-y-0">
                   <span className="text-slate-600">Region: {selectedDistributorData.region}</span>
-                  <span className="text-slate-400">•</span>
-                  <span className="px-2 py-1 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700">
+                  <span className="text-slate-400 hidden sm:inline">•</span>
+                  <span className="px-2 py-1 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 w-fit">
                     {selectedDistributorData.status}
                   </span>
                 </div>
@@ -353,30 +349,30 @@ const DistributorForecastDashboard = () => {
 
             {/* Forecast Period */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
+              <label className="block text-xs md:text-sm font-semibold text-slate-700 mb-2 md:mb-3">
                 Forecast Horizon
               </label>
               <select
                 value={forecastMonths}
                 onChange={(e) => setForecastMonths(Number(e.target.value))}
-                className="w-full px-4 py-3.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                className="w-full px-3 md:px-4 py-2.5 md:py-3.5 text-sm md:text-base border border-slate-300 rounded-lg md:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
               >
-                <option value={1}>1 Month Ahead</option>
-                <option value={3}>3 Months Ahead</option>
-                <option value={6}>6 Months Ahead</option>
-                <option value={12}>12 Months Ahead</option>
+                <option value={1}>1 Month</option>
+                <option value={3}>3 Months</option>
+                <option value={6}>6 Months</option>
+                <option value={12}>12 Months</option>
               </select>
             </div>
 
             {/* View Options */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
+              <label className="block text-xs md:text-sm font-semibold text-slate-700 mb-2 md:mb-3">
                 Display Mode
               </label>
-              <div className="flex rounded-xl border border-slate-300 bg-slate-50 p-1">
+              <div className="flex rounded-lg md:rounded-xl border border-slate-300 bg-slate-50 p-1">
                 <button
                   onClick={() => setActiveTab('forecast')}
-                  className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  className={`flex-1 px-2 md:px-3 py-2 md:py-2.5 text-xs md:text-sm font-medium rounded-md md:rounded-lg transition-all duration-200 ${
                     activeTab === 'forecast' 
                       ? 'bg-white text-blue-600 shadow-sm' 
                       : 'text-slate-600 hover:text-slate-900'
@@ -386,7 +382,7 @@ const DistributorForecastDashboard = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('performance')}
-                  className={`flex-1 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                  className={`flex-1 px-2 md:px-3 py-2 md:py-2.5 text-xs md:text-sm font-medium rounded-md md:rounded-lg transition-all duration-200 ${
                     activeTab === 'performance' 
                       ? 'bg-white text-blue-600 shadow-sm' 
                       : 'text-slate-600 hover:text-slate-900'
@@ -399,174 +395,172 @@ const DistributorForecastDashboard = () => {
           </div>
         </div>
 
-        {/* Enhanced KPI Cards */}
+        {/* Enhanced KPI Cards - Mobile Grid */}
         {forecastData.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-lg border border-blue-200 p-6">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl md:rounded-2xl shadow-lg border border-blue-200 p-3 md:p-6">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-blue-500 rounded-xl shadow-lg">
-                  <Package className="h-6 w-6 text-white" />
+                <div className="p-2 md:p-3 bg-blue-500 rounded-lg md:rounded-xl shadow-lg">
+                  <Package className="h-3 w-3 md:h-6 md:w-6 text-white" />
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-blue-600">Total Products</p>
-                  <p className="text-3xl font-bold text-blue-900">{totalProducts}</p>
+                  <p className="text-xs md:text-sm font-medium text-blue-600">Products</p>
+                  <p className="text-lg md:text-3xl font-bold text-blue-900">{totalProducts}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl shadow-lg border border-emerald-200 p-6">
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl md:rounded-2xl shadow-lg border border-emerald-200 p-3 md:p-6">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-emerald-500 rounded-xl shadow-lg">
-                  <TrendingUp className="h-6 w-6 text-white" />
+                <div className="p-2 md:p-3 bg-emerald-500 rounded-lg md:rounded-xl shadow-lg">
+                  <TrendingUp className="h-3 w-3 md:h-6 md:w-6 text-white" />
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-emerald-600">Predicted Value</p>
-                  <p className="text-3xl font-bold text-emerald-900">₹{(totalPredictedValue/1000).toFixed(0)}K</p>
+                  <p className="text-xs md:text-sm font-medium text-emerald-600">Value</p>
+                  <p className="text-lg md:text-3xl font-bold text-emerald-900">₹{(totalPredictedValue/1000).toFixed(0)}K</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl shadow-lg border border-purple-200 p-6">
+            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl md:rounded-2xl shadow-lg border border-purple-200 p-3 md:p-6">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-purple-500 rounded-xl shadow-lg">
-                  <ShoppingCart className="h-6 w-6 text-white" />
+                <div className="p-2 md:p-3 bg-purple-500 rounded-lg md:rounded-xl shadow-lg">
+                  <ShoppingCart className="h-3 w-3 md:h-6 md:w-6 text-white" />
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-purple-600">Total Quantity</p>
-                  <p className="text-3xl font-bold text-purple-900">{totalPredictedQty}</p>
+                  <p className="text-xs md:text-sm font-medium text-purple-600">Quantity</p>
+                  <p className="text-lg md:text-3xl font-bold text-purple-900">{totalPredictedQty}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-lg border border-amber-200 p-6">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl md:rounded-2xl shadow-lg border border-amber-200 p-3 md:p-6">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-amber-500 rounded-xl shadow-lg">
-                  <Target className="h-6 w-6 text-white" />
+                <div className="p-2 md:p-3 bg-amber-500 rounded-lg md:rounded-xl shadow-lg">
+                  <Target className="h-3 w-3 md:h-6 md:w-6 text-white" />
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-amber-600">Avg Confidence</p>
-                  <p className="text-3xl font-bold text-amber-900">{(avgConfidence * 100).toFixed(0)}%</p>
+                  <p className="text-xs md:text-sm font-medium text-amber-600">Confidence</p>
+                  <p className="text-lg md:text-3xl font-bold text-amber-900">{(avgConfidence * 100).toFixed(0)}%</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl shadow-lg border border-rose-200 p-6">
+            <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl md:rounded-2xl shadow-lg border border-rose-200 p-3 md:p-6 col-span-2 lg:col-span-1">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-rose-500 rounded-xl shadow-lg">
-                  <Zap className="h-6 w-6 text-white" />
+                <div className="p-2 md:p-3 bg-rose-500 rounded-lg md:rounded-xl shadow-lg">
+                  <Zap className="h-3 w-3 md:h-6 md:w-6 text-white" />
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-rose-600">Avg Growth</p>
-                  <p className="text-3xl font-bold text-rose-900">{avgGrowthRate.toFixed(1)}%</p>
+                  <p className="text-xs md:text-sm font-medium text-rose-600">Growth</p>
+                  <p className="text-lg md:text-3xl font-bold text-rose-900">{avgGrowthRate.toFixed(1)}%</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Main Content - Truncated for brevity, but includes full forecast table and performance analytics */}
+        {/* Main Content */}
         {!selectedDistributor ? (
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-16 text-center">
-            <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl mx-auto mb-6 flex items-center justify-center">
-              <Building2 className="h-12 w-12 text-slate-400" />
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border border-slate-200 p-8 md:p-16 text-center">
+            <div className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl md:rounded-2xl mx-auto mb-4 md:mb-6 flex items-center justify-center">
+              <Building2 className="h-8 w-8 md:h-12 md:w-12 text-slate-400" />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">Select Your Distributor Partner</h3>
-            <p className="text-slate-600 text-lg max-w-md mx-auto">
+            <h3 className="text-lg md:text-2xl font-bold text-slate-900 mb-2 md:mb-3">Select Your Distributor Partner</h3>
+            <p className="text-sm md:text-lg text-slate-600 max-w-md mx-auto">
               Choose a distributor from the dropdown to generate AI-powered product demand forecasts and insights
             </p>
           </div>
         ) : forecastData.length === 0 && !loading ? (
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-16 text-center">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-2xl mx-auto mb-6 flex items-center justify-center">
-              <Calendar className="h-12 w-12 text-blue-500" />
+          <div className="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border border-slate-200 p-8 md:p-16 text-center">
+            <div className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-xl md:rounded-2xl mx-auto mb-4 md:mb-6 flex items-center justify-center">
+              <Calendar className="h-8 w-8 md:h-12 md:w-12 text-blue-500" />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">Ready to Generate Forecast</h3>
-            <p className="text-slate-600 text-lg mb-6 max-w-md mx-auto">
+            <h3 className="text-lg md:text-2xl font-bold text-slate-900 mb-2 md:mb-3">Ready to Generate Forecast</h3>
+            <p className="text-sm md:text-lg text-slate-600 mb-4 md:mb-6 max-w-md mx-auto">
               Click "Generate Forecast" to create AI-powered demand predictions for {selectedDistributorData?.distributor_name}
             </p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* Forecast Table */}
+          <div className="space-y-4 md:space-y-8">
+            {/* Forecast Table - Mobile Responsive */}
             {activeTab === 'forecast' && Object.entries(forecastByMonth).map(([month, products]) => (
-              <div key={month} className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-slate-50 to-blue-50 px-8 py-6 border-b border-slate-200">
-                  <h3 className="text-xl font-bold text-slate-900">
+              <div key={month} className="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border border-slate-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-slate-50 to-blue-50 px-4 md:px-8 py-4 md:py-6 border-b border-slate-200">
+                  <h3 className="text-lg md:text-xl font-bold text-slate-900">
                     {new Date(month).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
                   </h3>
-                  <p className="text-slate-600 mt-1">
+                  <p className="text-sm md:text-base text-slate-600 mt-1">
                     {products.length} products • Total Value: ₹{products.reduce((sum, p) => sum + (p.predicted_value || 0), 0).toLocaleString()}
                   </p>
                 </div>
                 
+                {/* Mobile Table - Horizontal Scroll */}
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                        <th className="px-3 md:px-8 py-3 md:py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider min-w-48">
                           <div onClick={() => requestSort('product_description')} className="cursor-pointer">Product Details {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
-                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('product_description', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('product_description', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
                         </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_quantity')}>
-Predicted Qty {sortConfig.key === 'predicted_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-24" onClick={() => requestSort('predicted_quantity')}>
+                          Qty {sortConfig.key === 'predicted_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                         </th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('predicted_value')}>
-Predicted Value {sortConfig.key === 'predicted_value' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-28" onClick={() => requestSort('predicted_value')}>
+                          Value {sortConfig.key === 'predicted_value' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider min-w-24">
                           <div onClick={() => requestSort('category')} className="cursor-pointer">Category {sortConfig.key === 'category' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
-                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('category', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('category', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
                         </th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('confidence_score')}>
-Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-24" onClick={() => requestSort('confidence_score')}>
+                          Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}
                         </th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
-                          <div onClick={() => requestSort('risk_level')} className="cursor-pointer">Risk Level {sortConfig.key === 'risk_level' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
-                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('risk_level', e.target.value)} className="mt-1 p-1 border rounded w-full" />
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider min-w-20">
+                          <div onClick={() => requestSort('risk_level')} className="cursor-pointer">Risk {sortConfig.key === 'risk_level' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</div>
+                          <input type="text" placeholder="Filter..." onChange={(e) => handleFilterChange('risk_level', e.target.value)} className="mt-1 p-1 border rounded w-full text-xs" />
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {sortedForecastData(filteredForecastData(products)).map((product, index) => (
                         <tr key={index} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-8 py-6">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-xl flex items-center justify-center">
-                                <Package className="h-6 w-6 text-blue-600" />
+                          <td className="px-3 md:px-8 py-4 md:py-6">
+                            <div className="flex items-center space-x-2 md:space-x-4">
+                              <div className="w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
+                                <Package className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
                               </div>
-                              <div>
-                                <div className="text-sm font-bold text-slate-900">{product.product_description}</div>
-                                <div className="text-xs text-slate-500 mt-1">{product.variant_code} • {product.size_display}</div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs md:text-sm font-bold text-slate-900 truncate">{product.product_description}</div>
+                                <div className="text-xs text-slate-500 mt-1 truncate">{product.variant_code} • {product.size_display}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-6 text-right">
-                            <div className="text-lg font-bold text-slate-900">{product.predicted_quantity}</div>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-right">
+                            <div className="text-sm md:text-lg font-bold text-slate-900">{product.predicted_quantity}</div>
                             <div className="text-xs text-slate-500">units</div>
                           </td>
-                          <td className="px-6 py-6 text-right">
-                            <div className="text-lg font-bold text-slate-900">₹{(product.predicted_value || 0).toLocaleString()}</div>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-right">
+                            <div className="text-sm md:text-lg font-bold text-slate-900">₹{(product.predicted_value || 0).toLocaleString()}</div>
                             <div className="text-xs text-slate-500">@₹{product.unit_price}</div>
                           </td>
-                          <td className="px-6 py-6 text-left">
-                            <span className="text-sm text-slate-900">{product.category}</span>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-left">
+                            <span className="text-xs md:text-sm text-slate-900 truncate block">{product.category}</span>
                           </td>
-                          <td className="px-6 py-6 text-center">
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-center">
                             <div className="inline-flex items-center space-x-1">
-                              <div className={`w-3 h-3 rounded-full ${
+                              <div className={`w-2 h-2 md:w-3 md:h-3 rounded-full ${
                                 (product.confidence_score || 0) >= 0.9 ? 'bg-emerald-400' :
                                 (product.confidence_score || 0) >= 0.8 ? 'bg-amber-400' : 'bg-red-400'
                               }`}></div>
-                              <span className="text-sm font-semibold text-slate-900">
+                              <span className="text-xs md:text-sm font-semibold text-slate-900">
                                 {((product.confidence_score || 0) * 100).toFixed(0)}%
                               </span>
                             </div>
                           </td>
-                         
-
-
-                             <td className="px-6 py-6 text-center">
-                            <span className={`inline-flex px-3 py-1.5 text-xs font-bold rounded-xl border ${getRiskColor(product.risk_level)}`}>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-center">
+                            <span className={`inline-flex px-2 md:px-3 py-1 md:py-1.5 text-xs font-bold rounded-lg md:rounded-xl border ${getRiskColor(product.risk_level)}`}>
                               {product.risk_level}
                             </span>
                           </td>
@@ -578,53 +572,53 @@ Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'a
               </div>
             ))}
 
-            {/* Performance Analytics Tab */}
+            {/* Performance Analytics Tab - Mobile Responsive */}
             {activeTab === 'performance' && (
-              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-slate-50 to-purple-50 px-8 py-6 border-b border-slate-200">
-                  <h3 className="text-xl font-bold text-slate-900">Historical Performance Analytics</h3>
-                  <p className="text-slate-600 mt-1">Product performance trends and velocity analysis</p>
+              <div className="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border border-slate-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-slate-50 to-purple-50 px-4 md:px-8 py-4 md:py-6 border-b border-slate-200">
+                  <h3 className="text-lg md:text-xl font-bold text-slate-900">Historical Performance Analytics</h3>
+                  <p className="text-sm md:text-base text-slate-600 mt-1">Product performance trends and velocity analysis</p>
                 </div>
                 
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
-                        <th className="px-8 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('product_description')}>Product {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('avg_monthly_quantity')}>Avg Monthly {sortConfig.key === 'avg_monthly_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
-                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('total_value_sold')}>Total Value {sortConfig.key === 'total_value_sold' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('growth_rate')}>Growth Trend {sortConfig.key === 'growth_rate' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('stock_velocity')}>Velocity {sortConfig.key === 'stock_velocity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
-                        <th className="px-6 py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('product_status')}>Status {sortConfig.key === 'product_status' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-3 md:px-8 py-3 md:py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-48" onClick={() => requestSort('product_description')}>Product {sortConfig.key === 'product_description' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-24" onClick={() => requestSort('avg_monthly_quantity')}>Avg Monthly {sortConfig.key === 'avg_monthly_quantity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-28" onClick={() => requestSort('total_value_sold')}>Total Value {sortConfig.key === 'total_value_sold' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-24" onClick={() => requestSort('growth_rate')}>Growth {sortConfig.key === 'growth_rate' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-24" onClick={() => requestSort('stock_velocity')}>Velocity {sortConfig.key === 'stock_velocity' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
+                        <th className="px-3 md:px-6 py-3 md:py-4 text-center text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer min-w-20" onClick={() => requestSort('product_status')}>Status {sortConfig.key === 'product_status' ? (sortConfig.direction === 'ascending' ? '▲' : '▼') : ''}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {sortedPerformanceData().map((product, index) => (
                         <tr key={index} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-8 py-6">
-                            <div className="flex items-center space-x-4">
-                              <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-indigo-200 rounded-xl flex items-center justify-center">
-                                <Activity className="h-6 w-6 text-purple-600" />
+                          <td className="px-3 md:px-8 py-4 md:py-6">
+                            <div className="flex items-center space-x-2 md:space-x-4">
+                              <div className="w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-purple-100 to-indigo-200 rounded-lg md:rounded-xl flex items-center justify-center flex-shrink-0">
+                                <Activity className="h-4 w-4 md:h-6 md:w-6 text-purple-600" />
                               </div>
-                              <div>
-                                <div className="text-sm font-bold text-slate-900">{product.product_description}</div>
-                                <div className="text-xs text-slate-500 mt-1">{product.variant_code}</div>
-                                <div className="text-xs text-slate-400">{product.category}</div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs md:text-sm font-bold text-slate-900 truncate">{product.product_description}</div>
+                                <div className="text-xs text-slate-500 mt-1 truncate">{product.variant_code}</div>
+                                <div className="text-xs text-slate-400 truncate">{product.category}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-6 text-right">
-                            <div className="text-lg font-bold text-slate-900">{(product.avg_monthly_quantity || 0).toFixed(1)}</div>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-right">
+                            <div className="text-sm md:text-lg font-bold text-slate-900">{(product.avg_monthly_quantity || 0).toFixed(1)}</div>
                             <div className="text-xs text-slate-500">units/month</div>
                           </td>
-                          <td className="px-6 py-6 text-right">
-                            <div className="text-lg font-bold text-slate-900">₹{(product.total_value_sold || 0).toLocaleString()}</div>
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-right">
+                            <div className="text-sm md:text-lg font-bold text-slate-900">₹{(product.total_value_sold || 0).toLocaleString()}</div>
                             <div className="text-xs text-slate-500">{product.total_months_sold} months</div>
                           </td>
-                          <td className="px-6 py-6 text-center">
-                            <div className="inline-flex items-center space-x-2">
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-center">
+                            <div className="inline-flex items-center space-x-1 md:space-x-2">
                               {getGrowthIcon(product.growth_rate || 0)}
-                              <span className={`text-sm font-bold ${
+                              <span className={`text-xs md:text-sm font-bold ${
                                 (product.growth_rate || 0) >= 5 ? 'text-emerald-600' :
                                 (product.growth_rate || 0) <= -5 ? 'text-red-600' : 'text-slate-600'
                               }`}>
@@ -632,13 +626,19 @@ Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'a
                               </span>
                             </div>
                           </td>
-                          <td className="px-6 py-6 text-center">
-                            <span className={`inline-flex px-3 py-1.5 text-xs font-bold rounded-xl border ${getVelocityColor(product.stock_velocity)}`}>
-                              {product.stock_velocity}
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-center">
+                            <span className={`inline-flex px-2 md:px-3 py-1 md:py-1.5 text-xs font-bold rounded-lg md:rounded-xl border ${getVelocityColor(product.stock_velocity)}`}>
+                              <span className="hidden sm:inline">{product.stock_velocity}</span>
+                              <span className="sm:hidden">
+                                {product.stock_velocity === 'Fast Moving' ? 'Fast' :
+                                 product.stock_velocity === 'Medium Moving' ? 'Med' :
+                                 product.stock_velocity === 'Slow Moving' ? 'Slow' :
+                                 product.stock_velocity === 'Very Slow Moving' ? 'V.Slow' : 'N/A'}
+                              </span>
                             </span>
                           </td>
-                          <td className="px-6 py-6 text-center">
-                            <span className={`inline-flex px-3 py-1.5 text-xs font-bold rounded-xl ${
+                          <td className="px-3 md:px-6 py-4 md:py-6 text-center">
+                            <span className={`inline-flex px-2 md:px-3 py-1 md:py-1.5 text-xs font-bold rounded-lg md:rounded-xl ${
                               product.product_status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                               product.product_status === 'Regular' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                               'bg-amber-50 text-amber-700 border-amber-200'
@@ -656,19 +656,18 @@ Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'a
           </div>
         )}
 
-
-{/* Footer */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            <div className="flex items-center space-x-4">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span className="text-sm text-slate-600">
+        {/* Footer - Mobile Responsive */}
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg md:shadow-xl border border-slate-200 p-4 md:p-6">
+          <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+            <div className="flex items-center space-x-3 md:space-x-4">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse flex-shrink-0"></div>
+              <span className="text-xs md:text-sm text-slate-600">
                 Forecast generated using AI-powered time series analysis • Last updated: {new Date().toLocaleString()}
               </span>
             </div>
-            <div className="flex items-center space-x-4 text-sm text-slate-500">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs md:text-sm text-slate-500 space-y-1 sm:space-y-0">
               <span>Powered by Advanced Analytics Engine</span>
-              <span>•</span>
+              <span className="hidden sm:inline">•</span>
               <span>© 2025 Kairali ML Forecasting</span>
             </div>
           </div>
