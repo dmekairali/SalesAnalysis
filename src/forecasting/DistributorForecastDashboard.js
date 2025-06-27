@@ -30,6 +30,32 @@ import {
   Building2
 } from 'lucide-react';
 
+import ForecastingSettingsModal from './ForecastingSettingsModal';
+
+
+// Add state for settings
+const [showSettings, setShowSettings] = useState(false);
+const [settings, setSettings] = useState({
+    defaultForecastMonths: 6,
+    confidenceLevel: 0.95,
+    includeSeasonality: true,
+    includeTrends: true,
+    safetyStockMultiplier: 1.15,
+    defaultView: 'forecast',
+    showDetailsDefault: false,
+    autoRefresh: false,
+    refreshInterval: 30,
+    minDataPointsRequired: 3,
+    outlierDetection: true,
+    dataQualityThreshold: 0.7,
+    enableAlerts: true,
+    highRiskThreshold: 0.3,
+    lowConfidenceThreshold: 0.6,
+    exportFormat: 'csv',
+    includeConfidenceIntervals: true,
+    includeBusinessInsights: true
+  });
+
 const DistributorForecastDashboard = () => {
   const { user } = useAuth();
   const [selectedDistributor, setSelectedDistributor] = useState('');
@@ -222,10 +248,13 @@ const DistributorForecastDashboard = () => {
             </div>
             
             <div className="flex items-center space-x-3">
-              <button className="flex items-center px-4 py-2.5 text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all duration-200">
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </button>
+              <button 
+  onClick={() => setShowSettings(true)}
+  className="flex items-center px-4 py-2.5 text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-all duration-200"
+>
+  <Settings className="h-4 w-4 mr-2" />
+  Settings
+</button>
               <button 
                 onClick={handleExport}
                 disabled={!selectedDistributor || forecastData.length === 0}
@@ -600,6 +629,8 @@ Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'a
           </div>
         )}
 
+
+
         {/* Footer */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
@@ -617,6 +648,14 @@ Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'a
           </div>
         </div>
       </div>
+    </div>
+
+{/* 5. ADD: Modal at the end */}
+      <ForecastingSettingsModal 
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSave={handleSettingsSave}
+      />
     </div>
   );
 };
