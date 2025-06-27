@@ -630,8 +630,7 @@ Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'a
         )}
 
 
-
-        {/* Footer */}
+{/* Footer */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
             <div className="flex items-center space-x-4">
@@ -643,14 +642,13 @@ Confidence {sortConfig.key === 'confidence_score' ? (sortConfig.direction === 'a
             <div className="flex items-center space-x-4 text-sm text-slate-500">
               <span>Powered by Advanced Analytics Engine</span>
               <span>•</span>
-              <span>© 2025 AyurML Forecasting</span>
+              <span>© 2025 Kairali ML Forecasting</span>
             </div>
           </div>
         </div>
       </div>
-    </div>
-
-{/* 5. ADD: Modal at the end */}
+      
+      {/* Settings Modal */}
       <ForecastingSettingsModal 
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
