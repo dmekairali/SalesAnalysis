@@ -1,6 +1,6 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, Area, AreaChart, ComposedChart, ReferenceLine } from 'recharts';
-import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Bell, Download, Search, Home, Star, Target, Settings, Activity, Clock, Eye } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Users, MapPin, Package, Brain, Bell, Download, Search, Home, Star, Target, Settings, Activity, Clock, Eye, BarChart3 } from 'lucide-react';
 import { COLORS, ML_INSIGHTS, SALES_DRIVERS } from './data.js';
 import { formatIndianCurrency, formatCurrencyByContext } from './data.js';
 
@@ -37,18 +37,20 @@ export const KPICard = ({ title, value, icon: Icon, format = 'number', color = C
 );
 
 // Navigation Component - Updated to remove products and customers tabs
-export const Navigation = ({ activeTab, setActiveTab, notifications, showNotifications, setShowNotifications, exportWithMLInsights, showMLAnalytics, setShowMLAnalytics, filters, setFilters }) => (
+
+export const Navigation = ({ activeTab, setActiveTab }) => (
   <nav className="bg-white shadow-sm border-b">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col md:flex-row justify-between items-center py-4 md:space-y-0 space-y-4">
-        <div className="flex flex-col md:flex-row items-center md:space-x-8 md:space-y-0 space-y-4">
+      <div className="flex justify-between items-center py-4">
+        <div className="flex items-center space-x-8">
           <h1 className="text-2xl font-bold" style={{ color: COLORS.primary }}>
             AyurML Analytics
           </h1>
-          <div className="flex flex-wrap space-x-1">
+          <div className="flex space-x-1">
             {[
               { id: 'overview', label: 'Overview', icon: Home },
-              { id: 'visitplanner', label: 'Visit Planner', icon: MapPin }
+              { id: 'visitplanner', label: 'Visit Planner', icon: MapPin },
+              { id: 'forecasting', label: 'Demand Forecasting', icon: BarChart3 }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -64,79 +66,6 @@ export const Navigation = ({ activeTab, setActiveTab, notifications, showNotific
               </button>
             ))}
           </div>
-        </div>
-        
-        <div className="flex flex-col md:flex-row items-center w-full md:w-auto md:space-x-4 md:space-y-0 space-y-4">
-          {/* Search */}
-          <div className="relative w-full md:w-auto">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={filters.searchTerm}
-              onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Notifications */}
-          <div className="relative w-full md:w-auto">
-            <button 
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="w-full md:w-auto p-2 text-gray-400 hover:text-gray-600 relative flex items-center justify-center"
-            >
-              <Bell className="h-6 w-6" />
-              {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {notifications.length}
-                </span>
-              )}
-            </button>
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-full sm:w-96 md:w-[400px] bg-white rounded-lg shadow-lg border z-50">
-                <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
-                  <h3 className="font-semibold flex items-center">
-                    <Brain className="h-4 w-4 mr-2 text-purple-600" />
-                    Real-time ML Notifications
-                  </h3>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.map(notification => (
-                    <div key={notification.id} className="p-3 sm:p-4 border-b hover:bg-gray-50">
-                      <p className="text-sm font-medium text-gray-800">{notification.message}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{notification.timestamp}</p>
-                      <p className="text-sm text-green-700 font-semibold mt-1">₹{notification.amount.toLocaleString()}</p>
-                      {notification.ml_prediction && (
-                        <p className="text-xs text-blue-700 italic mt-1">{notification.ml_prediction}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ML Analytics Toggle */}
-          <button 
-            onClick={() => setShowMLAnalytics(!showMLAnalytics)}
-            className={`flex items-center justify-center w-full md:w-auto px-3 py-2 rounded-lg text-sm transition-colors ${
-              showMLAnalytics 
-                ? 'bg-purple-100 text-purple-700' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <Brain className="h-4 w-4 mr-1" />
-            ML
-          </button>
-
-          {/* Export */}
-          <button 
-            onClick={exportWithMLInsights}
-            className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </button>
         </div>
       </div>
     </div>
