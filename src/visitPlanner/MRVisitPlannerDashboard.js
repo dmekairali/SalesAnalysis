@@ -1,4 +1,4 @@
-// Updated MRVisitPlannerDashboard.js with Access Control
+// Updated MRVisitPlannerDashboard.js with Access Control and Mobile Responsiveness
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, MapPin, Users, TrendingUp, Download, RefreshCw, Clock, Target, AlertTriangle, CheckCircle, User, Phone, Navigation, Star, Brain, Map, Calendar as CalendarIcon, UserCheck, Building2, UserPlus, Shield, Lock  } from 'lucide-react';
@@ -373,7 +373,7 @@ const MRVisitPlannerDashboard = ({
     }
   };
 
-  // Enhanced Customer Breakdown Cards Component
+  // Enhanced Customer Breakdown Cards Component - Mobile Responsive
   const CustomerBreakdownCards = () => {
     if (!customerBreakdown) return null;
 
@@ -416,24 +416,24 @@ const MRVisitPlannerDashboard = ({
     ];
 
     return (
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <Users className="h-5 w-5 mr-2 text-gray-600" />
+      <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+        <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center">
+          <Users className="h-4 w-4 md:h-5 md:w-5 mr-2 text-gray-600" />
           Customer Distribution ({customerBreakdown.total} Total Visits)
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           {cards.map((card, index) => {
             const Icon = card.icon;
             const percentage = customerBreakdown.total > 0 ? ((card.count / customerBreakdown.total) * 100).toFixed(1) : 0;
             
             return (
-              <div key={index} className={`p-4 rounded-lg border ${card.color}`}>
+              <div key={index} className={`p-3 md:p-4 rounded-lg border ${card.color}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <Icon className={`h-5 w-5 ${card.iconColor}`} />
+                  <Icon className={`h-4 w-4 md:h-5 md:w-5 ${card.iconColor}`} />
                   <span className="text-xs font-medium">{percentage}%</span>
                 </div>
-                <div className="text-2xl font-bold mb-1">{card.count}</div>
-                <div className="text-sm font-medium">{card.title}</div>
+                <div className="text-lg md:text-2xl font-bold mb-1">{card.count}</div>
+                <div className="text-xs md:text-sm font-medium">{card.title}</div>
               </div>
             );
           })}
@@ -442,74 +442,74 @@ const MRVisitPlannerDashboard = ({
     );
   };
 
-  // Overview component
+  // Overview component - Mobile Responsive
   const OverviewComponent = () => (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-green-500">
+    <div className="space-y-4 md:space-y-6">
+      {/* Summary Cards - Mobile Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md border-l-4 border-green-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Working Days</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.totalWorkingDays || 0}</p>
+              <p className="text-xs md:text-sm text-gray-600">Working Days</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900">{visitPlan?.summary?.totalWorkingDays || 0}</p>
             </div>
-            <Calendar className="h-8 w-8 text-green-500" />
+            <Calendar className="h-5 w-5 md:h-8 md:w-8 text-green-500" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md border-l-4 border-blue-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Visits</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.totalPlannedVisits || 0}</p>
+              <p className="text-xs md:text-sm text-gray-600">Total Visits</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900">{visitPlan?.summary?.totalPlannedVisits || 0}</p>
             </div>
-            <Users className="h-8 w-8 text-blue-500" />
+            <Users className="h-5 w-5 md:h-8 md:w-8 text-blue-500" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-500">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md border-l-4 border-purple-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Expected Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrencyByContext(visitPlan?.summary?.estimatedRevenue || 0, 'card')}</p>
+              <p className="text-xs md:text-sm text-gray-600">Expected Revenue</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900">{formatCurrencyByContext(visitPlan?.summary?.estimatedRevenue || 0, 'card')}</p>
             </div>
-            <TrendingUp className="h-8 w-8 text-purple-500" />
+            <TrendingUp className="h-5 w-5 md:h-8 md:w-8 text-purple-500" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-orange-500">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md border-l-4 border-orange-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Efficiency Score</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.efficiencyScore || 0}%</p>
+              <p className="text-xs md:text-sm text-gray-600">Efficiency Score</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900">{visitPlan?.summary?.efficiencyScore || 0}%</p>
             </div>
-            <Target className="h-8 w-8 text-orange-500" />
+            <Target className="h-5 w-5 md:h-8 md:w-8 text-orange-500" />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-teal-500">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md border-l-4 border-teal-500 col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Coverage Score</p>
-              <p className="text-2xl font-bold text-gray-900">{visitPlan?.summary?.coverageScore || 0}%</p>
+              <p className="text-xs md:text-sm text-gray-600">Coverage Score</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900">{visitPlan?.summary?.coverageScore || 0}%</p>
             </div>
-            <CheckCircle className="h-8 w-8 text-teal-500" />
+            <CheckCircle className="h-5 w-5 md:h-8 md:w-8 text-teal-500" />
           </div>
         </div>
       </div>
 
-      {/* AI Insights */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <Brain className="h-5 w-5 mr-2 text-purple-600" />
+      {/* AI Insights - Mobile Responsive */}
+      <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+        <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center">
+          <Brain className="h-4 w-4 md:h-5 md:w-5 mr-2 text-purple-600" />
           AI-Powered Insights & Recommendations
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           {visitPlan?.insights?.map((insight, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div key={index} className="border border-gray-200 rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-gray-900">{insight.title}</h4>
-                <span className={`px-2 py-1 text-xs rounded-full ${
+                <h4 className="font-medium text-sm md:text-base text-gray-900 truncate mr-2">{insight.title}</h4>
+                <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
                   insight.type === 'risk' ? 'bg-red-100 text-red-800' :
                   insight.type === 'revenue' ? 'bg-green-100 text-green-800' :
                   'bg-blue-100 text-blue-800'
@@ -517,56 +517,60 @@ const MRVisitPlannerDashboard = ({
                   {insight.type.toUpperCase()}
                 </span>
               </div>
-              <p className="text-2xl font-bold text-gray-900 mb-2">{insight.value}</p>
-              <p className="text-sm text-gray-600 mb-3">{insight.description}</p>
+              <p className="text-lg md:text-2xl font-bold text-gray-900 mb-2">{insight.value}</p>
+              <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3">{insight.description}</p>
               <p className="text-xs text-blue-600 font-medium">💡 {insight.recommendation}</p>
             </div>
           )) || []}
         </div>
       </div>
 
-      {/* Customer Breakdown Cards - Now appears after AI insights */}
+      {/* Customer Breakdown Cards */}
       <CustomerBreakdownCards />
 
-      {/* Weekly Calendar Overview */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <CalendarIcon className="h-5 w-5 mr-2" />
+      {/* Weekly Calendar Overview - Mobile Responsive */}
+      <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+        <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center">
+          <CalendarIcon className="h-4 w-4 md:h-5 md:w-5 mr-2" />
           Monthly Visit Calendar
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-2 mb-4">
+        
+        {/* Day Headers - Responsive */}
+        <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2 md:mb-4">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-            <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+            <div key={day} className="text-center text-xs md:text-sm font-medium text-gray-500 py-1 md:py-2">
               {day}
             </div>
           ))}
         </div>
         
+        {/* Calendar Weeks - Mobile Optimized */}
         {visitPlan?.weeklyBreakdown?.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-2 md:grid-cols-7 gap-2 mb-2">
+          <div key={weekIndex} className="grid grid-cols-7 gap-1 md:gap-2 mb-1 md:mb-2">
             {week.days.map((day, dayIndex) => (
               <div
                 key={dayIndex}
-                className="min-h-28 md:min-h-20 p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50 transition-colors flex flex-col justify-between"
+                className="min-h-16 md:min-h-20 p-1 md:p-2 border border-gray-200 rounded cursor-pointer hover:bg-gray-50 transition-colors flex flex-col justify-between text-xs md:text-sm"
                 onClick={() => setSelectedDay(day)}
               >
                 <div>
-                  <div className="text-sm font-medium text-gray-900">{day.date.split('-')[2]} <span className="md:hidden text-xs text-gray-500">({day.dayName.substring(0,3)})</span></div>
-                  <div className="text-xs text-gray-600">{day.summary.totalVisits} visits</div>
-                  <p className="text-xs text-green-600">{formatCurrencyByContext(day.summary.estimatedRevenue, 'card')}</p>
+                  <div className="font-medium text-gray-900">{day.date.split('-')[2]}</div>
+                  <div className="text-gray-600">{day.summary.totalVisits}v</div>
+                  <div className="text-green-600 hidden md:block">{formatCurrencyByContext(day.summary.estimatedRevenue, 'card')}</div>
+                  <div className="text-green-600 md:hidden">₹{Math.round(day.summary.estimatedRevenue/1000)}K</div>
                 </div>
                 {day.summary.highPriorityVisits > 0 && (
-                  <div className="w-2 h-2 bg-red-500 rounded-full mt-1 self-end"></div>
+                  <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-red-500 rounded-full mt-1 self-end"></div>
                 )}
               </div>
             ))}
             {/* Fill in empty cells for the last week if it's not full */}
             { week.days.length < 6 && Array.from({ length: 6 - week.days.length }).map((_, i) => (
-                 <div key={`empty-${i}`} className="min-h-28 md:min-h-20 p-2 border border-transparent"></div>
+                 <div key={`empty-${i}`} className="min-h-16 md:min-h-20 p-1 md:p-2 border border-transparent"></div>
             ))}
-            <div className="min-h-28 md:min-h-20 p-2 bg-gray-100 rounded flex flex-col justify-center items-center">
-              <div className="text-xs text-gray-500">Sunday</div>
-              <div className="text-xs text-gray-400">Rest Day</div>
+            <div className="min-h-16 md:min-h-20 p-1 md:p-2 bg-gray-100 rounded flex flex-col justify-center items-center">
+              <div className="text-xs text-gray-500">Sun</div>
+              <div className="text-xs text-gray-400 hidden md:block">Rest</div>
             </div>
           </div>
         )) || []}
@@ -575,36 +579,36 @@ const MRVisitPlannerDashboard = ({
   );
 
   return (
-    <div className="space-y-6">
-      {/* Header with Access Control */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+    <div className="space-y-4 md:space-y-6 p-3 md:p-0">
+      {/* Header with Access Control - Mobile Responsive */}
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-               <Map className="h-6 w-6 mr-2 text-green-600" />
+            <h1 className="text-lg md:text-2xl font-bold text-gray-900 mb-2 flex items-center">
+               <Map className="h-5 w-5 md:h-6 md:w-6 mr-2 text-green-600" />
               MR Visit Planner - AI-Powered Route Optimization
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm md:text-base text-gray-600">
               Generate intelligent visit plans based on customer behavior, route optimization, and revenue potential
             </p>
 
-            {/* Access Control Info */}
-            <div className="mt-3 flex items-center space-x-4 text-sm">
+            {/* Access Control Info - Mobile Responsive */}
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs md:text-sm space-y-2 sm:space-y-0">
               <div className="flex items-center">
-                <Shield className="h-4 w-4 mr-1 text-blue-600" />
+                <Shield className="h-3 w-3 md:h-4 md:w-4 mr-1 text-blue-600" />
                 <span className="text-blue-800 font-medium">
                   Access Level: {user?.access_level?.toUpperCase()}
                 </span>
               </div>
               {user?.access_level === 'mr' && (
                 <div className="flex items-center">
-                  <User className="h-4 w-4 mr-1 text-green-600" />
+                  <User className="h-3 w-3 md:h-4 md:w-4 mr-1 text-green-600" />
                   <span className="text-green-800">Personal Visit Planner</span>
                 </div>
               )}
               {user?.access_level === 'manager' && (
                 <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-1 text-purple-600" />
+                  <Users className="h-3 w-3 md:h-4 md:w-4 mr-1 text-purple-600" />
                   <span className="text-purple-800">Team Access: {mrList.length} MRs</span>
                 </div>
               )}
@@ -614,7 +618,7 @@ const MRVisitPlannerDashboard = ({
             {accessError && (
               <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center">
-                  <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
+                  <AlertTriangle className="h-4 w-4 text-red-600 mr-2 flex-shrink-0" />
                   <span className="text-red-800 text-sm font-medium">{accessError}</span>
                 </div>
               </div>
@@ -622,49 +626,50 @@ const MRVisitPlannerDashboard = ({
 
             {/* Cluster Status */}
             {clusterStatus && selectedMR && canAccessMRData(selectedMR) && (
-              <div className={`mt-2 flex items-center text-sm ${
+              <div className={`mt-2 flex items-center text-xs md:text-sm ${
                 clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-600'
               }`}>
-                <Brain className="h-4 w-4 mr-1" />
+                <Brain className="h-3 w-3 md:h-4 md:w-4 mr-1" />
                 Clusters: {clusterStatus.hasExistingClusters ? `${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas` : 'No clusters created'}
                 {clusterStatus.hasExistingClusters && (
-                  <CheckCircle className="h-4 w-4 ml-1 text-green-500" />
+                  <CheckCircle className="h-3 w-3 md:h-4 md:w-4 ml-1 text-green-500" />
                 )}
               </div>
             )}
           </div>
           
-          <div className="flex flex-wrap items-center space-x-2 sm:space-x-4">
+          {/* Action Buttons - Mobile Responsive */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 md:space-x-4">
             <button
               onClick={generateVisitPlan}
               disabled={loading || !selectedMR || !canAccessMRData(selectedMR) || !!accessError}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="flex items-center justify-center px-3 md:px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3 w-3 md:h-4 md:w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'Generating...' : 'Regenerate Plan'}
             </button>
             
             <button 
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center justify-center px-3 md:px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               disabled={!visitPlan || !!accessError}
             >
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="h-3 w-3 md:h-4 md:w-4 mr-2" />
               Export Plan
             </button>
           </div>
         </div>
 
-        {/* Controls with Access Control */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        {/* Controls with Access Control - Mobile Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-4 md:mt-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
               Medical Representative
               {user?.access_level !== 'admin' && (
                 <Shield className="inline h-3 w-3 ml-1 text-orange-500" title="Limited by access permissions" />
               )}
             </label>
             {loadingMRs ? (
-              <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+              <div className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50">
                 Loading MRs...
               </div>
             ) : (
@@ -672,7 +677,7 @@ const MRVisitPlannerDashboard = ({
                 value={selectedMR}
                 onChange={(e) => setSelectedMR(e.target.value)}
                 disabled={user?.access_level === 'mr' || mrList.length <= 1}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
                   user?.access_level === 'mr' ? 'bg-gray-50 cursor-not-allowed' : ''
                 } ${!canAccessMRData(selectedMR) ? 'border-red-300 bg-red-50' : ''}`}
               >
@@ -697,13 +702,13 @@ const MRVisitPlannerDashboard = ({
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
               Month
             </label>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               {Array.from({ length: 12 }, (_, i) => (
                 <option key={i + 1} value={i + 1}>
@@ -714,13 +719,13 @@ const MRVisitPlannerDashboard = ({
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
               Year
             </label>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               {[2024, 2025, 2026].map(year => (
                 <option key={year} value={year}>{year}</option>
@@ -730,37 +735,37 @@ const MRVisitPlannerDashboard = ({
         </div>
       </div>
 
-      {/* Access Denied State */}
+      {/* Access Denied State - Mobile Responsive */}
       {accessError && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h3>
-          <p className="text-gray-600 mb-4">{accessError}</p>
+        <div className="bg-white rounded-lg shadow-md p-8 md:p-12 text-center">
+          <AlertTriangle className="h-12 w-12 md:h-16 md:w-16 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">Access Denied</h3>
+          <p className="text-sm md:text-base text-gray-600 mb-4">{accessError}</p>
           {user?.access_level === 'viewer' && (
-            <p className="text-sm text-blue-600">
+            <p className="text-xs md:text-sm text-blue-600">
               Contact your manager to request MR or Manager access level for visit planning features.
             </p>
           )}
         </div>
       )}
 
-      {/* Loading State */}
+      {/* Loading State - Mobile Responsive */}
       {loading && !accessError && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <RefreshCw className="h-12 w-12 text-green-600 animate-spin mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Generating Optimal Visit Plan</h3>
-          <p className="text-gray-600">
+        <div className="bg-white rounded-lg shadow-md p-8 md:p-12 text-center">
+          <RefreshCw className="h-8 w-8 md:h-12 md:w-12 text-green-600 animate-spin mx-auto mb-4" />
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">Generating Optimal Visit Plan</h3>
+          <p className="text-sm md:text-base text-gray-600">
             Analyzing customer patterns, route optimization, and ML predictions for {selectedMR}...
           </p>
         </div>
       )}
 
-      {/* No MR Selected State */}
+      {/* No MR Selected State - Mobile Responsive */}
       {(!visitPlan && !loading && !accessError) && (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Generate Visit Plan</h3>
-          <p className="text-gray-600 mb-4">
+        <div className="bg-white rounded-lg shadow-md p-8 md:p-12 text-center">
+          <Brain className="h-8 w-8 md:h-12 md:w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">Ready to Generate Visit Plan</h3>
+          <p className="text-sm md:text-base text-gray-600 mb-4">
             {selectedMR && canAccessMRData(selectedMR) ? 
               `Click "Generate Plan" to create an AI-optimized visit plan for ${selectedMR}` :
               'Select a medical representative and click "Generate Plan" to start'
@@ -769,7 +774,7 @@ const MRVisitPlannerDashboard = ({
           {selectedMR && canAccessMRData(selectedMR) && (
             <button
               onClick={generateVisitPlan}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+              className="px-4 md:px-6 py-2 md:py-3 text-sm md:text-base bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
             >
               🤖 Generate AI Visit Plan
             </button>
@@ -780,21 +785,24 @@ const MRVisitPlannerDashboard = ({
       {/* Main Content */}
       {visitPlan && !loading && !accessError && selectedMR && canAccessMRData(selectedMR) && (
         <>
-           {/* View Toggle */}
-          <div className="bg-white rounded-lg shadow-md p-4">
+           {/* View Toggle - Mobile Responsive */}
+          <div className="bg-white rounded-lg shadow-md p-3 md:p-4">
             <div className="flex space-x-1">
               {viewToggleConfig.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveView(id)}
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                     activeView === id
                       ? 'bg-green-100 text-green-700 border border-green-200'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {label}
+                  <Icon className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">
+                    {id === 'overview' ? 'Overview' : 'Analytics'}
+                  </span>
                 </button>
               ))}
             </div>
@@ -806,44 +814,44 @@ const MRVisitPlannerDashboard = ({
         </>
       )}
 
-      {/* Selected Day Detail Modal */}
+      {/* Selected Day Detail Modal - Mobile Responsive */}
       {selectedDay && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[85vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] md:h-[85vh] flex flex-col">
+            {/* Modal Header - Mobile Responsive */}
+            <div className="flex justify-between items-center p-3 md:p-6 border-b border-gray-200">
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold">
+                <h3 className="text-base md:text-xl font-semibold">
                   Visits for {selectedDay.date} ({selectedDay.dayName})
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                <p className="text-xs md:text-sm text-gray-600 mt-1">
                   {selectedDay.visits?.length || 0} visits planned for {selectedMR}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedDay(null)}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
+                className="text-gray-400 hover:text-gray-600 text-xl md:text-2xl font-bold w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
               >
                 ×
               </button>
             </div>
 
-            {/* Modal Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <div className="space-y-3">
+            {/* Modal Content - Scrollable Mobile Optimized */}
+            <div className="flex-1 overflow-y-auto p-3 md:p-6">
+              <div className="space-y-2 md:space-y-3">
                 {selectedDay.visits && selectedDay.visits.length > 0 ? (
                   selectedDay.visits.map((visit, index) => (
-                    <div key={index} className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                    <div key={index} className="border rounded-lg p-3 md:p-4 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-semibold text-base sm:text-lg">{visit.customer_name}</h4>
-                          <p className="text-xs sm:text-sm text-gray-600">{visit.customer_type} • {visit.area_name}</p>
+                        <div className="min-w-0 flex-1 mr-2">
+                          <h4 className="font-semibold text-sm md:text-lg truncate">{visit.customer_name}</h4>
+                          <p className="text-xs md:text-sm text-gray-600 truncate">{visit.customer_type} • {visit.area_name}</p>
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(visit.priority)}`}>
+                        <span className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${getPriorityColor(visit.priority)}`}>
                           {visit.priority}
                         </span>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 text-xs md:text-sm text-gray-600">
                         <div>
                           <span className="font-medium">Time:</span> {visit.scheduled_time}
                         </div>
@@ -858,25 +866,25 @@ const MRVisitPlannerDashboard = ({
                         </div>
                       </div>
                       {visit.customer_phone && (
-                        <div className="mt-2 pt-2 sm:mt-3 sm:pt-3 border-t border-gray-100">
-                          <span className="text-xs sm:text-sm text-gray-600">📞 {visit.customer_phone}</span>
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <span className="text-xs md:text-sm text-gray-600">📞 {visit.customer_phone}</span>
                         </div>
                       )}
                     </div>
                   ))
                 ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500 text-center text-lg">No visits planned for this day</p>
+                  <div className="flex items-center justify-center h-full py-8">
+                    <p className="text-gray-500 text-center text-base md:text-lg">No visits planned for this day</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="border-t border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+            {/* Modal Footer - Mobile Responsive */}
+            <div className="border-t border-gray-200 px-3 md:px-6 py-3 md:py-4">
               <button
                 onClick={() => setSelectedDay(null)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors ml-auto block text-sm sm:text-base"
+                className="px-4 py-2 text-sm md:text-base bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors ml-auto block"
               >
                 Close
               </button>
