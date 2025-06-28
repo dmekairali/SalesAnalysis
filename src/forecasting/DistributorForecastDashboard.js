@@ -534,7 +534,7 @@ const DistributorForecastDashboard = () => {
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="text-xs md:text-sm font-bold text-slate-900 truncate">{product.product_description}</div>
-                                <div className="text-xs text-slate-500 mt-1 truncate">{product.variant_code} • {product.size_display}</div>
+                                <div className="text-xs text-slate-500 mt-1 truncate">{product.variant_code} • {product.size_display} • {product.predicted_quantity}</div>
                               </div>
                             </div>
                           </td>
