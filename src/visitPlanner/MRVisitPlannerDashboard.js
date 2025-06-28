@@ -28,7 +28,15 @@ const MRVisitPlannerDashboard = ({
   const [loadingMRs, setLoadingMRs] = useState(true);
   const [accessError, setAccessError] = useState('');
  
-  const [clusterStatus, setClusterStatus] = useState(null);
+  // const [clusterStatus, setClusterStatus] = useState(null); // Old state
+  const [clusterStatus, setClusterStatus] = useState({
+    isLoading: false,
+    clusters: [],
+    source: null, // 'AI', 'Fallback', 'None', 'Error'
+    error: null,
+    timestamp: null
+  });
+
   const viewToggleConfig = [
     { id: 'overview', label: 'Monthly Overview', icon: Calendar },
     { id: 'analytics', label: 'Analytics & Insights', icon: TrendingUp }
@@ -152,33 +160,119 @@ const MRVisitPlannerDashboard = ({
   }, [selectedMR, canAccessMRData]);
 
   useEffect(() => {
-    const checkClusterStatus = async () => {
-      if (!selectedMR || !canAccessMRData(selectedMR)) return;
-      
-      try {
-        const clusters = await getExistingClusters(selectedMR);
-        setClusterStatus({
-          hasExistingClusters: clusters.length > 0,
-          clusterCount: clusters.length,
-          totalAreas: clusters.reduce((sum, cluster) => sum + cluster.areas.length, 0)
-        });
-      } catch (error) {
-        console.error('Error checking cluster status:', error);
-        setClusterStatus({ hasExistingClusters: false, clusterCount: 0, totalAreas: 0 });
-      }
-    };
-    
-    checkClusterStatus();
+    if (selectedMR && canAccessMRData(selectedMR)) {
+      generateAndSetClusters(selectedMR);
+    } else {
+      // Reset cluster status if no MR selected or no access
+      setClusterStatus({ isLoading: false, clusters: [], source: null, error: null, timestamp: null });
+    }
   }, [selectedMR, canAccessMRData]);
 
-  // Function to get existing clusters (placeholder - implement based on your cluster storage)
-  const getExistingClusters = async (mrName) => {
-    // This would typically fetch from your cluster storage
-    // For now, returning empty array
-    return [];
+  // --- Cluster Generation Logic ---
+  const generateAndSetClusters = async (mrName) => {
+    setClusterStatus(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+      clusters: [],
+      source: null,
+      timestamp: new Date().toISOString()
+    }));
+
+    let fetchedCustomers;
+    let preparedAreaData;
+    let attemptSource = 'AI'; // Start by attempting AI
+    let errorMessage = null;
+
+    try {
+      // Step 1: Fetch customer data
+      fetchedCustomers = await reactVisitPlannerML.fetchCustomerDataForMR(mrName);
+      if (!fetchedCustomers || fetchedCustomers.length === 0) {
+        throw new Error('No customer data found for MR.');
+      }
+
+      // Step 2: Prepare area data
+      preparedAreaData = reactVisitPlannerML.prepareAreaData(fetchedCustomers);
+      if (!preparedAreaData || preparedAreaData.length === 0) {
+        throw new Error('No area data could be prepared.');
+      }
+
+      // Step 3: Attempt AI cluster generation
+      try {
+        // getGeminiClusters returns { clusters: [...] } or throws error
+        const aiClusterResult = await reactVisitPlannerML.getGeminiClusters(preparedAreaData);
+
+        if (aiClusterResult && aiClusterResult.clusters && aiClusterResult.clusters.length > 0) {
+          // Validate if Gemini covered all areas (simplified check, actual logic is inside getGeminiClusters)
+          // For the dashboard, we trust getGeminiClusters to only return valid, complete clusters if it doesn't throw.
+          // If it internally falls back, createOptimizedClusters handles that.
+          // Here, we explicitly call getGeminiClusters to know it's an AI attempt.
+          setClusterStatus({
+            isLoading: false,
+            // Assuming structure from getGeminiClusters is { clusters: [{ cluster_name, areas: [{area_name,...}]}]}
+            // We need to adapt it slightly if our display expects cluster.areas to be string[]
+            clusters: aiClusterResult.clusters.map(c => ({
+              cluster_name: c.cluster_name,
+              areas: c.areas.map(a => a.area_name), // Extract area names
+              internal_source_detail: `AI - Gemini (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
+            })),
+            source: 'AI',
+            error: null,
+            timestamp: new Date().toISOString()
+          });
+          return;
+        } else {
+          // AI attempt was made, but no clusters returned or result was empty.
+          // This case might be handled by getGeminiClusters throwing an error or returning empty,
+          // leading to the catch block below or proceeding to fallback.
+          console.log(`AI (getGeminiClusters) for ${mrName} resulted in no specific clusters or an incomplete set. Attempting fallback.`);
+          errorMessage = "AI returned no/incomplete clusters."; // Store potential error/reason
+        }
+      } catch (aiError) {
+        console.warn(`AI cluster generation (getGeminiClusters) failed for ${mrName}: ${aiError.message}. Attempting fallback.`);
+        errorMessage = aiError.message; // Store AI error
+        // Fall through to fallback
+      }
+
+      // Step 4: Attempt Fallback Logic (if AI failed or returned no/incomplete clusters)
+      attemptSource = 'Fallback';
+      const fallbackClusterResult = await reactVisitPlannerML.createComprehensiveFallbackClusters(preparedAreaData);
+
+      if (fallbackClusterResult && fallbackClusterResult.clusters && fallbackClusterResult.clusters.length > 0) {
+        setClusterStatus({
+          isLoading: false,
+          clusters: fallbackClusterResult.clusters.map(c => ({
+            cluster_name: c.cluster_name,
+            areas: c.areas.map(a => a.area_name),
+            internal_source_detail: `Fallback (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
+          })),
+          source: 'Fallback',
+          error: null, // Fallback succeeded, clear previous AI error message for the status
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        setClusterStatus({
+          isLoading: false,
+          clusters: [],
+          source: 'None',
+          error: errorMessage || "Fallback also resulted in no clusters.", // Show AI error if fallback was just empty
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (err) {
+      console.error(`Critical error in generateAndSetClusters during ${attemptSource} phase:`, err);
+      setClusterStatus({
+        isLoading: false,
+        clusters: [],
+        source: 'Error',
+        error: `${attemptSource} Error: ${err.message || 'An unexpected error occurred.'}`,
+        timestamp: new Date().toISOString()
+      });
+    }
   };
-  
- // Calculate customer breakdown for the entire plan
+  // --- End of Cluster Generation Logic ---
+
+  // Calculate customer breakdown for the entire plan
   const customerBreakdown = useMemo(() => {
     if (!visitPlan?.weeklyBreakdown) return null;
 
@@ -575,6 +669,9 @@ const MRVisitPlannerDashboard = ({
           </div>
         )) || []}
       </div>
+
+      {/* Daily Area Visit Table */}
+      <DailyAreaVisitTable visitPlan={visitPlan} />
     </div>
   );
 
@@ -625,15 +722,57 @@ const MRVisitPlannerDashboard = ({
             )}
 
             {/* Cluster Status */}
-            {clusterStatus && selectedMR && canAccessMRData(selectedMR) && (
-              <div className={`mt-2 flex items-center text-xs md:text-sm ${
-                clusterStatus.hasExistingClusters ? 'text-green-600' : 'text-orange-600'
-              }`}>
-                <Brain className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                Clusters: {clusterStatus.hasExistingClusters ? `${clusterStatus.clusterCount} clusters, ${clusterStatus.totalAreas} areas` : 'No clusters created'}
-                {clusterStatus.hasExistingClusters && (
-                  <CheckCircle className="h-3 w-3 md:h-4 md:w-4 ml-1 text-green-500" />
-                )}
+            {selectedMR && canAccessMRData(selectedMR) && (
+              <div className="mt-2 text-xs md:text-sm">
+                <div className="flex items-center">
+                  <Brain className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
+                  <span className="font-semibold mr-1">Clusters:</span>
+                  {clusterStatus.isLoading && (
+                    <span className="text-gray-500 flex items-center">
+                      <RefreshCw className="h-3 w-3 md:h-4 md:w-4 mr-1 animate-spin" />
+                      Loading...
+                    </span>
+                  )}
+                  {!clusterStatus.isLoading && clusterStatus.error && (
+                    <span className="text-red-600 flex items-center">
+                      <AlertTriangle className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                      Error: {clusterStatus.error}
+                    </span>
+                  )}
+                  {!clusterStatus.isLoading && !clusterStatus.error && (
+                    <>
+                      {clusterStatus.clusters && clusterStatus.clusters.length > 0 ? (
+                        <span className="text-green-700">
+                          {clusterStatus.clusters.length} cluster(s) found
+                          {clusterStatus.source && ` (Source: ${clusterStatus.source})`}
+                          {/* Optionally list cluster names if space permits and desired */}
+                          {/* <span className="ml-2 text-gray-600 hidden md:inline">
+                            ({clusterStatus.clusters.map(c => c.cluster_name).join(', ')})
+                          </span> */}
+                        </span>
+                      ) : (
+                        <span className="text-orange-600">
+                          No clusters generated
+                          {clusterStatus.source && clusterStatus.source !== 'None' && ` (Attempted: ${clusterStatus.source})`}
+                        </span>
+                      )}
+                       {clusterStatus.clusters && clusterStatus.clusters.length > 0 && (
+                         <CheckCircle className="h-3 w-3 md:h-4 md:w-4 ml-1 text-green-500 flex-shrink-0" />
+                       )}
+                    </>
+                  )}
+                </div>
+                 {/* Detailed cluster list - uncomment and style if needed for full display */}
+                 {/* !clusterStatus.isLoading && !clusterStatus.error && clusterStatus.clusters && clusterStatus.clusters.length > 0 && (
+                  <div className="mt-1 pl-5 text-gray-600 text-xs">
+                    {clusterStatus.clusters.map((cluster, index) => (
+                      <div key={index}>
+                        <strong>{cluster.cluster_name}:</strong> {cluster.areas.join(', ')}
+                        {cluster.internal_source_detail && <em className="ml-1 text-gray-500">({cluster.internal_source_detail})</em>}
+                      </div>
+                    ))}
+                  </div>
+                    ) */}
               </div>
             )}
           </div>
@@ -892,6 +1031,97 @@ const MRVisitPlannerDashboard = ({
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// New Component: DailyAreaVisitTable
+const DailyAreaVisitTable = ({ visitPlan }) => {
+  if (!visitPlan || !visitPlan.weeklyBreakdown || visitPlan.weeklyBreakdown.length === 0) {
+    return (
+      <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-4 md:mt-6">
+        <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center">
+          <MapPin className="h-4 w-4 md:h-5 md:w-5 mr-2 text-gray-600" />
+          Daily Area Visits
+        </h3>
+        <p className="text-gray-500">No visit plan data available to display daily areas.</p>
+      </div>
+    );
+  }
+
+  // Directly use weeklyBreakdown, filtering weeks that have at least one day with visits.
+  const weeksWithVisits = (visitPlan.weeklyBreakdown || [])
+    .map(week => {
+      const daysWithActualVisits = week.days.filter(day => day.visits && day.visits.length > 0)
+                                          .sort((a, b) => new Date(a.date) - new Date(b.date));
+      return { ...week, days: daysWithActualVisits };
+    })
+    .filter(week => week.days.length > 0);
+
+  const hasAnyPlannedVisits = weeksWithVisits.length > 0;
+
+  return (
+    <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-4 md:mt-6">
+      <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center">
+        <MapPin className="h-4 w-4 md:h-5 md:w-5 mr-2 text-gray-600" />
+        Daily Area Visits (Per Week)
+      </h3>
+      <div className="overflow-x-auto">
+        {hasAnyPlannedVisits ? (
+          weeksWithVisits.map((week, weekIndex) => (
+            <div key={week.week || weekIndex} className="mb-6 last:mb-0">
+              <h4 className="text-sm md:text-base font-semibold text-gray-700 bg-gray-100 p-2 md:p-3 rounded-t-lg border-b border-gray-300">
+                {`Week ${week.week || weekIndex + 1}`}
+              </h4>
+              <table className="min-w-full divide-y divide-gray-200">
+                {/* Optional: Keep a global header visible if preferred, or rely on per-week context */}
+                <thead className="bg-gray-50 sr-only"> {/* Hidden for now, relying on per-week context */}
+                  <tr>
+                    <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                    <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Areas to Visit</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {week.days.map((day, dayIndex) => {
+                    // Aggregate area counts for the current day
+                    const areaCounts = day.visits.reduce((acc, visit) => {
+                      if (visit.area_name) {
+                        acc[visit.area_name] = (acc[visit.area_name] || 0) + 1;
+                      }
+                      return acc;
+                    }, {});
+
+                    const areasWithCountsString = Object.entries(areaCounts)
+                      .map(([area, count]) => `${area} (${count} ${count === 1 ? 'visit' : 'visits'})`)
+                      .join(', ');
+
+                    return (
+                      <tr key={`${week.week || weekIndex}-${dayIndex}`} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-700">
+                          {day.date}
+                        </td>
+                        <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-700">
+                          {day.dayName}
+                        </td>
+                        <td className="px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm text-gray-600">
+                          {areasWithCountsString || 'N/A'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* This specific condition (week.days.length === 0) should not be met here
+                      because we filter weeksWithVisits to only include weeks with days that have visits.
+                      If a week has no days with visits, it's filtered out before this map.
+                  */}
+                </tbody>
+              </table>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 py-4 text-center">No areas planned for visits.</p>
+        )}
+      </div>
     </div>
   );
 };
