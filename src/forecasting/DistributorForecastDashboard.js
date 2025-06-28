@@ -5,6 +5,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { forecastingAPI } from './ForecastingAPI';
+import {COLORS, formatIndianCurrency, formatCurrencyByContext } from '../data.js';
+
 import { 
   TrendingUp, 
   Package, 
@@ -418,7 +420,8 @@ const DistributorForecastDashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-xs md:text-sm font-medium text-emerald-600">Value</p>
-                  <p className="text-lg md:text-3xl font-bold text-emerald-900">₹{(totalPredictedValue/1000).toFixed(0)}K</p>
+                  <p className="text-lg md:text-3xl font-bold text-emerald-900">{formatCurrencyByContext(totalPredictedValue || 0, 'card')}</p>
+          
                 </div>
               </div>
             </div>
