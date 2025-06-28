@@ -948,9 +948,17 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {week.days.map((day, dayIndex) => {
-                    const uniqueAreas = Array.from(
-                      new Set(day.visits.map(visit => visit.area_name).filter(area => area))
-                    ).join(', ');
+                    // Aggregate area counts for the current day
+                    const areaCounts = day.visits.reduce((acc, visit) => {
+                      if (visit.area_name) {
+                        acc[visit.area_name] = (acc[visit.area_name] || 0) + 1;
+                      }
+                      return acc;
+                    }, {});
+
+                    const areasWithCountsString = Object.entries(areaCounts)
+                      .map(([area, count]) => `${area} (${count})`)
+                      .join(', ');
 
                     return (
                       <tr key={`${week.week || weekIndex}-${dayIndex}`} className="hover:bg-gray-50 transition-colors">
@@ -961,7 +969,7 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
                           {day.dayName}
                         </td>
                         <td className="px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm text-gray-600">
-                          {uniqueAreas || 'N/A'}
+                          {areasWithCountsString || 'N/A'}
                         </td>
                       </tr>
                     );
