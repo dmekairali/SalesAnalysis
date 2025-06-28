@@ -913,22 +913,29 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
     );
   }
 
-  // Flatten all days from the weekly breakdown
-  const allDays = visitPlan.weeklyBreakdown.reduce((acc, week) => {
-    week.days.forEach(day => {
-      // Only include days that are not Sundays and have a valid date
-      // Assuming Sunday is identified by not being in the typical 6-day work week structure
-      // or by a specific property if available. For now, we rely on the structure.
-      // Also, ensure the day has visits.
-      if (day.visits && day.visits.length > 0) {
-        acc.push(day);
-      }
-    });
-    return acc;
-  }, []);
+  // Group weeks into 4-week blocks
+  const fourWeekBlocks = [];
+  if (visitPlan.weeklyBreakdown && visitPlan.weeklyBreakdown.length > 0) {
+    for (let i = 0; i < visitPlan.weeklyBreakdown.length; i += 4) {
+      fourWeekBlocks.push(visitPlan.weeklyBreakdown.slice(i, i + 4));
+    }
+  }
 
-  // Sort days by date to ensure chronological order
-  allDays.sort((a, b) => new Date(a.date) - new Date(b.date));
+  // Consolidate days within each block, ensuring they have visits and are sorted
+  const processedBlocks = fourWeekBlocks.map(block => {
+    const daysInBlock = block.reduce((acc, week) => {
+      week.days.forEach(day => {
+        if (day.visits && day.visits.length > 0) {
+          acc.push(day);
+        }
+      });
+      return acc;
+    }, []);
+    daysInBlock.sort((a, b) => new Date(a.date) - new Date(b.date));
+    return daysInBlock;
+  }).filter(block => block.length > 0); // Remove blocks that end up empty
+
+  const hasAnyPlannedVisits = processedBlocks.some(block => block.length > 0);
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-4 md:mt-6">
@@ -937,58 +944,54 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
         Daily Area Visits
       </h3>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th
-                scope="col"
-                className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Date
-              </th>
-              <th
-                scope="col"
-                className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Day
-              </th>
-              <th
-                scope="col"
-                className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Areas to Visit
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {allDays.map((day, index) => {
-              const uniqueAreas = Array.from(
-                new Set(day.visits.map(visit => visit.area_name).filter(area => area))
-              ).join(', ');
+        {hasAnyPlannedVisits ? (
+          processedBlocks.map((block, blockIndex) => (
+            <div key={blockIndex} className="mb-6 last:mb-0">
+              <h4 className="text-sm md:text-base font-semibold text-gray-700 bg-gray-100 p-2 md:p-3 rounded-t-lg border-b border-gray-300">
+                {`Week Group ${blockIndex * 4 + 1} - ${Math.min((blockIndex + 1) * 4, visitPlan.weeklyBreakdown.length)}`}
+              </h4>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sr-only"> {/* Headers are now per block or could be made global if preferred */}
+                  <tr>
+                    <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                    <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Areas to Visit</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {block.map((day, dayIndex) => {
+                    const uniqueAreas = Array.from(
+                      new Set(day.visits.map(visit => visit.area_name).filter(area => area))
+                    ).join(', ');
 
-              return (
-                <tr key={index} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-700">
-                    {day.date}
-                  </td>
-                  <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-700">
-                    {day.dayName}
-                  </td>
-                  <td className="px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm text-gray-600">
-                    {uniqueAreas || 'N/A'}
-                  </td>
-                </tr>
-              );
-            })}
-            {allDays.length === 0 && (
-              <tr>
-                <td colSpan="3" className="px-3 py-2 md:px-4 md:py-3 text-center text-sm text-gray-500">
-                  No areas planned for visits.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                    return (
+                      <tr key={`${blockIndex}-${dayIndex}`} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-700">
+                          {day.date}
+                        </td>
+                        <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-700">
+                          {day.dayName}
+                        </td>
+                        <td className="px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm text-gray-600">
+                          {uniqueAreas || 'N/A'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {block.length === 0 && ( // Should not happen due to filter earlier, but as a fallback
+                    <tr>
+                      <td colSpan="3" className="px-3 py-2 md:px-4 md:py-3 text-center text-sm text-gray-500">
+                        No areas planned for visits in this period.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 py-4 text-center">No areas planned for visits.</p>
+        )}
       </div>
     </div>
   );
