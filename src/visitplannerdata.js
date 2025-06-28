@@ -739,13 +739,17 @@ createComprehensiveFallbackClusters(areaData) {
     });
 
     // Prospect ratio insight
-    const prospectRatio = summary.total_visits > 0 ? (summary.total_prospects / summary.total_visits * 100) : 0;
+    // Ensure the ratio is based on the sum of customers and prospects for consistency with its description.
+    const effective_total_for_prospect_ratio = summary.total_customers + summary.total_prospects;
+    const prospectRatio = effective_total_for_prospect_ratio > 0
+      ? (summary.total_prospects / effective_total_for_prospect_ratio * 100)
+      : 0;
     insights.push({
       type: 'prospects',
       title: 'New Business',
       value: `${prospectRatio.toFixed(1)}%`,
       description: `${summary.total_prospects} prospects vs ${summary.total_customers} existing`,
-      status: prospectRatio <= 20 ? 'good' : prospectRatio <= 40 ? 'warning' : 'critical'
+      status: prospectRatio <= 20 ? 'good' : prospectRatio <= 40 ? 'warning' : 'critical' // Status might need re-evaluation if ratio definition changes context
     });
 
     return insights;
