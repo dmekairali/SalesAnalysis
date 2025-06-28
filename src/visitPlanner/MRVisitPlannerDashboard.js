@@ -344,7 +344,7 @@ const MRVisitPlannerDashboard = ({
         selectedMR, 
         selectedMonth, 
         selectedYear, 
-        15 // minVisitsPerDay
+        10 // minVisitsPerDay
       );
       
       console.log('Visit Plan Result:', result);

@@ -707,7 +707,7 @@ createComprehensiveFallbackClusters(areaData) {
       total_customers: totalCustomers,
       total_prospects: totalProspects,
       estimated_revenue: totalCustomers * 2500 + totalProspects * 1500,
-      efficiency_score: workingDays.length > 0 ? (totalVisits / (workingDays.length * 15) * 100).toFixed(1) : 0,
+      efficiency_score: workingDays.length > 0 ? (totalVisits / (workingDays.length * 10) * 100).toFixed(1) : 0, // Changed 15 to 10
       avg_visits_per_day: workingDays.length > 0 ? (totalVisits / workingDays.length).toFixed(1) : 0
     };
   }
