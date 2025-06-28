@@ -913,45 +913,33 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
     );
   }
 
-  // Group weeks into 4-week blocks
-  const fourWeekBlocks = [];
-  if (visitPlan.weeklyBreakdown && visitPlan.weeklyBreakdown.length > 0) {
-    for (let i = 0; i < visitPlan.weeklyBreakdown.length; i += 4) {
-      fourWeekBlocks.push(visitPlan.weeklyBreakdown.slice(i, i + 4));
-    }
-  }
+  // Directly use weeklyBreakdown, filtering weeks that have at least one day with visits.
+  const weeksWithVisits = (visitPlan.weeklyBreakdown || [])
+    .map(week => {
+      const daysWithActualVisits = week.days.filter(day => day.visits && day.visits.length > 0)
+                                          .sort((a, b) => new Date(a.date) - new Date(b.date));
+      return { ...week, days: daysWithActualVisits };
+    })
+    .filter(week => week.days.length > 0);
 
-  // Consolidate days within each block, ensuring they have visits and are sorted
-  const processedBlocks = fourWeekBlocks.map(block => {
-    const daysInBlock = block.reduce((acc, week) => {
-      week.days.forEach(day => {
-        if (day.visits && day.visits.length > 0) {
-          acc.push(day);
-        }
-      });
-      return acc;
-    }, []);
-    daysInBlock.sort((a, b) => new Date(a.date) - new Date(b.date));
-    return daysInBlock;
-  }).filter(block => block.length > 0); // Remove blocks that end up empty
-
-  const hasAnyPlannedVisits = processedBlocks.some(block => block.length > 0);
+  const hasAnyPlannedVisits = weeksWithVisits.length > 0;
 
   return (
     <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-4 md:mt-6">
       <h3 className="text-base md:text-lg font-semibold mb-3 md:mb-4 flex items-center">
         <MapPin className="h-4 w-4 md:h-5 md:w-5 mr-2 text-gray-600" />
-        Daily Area Visits
+        Daily Area Visits (Per Week)
       </h3>
       <div className="overflow-x-auto">
         {hasAnyPlannedVisits ? (
-          processedBlocks.map((block, blockIndex) => (
-            <div key={blockIndex} className="mb-6 last:mb-0">
+          weeksWithVisits.map((week, weekIndex) => (
+            <div key={week.week || weekIndex} className="mb-6 last:mb-0">
               <h4 className="text-sm md:text-base font-semibold text-gray-700 bg-gray-100 p-2 md:p-3 rounded-t-lg border-b border-gray-300">
-                {`Week Group ${blockIndex * 4 + 1} - ${Math.min((blockIndex + 1) * 4, visitPlan.weeklyBreakdown.length)}`}
+                {`Week ${week.week || weekIndex + 1}`}
               </h4>
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 sr-only"> {/* Headers are now per block or could be made global if preferred */}
+                {/* Optional: Keep a global header visible if preferred, or rely on per-week context */}
+                <thead className="bg-gray-50 sr-only"> {/* Hidden for now, relying on per-week context */}
                   <tr>
                     <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th scope="col" className="px-3 py-2 md:px-4 md:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
@@ -959,13 +947,13 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {block.map((day, dayIndex) => {
+                  {week.days.map((day, dayIndex) => {
                     const uniqueAreas = Array.from(
                       new Set(day.visits.map(visit => visit.area_name).filter(area => area))
                     ).join(', ');
 
                     return (
-                      <tr key={`${blockIndex}-${dayIndex}`} className="hover:bg-gray-50 transition-colors">
+                      <tr key={`${week.week || weekIndex}-${dayIndex}`} className="hover:bg-gray-50 transition-colors">
                         <td className="px-3 py-2 md:px-4 md:py-3 whitespace-nowrap text-xs md:text-sm text-gray-700">
                           {day.date}
                         </td>
@@ -978,13 +966,10 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
                       </tr>
                     );
                   })}
-                  {block.length === 0 && ( // Should not happen due to filter earlier, but as a fallback
-                    <tr>
-                      <td colSpan="3" className="px-3 py-2 md:px-4 md:py-3 text-center text-sm text-gray-500">
-                        No areas planned for visits in this period.
-                      </td>
-                    </tr>
-                  )}
+                  {/* This specific condition (week.days.length === 0) should not be met here
+                      because we filter weeksWithVisits to only include weeks with days that have visits.
+                      If a week has no days with visits, it's filtered out before this map.
+                  */}
                 </tbody>
               </table>
             </div>
