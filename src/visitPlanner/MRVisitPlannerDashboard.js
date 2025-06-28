@@ -957,7 +957,7 @@ const DailyAreaVisitTable = ({ visitPlan }) => {
                     }, {});
 
                     const areasWithCountsString = Object.entries(areaCounts)
-                      .map(([area, count]) => `${area} (${count})`)
+                      .map(([area, count]) => `${area} (${count} ${count === 1 ? 'visit' : 'visits'})`)
                       .join(', ');
 
                     return (
