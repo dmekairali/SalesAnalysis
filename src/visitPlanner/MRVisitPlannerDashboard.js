@@ -344,7 +344,7 @@ const MRVisitPlannerDashboard = ({
         selectedMR, 
         selectedMonth, 
         selectedYear, 
-        15 // minVisitsPerDay
+        10 // minVisitsPerDay
       );
       
       console.log('Visit Plan Result:', result);
@@ -404,18 +404,30 @@ const MRVisitPlannerDashboard = ({
         date: dayPlan.date,
         dayName: dayPlan.dayName,
         visits: dayPlan.clusters.flatMap(cluster => 
-          cluster.customers.map(customer => ({
-            customer_name: customer.customer_name,
-            customer_phone: customer.customer_phone,
-            customer_type: customer.customer_type,
-            area_name: cluster.area_name,
-            scheduled_time: `${9 + Math.floor(index % 8)}:00`,
-            expected_order_value: customer.predicted_order_value || 2000,
-            order_probability: customer.prospect_generated ? 0.3 : 0.7,
-            priority: cluster.area_priority === 'PRIMARY' ? 'HIGH' : 
-                     cluster.area_priority === 'ROUTE_ROTATION' ? 'HIGH' :
-                     cluster.area_priority === 'PROSPECT' ? 'LOW' : 'MEDIUM'
-          }))
+          cluster.customers.map(customer => {
+            // Determine customer_type for the dashboard's visitPlan
+            // If prospect_generated is true, override customer_type to 'Prospect'
+            // Otherwise, use the existing customer.customer_type
+            const dashboardCustomerType = customer.prospect_generated
+              ? 'Prospect'
+              : customer.customer_type;
+
+            return {
+              customer_name: customer.customer_name,
+              customer_phone: customer.customer_phone,
+              customer_type: dashboardCustomerType, // Use the determined type
+              area_name: cluster.area_name,
+              scheduled_time: `${9 + Math.floor(index % 8)}:00`,
+              expected_order_value: customer.predicted_order_value || 2000,
+              // Carry over prospect_generated flag if needed elsewhere, though type is now primary
+              prospect_generated: customer.prospect_generated || false,
+              order_probability: customer.prospect_generated ? 0.3 : 0.7, // This can remain or be re-evaluated
+              priority: cluster.area_priority === 'PRIMARY' ? 'HIGH' :
+                       cluster.area_priority === 'ROUTE_ROTATION' ? 'HIGH' :
+                       customer.prospect_generated ? 'LOW' : // Ensure prospects from NBD have appropriate priority
+                       cluster.area_priority === 'PROSPECT' ? 'LOW' : 'MEDIUM' // Existing prospect logic
+            };
+          })
         ),
         summary: {
           totalVisits: dayPlan.totalVisits,
