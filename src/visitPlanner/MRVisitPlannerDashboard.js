@@ -338,48 +338,31 @@ const generateVisitPlan = async () => {
 };
 
 
+  // Add this complete function inside your MRVisitPlannerDashboard component
+// Place it after your other functions but before the return statement
 
-  // Helper function to extract cluster info from visit plan result
-const extractClusterInfoFromPlan = (planResult) => {
+const extractClusterInfoFromVisitPlan = (planResult) => {
   if (!planResult.dailyPlans || !Array.isArray(planResult.dailyPlans)) {
     return { clusters: [], source: 'None' };
   }
 
-  const clusterSet = new Set();
-  let source = 'Unknown';
+  const clusterMap = new Map();
+  let detectedSource = 'Fallback'; // Default assumption
 
+  // Extract unique clusters from daily plans
   planResult.dailyPlans.forEach(day => {
     if (day.clusters && Array.isArray(day.clusters)) {
       day.clusters.forEach(cluster => {
-        if (cluster.area_name) {
-          clusterSet.add(cluster.area_name);
+        if (cluster.area_name && !clusterMap.has(cluster.area_name)) {
+          clusterMap.set(cluster.area_name, {
+            cluster_name: cluster.area_name,
+            areas: [cluster.area_name],
+            customer_count: cluster.customers ? cluster.customers.length : 0
+          });
         }
       });
     }
   });
-
-  // Try to determine if AI or fallback was used
-  // You might need to add metadata to the plan result to track this
-  if (planResult.clustering_source) {
-    source = planResult.clustering_source;
-  } else {
-    // Try to infer from cluster names or other indicators
-    const clusterNames = Array.from(clusterSet);
-    if (clusterNames.some(name => name.includes('Route') || name.includes('Cluster'))) {
-      source = 'AI';
-    } else {
-      source = 'Fallback';
-    }
-  }
-
-  return {
-    clusters: Array.from(clusterSet).map(areaName => ({
-      cluster_name: areaName,
-      areas: [areaName] // Simplified - you might want more detailed area info
-    })),
-    source: source
-  };
-};
 
   // Try to detect the source based on cluster characteristics
   // You might want to add a clustering_source field to the plan result for accuracy
@@ -399,6 +382,7 @@ const extractClusterInfoFromPlan = (planResult) => {
     source: detectedSource
   };
 };
+
   // Add this helper function to transform daily plans to weekly breakdown
   const transformDailyPlansToWeekly = (dailyPlans) => {
     if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
