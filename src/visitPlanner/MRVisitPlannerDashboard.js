@@ -178,124 +178,7 @@ useEffect(() => {
   }
 }, [selectedMR, canAccessMRData]);
   
-  // This section handles the AI cluster generation with proper source tracking
-
-const generateAndSetClusters = async (mrName) => {
-  setClusterStatus(prev => ({
-    ...prev,
-    isLoading: true,
-    error: null,
-    clusters: [],
-    source: null,
-    timestamp: new Date().toISOString()
-  }));
-
-  let fetchedCustomers;
-  let preparedAreaData;
-  let clusterSource = 'Unknown';
-  let errorMessage = null;
-
-  try {
-    // Step 1: Fetch customer data
-    fetchedCustomers = await reactVisitPlannerML.fetchCustomerDataForMR(mrName);
-    if (!fetchedCustomers || fetchedCustomers.length === 0) {
-      throw new Error('No customer data found for MR.');
-    }
-
-    // Step 2: Prepare area data
-    preparedAreaData = reactVisitPlannerML.prepareAreaData(fetchedCustomers);
-    if (!preparedAreaData || preparedAreaData.length === 0) {
-      throw new Error('No area data could be prepared.');
-    }
-
-    // Step 3: Try clustering with AI (Gemini → OpenAI → Fallback)
-    try {
-      // First attempt: Gemini AI
-      console.log('🤖 Attempting clustering with Gemini AI...');
-      const geminiResult = await reactVisitPlannerML.getGeminiClusters(preparedAreaData);
-      
-      if (geminiResult && geminiResult.clusters && geminiResult.clusters.length > 0) {
-        clusterSource = 'Gemini AI';
-        setClusterStatus({
-          isLoading: false,
-          clusters: geminiResult.clusters.map(c => ({
-            cluster_name: c.cluster_name,
-            areas: c.areas.map(a => a.area_name),
-            internal_source_detail: `Gemini AI (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
-          })),
-          source: clusterSource,
-          error: null,
-          timestamp: new Date().toISOString()
-        });
-        return;
-      }
-    } catch (geminiError) {
-      console.warn('❌ Gemini clustering failed:', geminiError.message);
-      
-      // Second attempt: OpenAI fallback
-      try {
-        console.log('🔄 Attempting clustering with OpenAI (fallback)...');
-        const openaiResult = await reactVisitPlannerML.getOpenAIClusters(preparedAreaData);
-        
-        if (openaiResult && openaiResult.clusters && openaiResult.clusters.length > 0) {
-          clusterSource = 'OpenAI';
-          setClusterStatus({
-            isLoading: false,
-            clusters: openaiResult.clusters.map(c => ({
-              cluster_name: c.cluster_name,
-              areas: c.areas.map(a => a.area_name),
-              internal_source_detail: `OpenAI (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
-            })),
-            source: clusterSource,
-            error: null,
-            timestamp: new Date().toISOString()
-          });
-          return;
-        }
-      } catch (openaiError) {
-        console.warn('❌ OpenAI clustering failed:', openaiError.message);
-        errorMessage = `AI clustering failed: Gemini (${geminiError.message}), OpenAI (${openaiError.message})`;
-      }
-    }
-
-    // Step 4: Manual fallback if all AI methods failed
-    console.warn('⚠️ All AI clustering methods failed, using manual fallback');
-    clusterSource = 'Fallback';
-    const fallbackResult = await reactVisitPlannerML.createComprehensiveFallbackClusters(preparedAreaData);
-
-    if (fallbackResult && fallbackResult.clusters && fallbackResult.clusters.length > 0) {
-      setClusterStatus({
-        isLoading: false,
-        clusters: fallbackResult.clusters.map(c => ({
-          cluster_name: c.cluster_name,
-          areas: c.areas.map(a => a.area_name),
-          internal_source_detail: `Manual Fallback (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
-        })),
-        source: clusterSource,
-        error: errorMessage ? `AI failed, using fallback: ${errorMessage}` : null,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      setClusterStatus({
-        isLoading: false,
-        clusters: [],
-        source: 'Error',
-        error: errorMessage || "All clustering methods failed",
-        timestamp: new Date().toISOString()
-      });
-    }
-
-  } catch (err) {
-    console.error(`Critical error in generateAndSetClusters:`, err);
-    setClusterStatus({
-      isLoading: false,
-      clusters: [],
-      source: 'Error',
-      error: `Critical Error: ${err.message || 'An unexpected error occurred.'}`,
-      timestamp: new Date().toISOString()
-    });
-  }
-};
+ 
   // --- End of Cluster Generation Logic ---
 
   // Calculate customer breakdown for the entire plan
@@ -346,7 +229,8 @@ const generateAndSetClusters = async (mrName) => {
   }, [visitPlan]);
 
   // Generate visit plan with access control
- const generateVisitPlan = async () => {
+ // UPDATE the generateVisitPlan function to capture cluster info:
+const generateVisitPlan = async () => {
   if (!selectedMR) {
     alert('Please select an MR first');
     return;
@@ -360,7 +244,7 @@ const generateAndSetClusters = async (mrName) => {
   setLoading(true);
   setAccessError('');
   
-  // Reset cluster status to show loading
+  // Reset cluster status to show loading during plan generation
   setClusterStatus({
     isLoading: true,
     clusters: [],
@@ -371,8 +255,9 @@ const generateAndSetClusters = async (mrName) => {
   
   try {
     console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
+    console.log('🔒 Access check passed for:', selectedMR);
     
-    // Generate the visit plan (which includes clustering internally)
+    // Generate the visit plan (which includes clustering)
     const result = await reactVisitPlannerML.generateVisitPlan(
       selectedMR, 
       selectedMonth, 
@@ -383,10 +268,10 @@ const generateAndSetClusters = async (mrName) => {
     console.log('Visit Plan Result:', result);
     
     if (result.success) {
-      // Extract clustering information from the visit plan result
-      const clusterInfo = extractClusterInfoFromPlan(result);
+      // Extract clustering information from the visit plan
+      const clusterInfo = extractClusterInfoFromVisitPlan(result);
       
-      // Update cluster status with the clusters used in the plan
+      // Update cluster status with clusters used in the plan
       setClusterStatus({
         isLoading: false,
         clusters: clusterInfo.clusters,
@@ -420,7 +305,7 @@ const generateAndSetClusters = async (mrName) => {
       setVisitPlan(transformedPlan);
       console.log('✅ Visit plan generated successfully for', selectedMR);
     } else {
-      // Plan generation failed - update cluster status
+      // Plan generation failed
       setClusterStatus({
         isLoading: false,
         clusters: [],
