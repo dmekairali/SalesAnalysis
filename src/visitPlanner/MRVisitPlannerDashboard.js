@@ -158,16 +158,26 @@ const MRVisitPlannerDashboard = ({
       }
     }
   }, [selectedMR, canAccessMRData]);
-
-  useEffect(() => {
-    if (selectedMR && canAccessMRData(selectedMR)) {
-      generateAndSetClusters(selectedMR);
+  
+useEffect(() => {
+  if (selectedMR) {
+    if (!canAccessMRData(selectedMR)) {
+      setAccessError(`Access denied: You don't have permission to view data for ${selectedMR}`);
+      return;
     } else {
-      // Reset cluster status if no MR selected or no access
-      setClusterStatus({ isLoading: false, clusters: [], source: null, error: null, timestamp: null });
+      setAccessError('');
+      // Reset cluster status - don't generate automatically
+      setClusterStatus({ 
+        isLoading: false, 
+        clusters: [], 
+        source: null, 
+        error: null, 
+        timestamp: null 
+      });
     }
-  }, [selectedMR, canAccessMRData]);
-
+  }
+}, [selectedMR, canAccessMRData]);
+  
   // --- Cluster Generation Logic ---
   const generateAndSetClusters = async (mrName) => {
     setClusterStatus(prev => ({
@@ -320,74 +330,155 @@ const MRVisitPlannerDashboard = ({
   }, [visitPlan]);
 
   // Generate visit plan with access control
-  const generateVisitPlan = async () => {
-    if (!selectedMR) {
-      alert('Please select an MR first');
-      return;
-    }
+ const generateVisitPlan = async () => {
+  if (!selectedMR) {
+    alert('Please select an MR first');
+    return;
+  }
 
-    // Check access before generating plan
-    if (!canAccessMRData(selectedMR)) {
-      setAccessError(`Access denied: You don't have permission to generate plans for ${selectedMR}`);
-      return;
-    }
+  if (!canAccessMRData(selectedMR)) {
+    setAccessError(`Access denied: You don't have permission to generate plans for ${selectedMR}`);
+    return;
+  }
 
-    setLoading(true);
-    setAccessError('');
+  setLoading(true);
+  setAccessError('');
+  
+  // Reset cluster status to show loading
+  setClusterStatus({
+    isLoading: true,
+    clusters: [],
+    source: null,
+    error: null,
+    timestamp: new Date().toISOString()
+  });
+  
+  try {
+    console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
     
-    try {
-      console.log('Generating plan for:', { selectedMR, selectedMonth, selectedYear });
-      console.log('🔒 Access check passed for:', selectedMR);
+    // Generate the visit plan (which includes clustering internally)
+    const result = await reactVisitPlannerML.generateVisitPlan(
+      selectedMR, 
+      selectedMonth, 
+      selectedYear, 
+      10
+    );
+    
+    console.log('Visit Plan Result:', result);
+    
+    if (result.success) {
+      // Extract clustering information from the visit plan result
+      const clusterInfo = extractClusterInfoFromPlan(result);
       
-      // Use the React visit planner
-      const result = await reactVisitPlannerML.generateVisitPlan(
-        selectedMR, 
-        selectedMonth, 
-        selectedYear, 
-        10 // minVisitsPerDay
-      );
+      // Update cluster status with the clusters used in the plan
+      setClusterStatus({
+        isLoading: false,
+        clusters: clusterInfo.clusters,
+        source: clusterInfo.source,
+        error: null,
+        timestamp: new Date().toISOString()
+      });
       
-      console.log('Visit Plan Result:', result);
+      // Transform and set the visit plan
+      const transformedPlan = {
+        mrName: selectedMR,
+        month: selectedMonth,
+        year: selectedYear,
+        summary: {
+          totalWorkingDays: result.summary.total_working_days,
+          totalPlannedVisits: result.summary.total_planned_visits,
+          estimatedRevenue: result.summary.estimated_revenue,
+          efficiencyScore: parseFloat(result.summary.efficiency_score),
+          coverageScore: 90
+        },
+        weeklyBreakdown: transformDailyPlansToWeekly(result.dailyPlans),
+        insights: result.insights.map(insight => ({
+          type: insight.type,
+          title: insight.title,
+          value: insight.value,
+          description: insight.description,
+          recommendation: `Status: ${insight.status}`
+        }))
+      };
       
-      if (result.success) {
-        // Transform to match your component expectations
-        const transformedPlan = {
-          mrName: selectedMR,
-          month: selectedMonth,
-          year: selectedYear,
-          summary: {
-            totalWorkingDays: result.summary.total_working_days,
-            totalPlannedVisits: result.summary.total_planned_visits,
-            estimatedRevenue: result.summary.estimated_revenue,
-            efficiencyScore: parseFloat(result.summary.efficiency_score),
-            coverageScore: 90 // Default
-          },
-          weeklyBreakdown: transformDailyPlansToWeekly(result.dailyPlans),
-          insights: result.insights.map(insight => ({
-            type: insight.type,
-            title: insight.title,
-            value: insight.value,
-            description: insight.description,
-            recommendation: `Status: ${insight.status}`
-          }))
-        };
-        
-        setVisitPlan(transformedPlan);
-        console.log('✅ Visit plan generated successfully for', selectedMR);
-      } else {
-        console.error('Plan generation failed:', result.error);
-        alert(`Plan generation failed: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error generating visit plan:', error);
-      if (error.message.includes('access') || error.message.includes('permission')) {
-        setAccessError('Access denied: Insufficient permissions to generate visit plan');
-      } else {
-        alert('Error generating visit plan. Please try again.');
-      }
+      setVisitPlan(transformedPlan);
+      console.log('✅ Visit plan generated successfully for', selectedMR);
+    } else {
+      // Plan generation failed - update cluster status
+      setClusterStatus({
+        isLoading: false,
+        clusters: [],
+        source: 'Error',
+        error: result.error,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.error('Plan generation failed:', result.error);
+      alert(`Plan generation failed: ${result.error}`);
     }
-    setLoading(false);
+  } catch (error) {
+    // Handle errors
+    setClusterStatus({
+      isLoading: false,
+      clusters: [],
+      source: 'Error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.error('Error generating visit plan:', error);
+    if (error.message.includes('access') || error.message.includes('permission')) {
+      setAccessError('Access denied: Insufficient permissions to generate visit plan');
+    } else {
+      alert('Error generating visit plan. Please try again.');
+    }
+  }
+  setLoading(false);
+};
+
+
+
+  // Helper function to extract cluster info from visit plan result
+const extractClusterInfoFromPlan = (planResult) => {
+  if (!planResult.dailyPlans || !Array.isArray(planResult.dailyPlans)) {
+    return { clusters: [], source: 'None' };
+  }
+
+  const clusterSet = new Set();
+  let source = 'Unknown';
+
+  planResult.dailyPlans.forEach(day => {
+    if (day.clusters && Array.isArray(day.clusters)) {
+      day.clusters.forEach(cluster => {
+        if (cluster.area_name) {
+          clusterSet.add(cluster.area_name);
+        }
+      });
+    }
+  });
+
+  // Try to determine if AI or fallback was used
+  // You might need to add metadata to the plan result to track this
+  if (planResult.clustering_source) {
+    source = planResult.clustering_source;
+  } else {
+    // Try to infer from cluster names or other indicators
+    const clusterNames = Array.from(clusterSet);
+    if (clusterNames.some(name => name.includes('Route') || name.includes('Cluster'))) {
+      source = 'AI';
+    } else {
+      source = 'Fallback';
+    }
+  }
+
+  return {
+    clusters: Array.from(clusterSet).map(areaName => ({
+      cluster_name: areaName,
+      areas: [areaName] // Simplified - you might want more detailed area info
+    })),
+    source: source
   };
+};
 
   // Add this helper function to transform daily plans to weekly breakdown
   const transformDailyPlansToWeekly = (dailyPlans) => {
@@ -735,58 +826,42 @@ const MRVisitPlannerDashboard = ({
 
             {/* Cluster Status */}
             {selectedMR && canAccessMRData(selectedMR) && (
-              <div className="mt-2 text-xs md:text-sm">
-                <div className="flex items-center">
-                  <Brain className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
-                  <span className="font-semibold mr-1">Clusters:</span>
-                  {clusterStatus.isLoading && (
-                    <span className="text-gray-500 flex items-center">
-                      <RefreshCw className="h-3 w-3 md:h-4 md:w-4 mr-1 animate-spin" />
-                      Loading...
-                    </span>
-                  )}
-                  {!clusterStatus.isLoading && clusterStatus.error && (
-                    <span className="text-red-600 flex items-center">
-                      <AlertTriangle className="h-3 w-3 md:h-4 md:w-4 mr-1" />
-                      Error: {clusterStatus.error}
-                    </span>
-                  )}
-                  {!clusterStatus.isLoading && !clusterStatus.error && (
-                    <>
-                      {clusterStatus.clusters && clusterStatus.clusters.length > 0 ? (
-                        <span className="text-green-700">
-                          {clusterStatus.clusters.length} cluster(s) found
-                          {clusterStatus.source && ` (Source: ${clusterStatus.source})`}
-                          {/* Optionally list cluster names if space permits and desired */}
-                          {/* <span className="ml-2 text-gray-600 hidden md:inline">
-                            ({clusterStatus.clusters.map(c => c.cluster_name).join(', ')})
-                          </span> */}
-                        </span>
-                      ) : (
-                        <span className="text-orange-600">
-                          No clusters generated
-                          {clusterStatus.source && clusterStatus.source !== 'None' && ` (Attempted: ${clusterStatus.source})`}
-                        </span>
-                      )}
-                       {clusterStatus.clusters && clusterStatus.clusters.length > 0 && (
-                         <CheckCircle className="h-3 w-3 md:h-4 md:w-4 ml-1 text-green-500 flex-shrink-0" />
-                       )}
-                    </>
-                  )}
-                </div>
-                 {/* Detailed cluster list - uncomment and style if needed for full display */}
-                 {/* !clusterStatus.isLoading && !clusterStatus.error && clusterStatus.clusters && clusterStatus.clusters.length > 0 && (
-                  <div className="mt-1 pl-5 text-gray-600 text-xs">
-                    {clusterStatus.clusters.map((cluster, index) => (
-                      <div key={index}>
-                        <strong>{cluster.cluster_name}:</strong> {cluster.areas.join(', ')}
-                        {cluster.internal_source_detail && <em className="ml-1 text-gray-500">({cluster.internal_source_detail})</em>}
-                      </div>
-                    ))}
-                  </div>
-                    ) */}
-              </div>
-            )}
+  <div className="mt-2 text-xs md:text-sm">
+    <div className="flex items-center">
+      <Brain className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
+      <span className="font-semibold mr-1">Clusters:</span>
+      {clusterStatus.isLoading && (
+        <span className="text-gray-500 flex items-center">
+          <RefreshCw className="h-3 w-3 md:h-4 md:w-4 mr-1 animate-spin" />
+          Generating clusters...
+        </span>
+      )}
+      {!clusterStatus.isLoading && clusterStatus.error && (
+        <span className="text-red-600 flex items-center">
+          <AlertTriangle className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+          Error: {clusterStatus.error}
+        </span>
+      )}
+      {!clusterStatus.isLoading && !clusterStatus.error && (
+        <>
+          {clusterStatus.clusters && clusterStatus.clusters.length > 0 ? (
+            <span className="text-green-700">
+              {clusterStatus.clusters.length} cluster(s) found
+              {clusterStatus.source && ` (Source: ${clusterStatus.source})`}
+            </span>
+          ) : (
+            <span className="text-gray-500">
+              Click "Generate Plan" to create clusters
+            </span>
+          )}
+          {clusterStatus.clusters && clusterStatus.clusters.length > 0 && (
+            <CheckCircle className="h-3 w-3 md:h-4 md:w-4 ml-1 text-green-500 flex-shrink-0" />
+          )}
+        </>
+      )}
+    </div>
+  </div>
+)}
           </div>
           
           {/* Action Buttons - Mobile Responsive */}
