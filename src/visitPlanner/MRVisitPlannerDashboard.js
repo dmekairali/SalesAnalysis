@@ -178,108 +178,124 @@ useEffect(() => {
   }
 }, [selectedMR, canAccessMRData]);
   
-  // --- Cluster Generation Logic ---
-  const generateAndSetClusters = async (mrName) => {
-    setClusterStatus(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null,
-      clusters: [],
-      source: null,
-      timestamp: new Date().toISOString()
-    }));
+  // This section handles the AI cluster generation with proper source tracking
 
-    let fetchedCustomers;
-    let preparedAreaData;
-    let attemptSource = 'AI'; // Start by attempting AI
-    let errorMessage = null;
+const generateAndSetClusters = async (mrName) => {
+  setClusterStatus(prev => ({
+    ...prev,
+    isLoading: true,
+    error: null,
+    clusters: [],
+    source: null,
+    timestamp: new Date().toISOString()
+  }));
 
+  let fetchedCustomers;
+  let preparedAreaData;
+  let clusterSource = 'Unknown';
+  let errorMessage = null;
+
+  try {
+    // Step 1: Fetch customer data
+    fetchedCustomers = await reactVisitPlannerML.fetchCustomerDataForMR(mrName);
+    if (!fetchedCustomers || fetchedCustomers.length === 0) {
+      throw new Error('No customer data found for MR.');
+    }
+
+    // Step 2: Prepare area data
+    preparedAreaData = reactVisitPlannerML.prepareAreaData(fetchedCustomers);
+    if (!preparedAreaData || preparedAreaData.length === 0) {
+      throw new Error('No area data could be prepared.');
+    }
+
+    // Step 3: Try clustering with AI (Gemini → OpenAI → Fallback)
     try {
-      // Step 1: Fetch customer data
-      fetchedCustomers = await reactVisitPlannerML.fetchCustomerDataForMR(mrName);
-      if (!fetchedCustomers || fetchedCustomers.length === 0) {
-        throw new Error('No customer data found for MR.');
+      // First attempt: Gemini AI
+      console.log('🤖 Attempting clustering with Gemini AI...');
+      const geminiResult = await reactVisitPlannerML.getGeminiClusters(preparedAreaData);
+      
+      if (geminiResult && geminiResult.clusters && geminiResult.clusters.length > 0) {
+        clusterSource = 'Gemini AI';
+        setClusterStatus({
+          isLoading: false,
+          clusters: geminiResult.clusters.map(c => ({
+            cluster_name: c.cluster_name,
+            areas: c.areas.map(a => a.area_name),
+            internal_source_detail: `Gemini AI (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
+          })),
+          source: clusterSource,
+          error: null,
+          timestamp: new Date().toISOString()
+        });
+        return;
       }
-
-      // Step 2: Prepare area data
-      preparedAreaData = reactVisitPlannerML.prepareAreaData(fetchedCustomers);
-      if (!preparedAreaData || preparedAreaData.length === 0) {
-        throw new Error('No area data could be prepared.');
-      }
-
-      // Step 3: Attempt AI cluster generation
+    } catch (geminiError) {
+      console.warn('❌ Gemini clustering failed:', geminiError.message);
+      
+      // Second attempt: OpenAI fallback
       try {
-        // getGeminiClusters returns { clusters: [...] } or throws error
-        const aiClusterResult = await reactVisitPlannerML.getGeminiClusters(preparedAreaData);
-
-        if (aiClusterResult && aiClusterResult.clusters && aiClusterResult.clusters.length > 0) {
-          // Validate if Gemini covered all areas (simplified check, actual logic is inside getGeminiClusters)
-          // For the dashboard, we trust getGeminiClusters to only return valid, complete clusters if it doesn't throw.
-          // If it internally falls back, createOptimizedClusters handles that.
-          // Here, we explicitly call getGeminiClusters to know it's an AI attempt.
+        console.log('🔄 Attempting clustering with OpenAI (fallback)...');
+        const openaiResult = await reactVisitPlannerML.getOpenAIClusters(preparedAreaData);
+        
+        if (openaiResult && openaiResult.clusters && openaiResult.clusters.length > 0) {
+          clusterSource = 'OpenAI';
           setClusterStatus({
             isLoading: false,
-            // Assuming structure from getGeminiClusters is { clusters: [{ cluster_name, areas: [{area_name,...}]}]}
-            // We need to adapt it slightly if our display expects cluster.areas to be string[]
-            clusters: aiClusterResult.clusters.map(c => ({
+            clusters: openaiResult.clusters.map(c => ({
               cluster_name: c.cluster_name,
-              areas: c.areas.map(a => a.area_name), // Extract area names
-              internal_source_detail: `AI - Gemini (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
+              areas: c.areas.map(a => a.area_name),
+              internal_source_detail: `OpenAI (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
             })),
-            source: 'AI',
+            source: clusterSource,
             error: null,
             timestamp: new Date().toISOString()
           });
           return;
-        } else {
-          // AI attempt was made, but no clusters returned or result was empty.
-          // This case might be handled by getGeminiClusters throwing an error or returning empty,
-          // leading to the catch block below or proceeding to fallback.
-          console.log(`AI (getGeminiClusters) for ${mrName} resulted in no specific clusters or an incomplete set. Attempting fallback.`);
-          errorMessage = "AI returned no/incomplete clusters."; // Store potential error/reason
         }
-      } catch (aiError) {
-        console.warn(`AI cluster generation (getGeminiClusters) failed for ${mrName}: ${aiError.message}. Attempting fallback.`);
-        errorMessage = aiError.message; // Store AI error
-        // Fall through to fallback
+      } catch (openaiError) {
+        console.warn('❌ OpenAI clustering failed:', openaiError.message);
+        errorMessage = `AI clustering failed: Gemini (${geminiError.message}), OpenAI (${openaiError.message})`;
       }
+    }
 
-      // Step 4: Attempt Fallback Logic (if AI failed or returned no/incomplete clusters)
-      attemptSource = 'Fallback';
-      const fallbackClusterResult = await reactVisitPlannerML.createComprehensiveFallbackClusters(preparedAreaData);
+    // Step 4: Manual fallback if all AI methods failed
+    console.warn('⚠️ All AI clustering methods failed, using manual fallback');
+    clusterSource = 'Fallback';
+    const fallbackResult = await reactVisitPlannerML.createComprehensiveFallbackClusters(preparedAreaData);
 
-      if (fallbackClusterResult && fallbackClusterResult.clusters && fallbackClusterResult.clusters.length > 0) {
-        setClusterStatus({
-          isLoading: false,
-          clusters: fallbackClusterResult.clusters.map(c => ({
-            cluster_name: c.cluster_name,
-            areas: c.areas.map(a => a.area_name),
-            internal_source_detail: `Fallback (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
-          })),
-          source: 'Fallback',
-          error: null, // Fallback succeeded, clear previous AI error message for the status
-          timestamp: new Date().toISOString()
-        });
-      } else {
-        setClusterStatus({
-          isLoading: false,
-          clusters: [],
-          source: 'None',
-          error: errorMessage || "Fallback also resulted in no clusters.", // Show AI error if fallback was just empty
-          timestamp: new Date().toISOString()
-        });
-      }
-    } catch (err) {
-      console.error(`Critical error in generateAndSetClusters during ${attemptSource} phase:`, err);
+    if (fallbackResult && fallbackResult.clusters && fallbackResult.clusters.length > 0) {
+      setClusterStatus({
+        isLoading: false,
+        clusters: fallbackResult.clusters.map(c => ({
+          cluster_name: c.cluster_name,
+          areas: c.areas.map(a => a.area_name),
+          internal_source_detail: `Manual Fallback (Priority: ${c.cluster_priority}, Day: ${c.recommended_visit_day})`
+        })),
+        source: clusterSource,
+        error: errorMessage ? `AI failed, using fallback: ${errorMessage}` : null,
+        timestamp: new Date().toISOString()
+      });
+    } else {
       setClusterStatus({
         isLoading: false,
         clusters: [],
         source: 'Error',
-        error: `${attemptSource} Error: ${err.message || 'An unexpected error occurred.'}`,
+        error: errorMessage || "All clustering methods failed",
         timestamp: new Date().toISOString()
       });
     }
-  };
+
+  } catch (err) {
+    console.error(`Critical error in generateAndSetClusters:`, err);
+    setClusterStatus({
+      isLoading: false,
+      clusters: [],
+      source: 'Error',
+      error: `Critical Error: ${err.message || 'An unexpected error occurred.'}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
   // --- End of Cluster Generation Logic ---
 
   // Calculate customer breakdown for the entire plan
@@ -825,7 +841,8 @@ const extractClusterInfoFromPlan = (planResult) => {
             )}
 
             {/* Cluster Status */}
-            {selectedMR && canAccessMRData(selectedMR) && (
+          // Updated cluster display component
+{selectedMR && canAccessMRData(selectedMR) && (
   <div className="mt-2 text-xs md:text-sm">
     <div className="flex items-center">
       <Brain className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
@@ -847,7 +864,16 @@ const extractClusterInfoFromPlan = (planResult) => {
           {clusterStatus.clusters && clusterStatus.clusters.length > 0 ? (
             <span className="text-green-700">
               {clusterStatus.clusters.length} cluster(s) found
-              {clusterStatus.source && ` (Source: ${clusterStatus.source})`}
+              {clusterStatus.source && (
+                <span className={`ml-1 px-1.5 py-0.5 rounded text-xs ${
+                  clusterStatus.source === 'Gemini AI' ? 'bg-purple-100 text-purple-700' :
+                  clusterStatus.source === 'OpenAI' ? 'bg-blue-100 text-blue-700' :
+                  clusterStatus.source === 'Fallback' ? 'bg-orange-100 text-orange-700' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {clusterStatus.source}
+                </span>
+              )}
             </span>
           ) : (
             <span className="text-gray-500">
