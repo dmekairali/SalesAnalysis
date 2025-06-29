@@ -211,7 +211,7 @@ async getGeminiClusters(areaData) {
   const totalCustomers = areaData.reduce((sum, area) => sum + area.customer_count, 0);
   const targetClusters = Math.max(8, Math.ceil(areaData.length / 4)); // At least 8 clusters
   
-  const prompt = {
+  /* const prompt = {
     contents: [{
       parts: [{
         text: `Create ${targetClusters} route-optimized clusters that cover ALL ${areaData.length} areas.
@@ -251,7 +251,93 @@ ${JSON.stringify(areaData, null, 2)}`
       }]
     }]
   };
+*/
+const prompt = {
+  contents: [{
+    parts: [{
+      text: `Create ${targetClusters} route-optimized clusters for field sales visits.
 
+UNIVERSAL CLUSTERING PRINCIPLES:
+- Group areas by geographic proximity and logical routing patterns
+- Consider typical urban traffic and travel constraints
+- Optimize for daily productivity while minimizing travel time
+- Account for business operational patterns (weekday focus for B2B)
+
+INTELLIGENT GROUPING RULES:
+1. Create ${targetClusters} clusters minimum
+2. Each cluster: 3-6 areas maximum  
+3. Identify and group adjacent/neighboring areas together
+4. Avoid combining areas from opposite directions or distant zones
+5. Consider area names for geographic hints (sectors, districts, zones)
+6. Distribute workload across Monday-Saturday (avoid Sunday-only clusters)
+
+AREA ANALYSIS PATTERNS:
+- Areas with similar prefixes likely adjacent (e.g., "ROHINI SEC-7", "ROHINI SEC-8")
+- Areas with same base name often clustered (e.g., "North Delhi", "North West Delhi")  
+- Separate clusters for distinctly different regions/cities
+- High-priority areas (more customers) should anchor clusters
+
+BUSINESS OPTIMIZATION:
+- Target 6-10 total visits per cluster per day
+- Consider travel efficiency between areas in sequence
+- Balance cluster sizes for workload distribution
+- Ensure coverage completeness - ALL areas must be assigned
+
+PRIORITY AREAS TO OPTIMIZE FIRST:
+${areaData.slice(0, 10).map(area => `- ${area.area_name}: ${area.customer_count} customers`).join('\n')}
+
+CLUSTERING LOGIC EXAMPLES:
+✅ SMART: Group areas with shared naming patterns
+✅ SMART: Combine high-customer areas with nearby smaller areas  
+✅ SMART: Create balanced Monday-Saturday distribution
+❌ AVOID: Mixing obviously distant regions in same cluster
+❌ AVOID: Creating Sunday-only visit recommendations
+❌ AVOID: Clusters with too many high-volume areas (overload)
+
+Return ONLY valid JSON with ALL ${areaData.length} areas covered:
+{
+  "clusters": [
+    {
+      "cluster_name": "[Descriptive Route Name]",
+      "cluster_priority": "High|Medium|Low",
+      "recommended_visit_day": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday", 
+      "total_customers": "[sum of all areas in cluster]",
+      "areas": [
+        {
+          "area_name": "[Exact area name from input]",
+          "visit_sequence": 1,
+          "notes": "[Priority level and routing logic]",
+          "customer_count": "[from input data]"
+        }
+      ]
+    }
+  ],
+  "clustering_summary": {
+    "total_areas_processed": ${areaData.length},
+    "clusters_created": "[actual number]",
+    "geographic_efficiency": "High|Medium|Low",
+    "workload_balance": "Balanced|Needs_adjustment"
+  }
+}
+
+INPUT DATA (${areaData.length} areas total):
+${JSON.stringify(areaData, null, 2)}
+
+VALIDATION CHECKLIST:
+☐ Every area from input appears exactly once in output
+☐ No area is duplicated across clusters  
+☐ No area is left unassigned
+☐ All clusters have realistic daily visit counts (6-12 total)
+☐ Geographic grouping makes logical sense
+☐ Monday-Saturday distribution only
+
+CRITICAL: Count and verify ALL ${areaData.length} areas are assigned before returning JSON.`
+    }]
+  }]
+};
+
+
+  
   const options = {
     method: "POST",
     headers: {
