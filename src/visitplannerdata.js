@@ -181,20 +181,40 @@ async fetchCustomerDataForMR(mrName) {
     return Object.values(areaMap);
   }
 
-  /**
-   * Create optimized clusters (simplified for React)
-   */
-  /**
- * Create optimized clusters using Gemini AI
+ /**
+ * Create optimized clusters using AI (Gemini first, OpenAI fallback, then manual fallback)
  */
 async createOptimizedClusters(areaData) {
+  let lastError = null;
+  
+  // 1. Try Gemini AI first
   try {
-    return await this.getGeminiClusters(areaData);
+    console.log('🤖 Attempting clustering with Gemini AI...');
+    const geminiResult = await this.getGeminiClusters(areaData);
+    console.log('✅ Gemini clustering successful');
+    return geminiResult;
   } catch (error) {
-    console.warn('Gemini clustering failed, using fallback:', error.message);
-    return this.createComprehensiveFallbackClusters(areaData);
+    console.warn('❌ Gemini clustering failed:', error.message);
+    lastError = error;
   }
+
+  // 2. Try OpenAI as fallback
+  try {
+    console.log('🔄 Attempting clustering with OpenAI (fallback)...');
+    const openaiResult = await this.getOpenAIClusters(areaData);
+    console.log('✅ OpenAI clustering successful');
+    return openaiResult;
+  } catch (error) {
+    console.warn('❌ OpenAI clustering failed:', error.message);
+    lastError = error;
+  }
+
+  // 3. Use manual fallback as last resort
+  console.warn('⚠️ Both AI clustering methods failed, using manual fallback');
+  console.warn('Last error:', lastError?.message);
+  return this.createComprehensiveFallbackClusters(areaData);
 }
+
 
 /**
  * Get optimized clusters from Gemini AI
@@ -389,6 +409,156 @@ CRITICAL: Count and verify ALL ${areaData.length} areas are assigned before retu
   }
 }
 
+
+/**
+ * Get optimized clusters from OpenAI (fallback when Gemini fails)
+ */
+async getOpenAIClusters(areaData) {
+  const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+  
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const url = 'https://api.openai.com/v1/chat/completions';
+  
+  const totalCustomers = areaData.reduce((sum, area) => sum + area.customer_count, 0);
+  const targetClusters = Math.max(8, Math.ceil(areaData.length / 4));
+  
+  const promptText = `Create ${targetClusters} route-optimized clusters for field sales visits.
+
+UNIVERSAL CLUSTERING PRINCIPLES:
+- Group areas by geographic proximity and logical routing patterns
+- Consider typical urban traffic and travel constraints
+- Optimize for daily productivity while minimizing travel time
+- Account for business operational patterns (weekday focus for B2B)
+
+INTELLIGENT GROUPING RULES:
+1. Create ${targetClusters} clusters minimum
+2. Each cluster: 3-6 areas maximum  
+3. Identify and group adjacent/neighboring areas together
+4. Avoid combining areas from opposite directions or distant zones
+5. Consider area names for geographic hints (sectors, districts, zones)
+6. Balance workload across clusters (customer count distribution)
+7. Assign logical visit days (Monday-Saturday only)
+
+RESPONSE FORMAT (JSON only, no markdown):
+{
+  "clusters": [
+    {
+      "cluster_name": "[Descriptive Route Name]",
+      "cluster_priority": "High|Medium|Low",
+      "recommended_visit_day": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday", 
+      "total_customers": "[sum of all areas in cluster]",
+      "areas": [
+        {
+          "area_name": "[Exact area name from input]",
+          "visit_sequence": 1,
+          "notes": "[Priority level and routing logic]",
+          "customer_count": "[from input data]"
+        }
+      ]
+    }
+  ],
+  "clustering_summary": {
+    "total_areas_processed": ${areaData.length},
+    "clusters_created": "[actual number]",
+    "geographic_efficiency": "High|Medium|Low",
+    "workload_balance": "Balanced|Needs_adjustment"
+  }
+}
+
+INPUT DATA (${areaData.length} areas total):
+${JSON.stringify(areaData, null, 2)}
+
+VALIDATION CHECKLIST:
+☐ Every area from input appears exactly once in output
+☐ No area is duplicated across clusters  
+☐ No area is left unassigned
+☐ All clusters have realistic daily visit counts (6-12 total)
+☐ Geographic grouping makes logical sense
+☐ Monday-Saturday distribution only
+
+CRITICAL: Count and verify ALL ${areaData.length} areas are assigned before returning JSON.`;
+
+  const payload = {
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert logistics and route optimization AI. Always return valid JSON responses without markdown formatting. Focus on creating geographically logical clusters for field sales visits."
+      },
+      {
+        role: "user",
+        content: promptText
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 4000,
+    response_format: { type: "json_object" }
+  };
+
+  const options = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify(payload)
+  };
+
+  try {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.choices || !result.choices[0] || !result.choices[0].message) {
+      throw new Error("Invalid response format from OpenAI");
+    }
+    
+    const responseContent = result.choices[0].message.content;
+    let clusters;
+    
+    try {
+      clusters = JSON.parse(responseContent);
+    } catch (parseError) {
+      const cleanContent = responseContent.replace(/```json|```/g, '').trim();
+      clusters = JSON.parse(cleanContent);
+    }
+    
+    if (!clusters.clusters || !Array.isArray(clusters.clusters)) {
+      throw new Error("Invalid cluster format from OpenAI");
+    }
+    
+    // Validate all areas are covered
+    const assignedAreas = new Set();
+    clusters.clusters.forEach(cluster => {
+      cluster.areas.forEach(area => {
+        assignedAreas.add(area.area_name);
+      });
+    });
+    
+    const unassignedCount = areaData.length - assignedAreas.size;
+    if (unassignedCount > 0) {
+      console.warn(`WARNING: OpenAI left ${unassignedCount} areas unassigned.`);
+      throw new Error(`OpenAI clustering incomplete: ${unassignedCount} areas unassigned`);
+    }
+
+    console.log(`✅ OpenAI clustering successful: ${clusters.clusters.length} clusters created`);
+    return clusters;
+    
+  } catch (e) {
+    console.error(`OpenAI clustering failed: ${e.message}`);
+    throw e;
+  }
+}
+  
+  
 /**
  * Create comprehensive fallback clusters when Gemini fails
  */
