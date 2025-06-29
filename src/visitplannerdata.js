@@ -69,7 +69,8 @@ export class ReactVisitPlannerML {
         source: clusteredAreas.clustering_source || 'Unknown',
         method: clusteredAreas.clustering_method || 'Unknown',
         total_clusters: clusteredAreas.clusters ? clusteredAreas.clusters.length : 0,
-        cluster_names: clusteredAreas.clusters ? clusteredAreas.clusters.slice(0, 5).map(c => c.cluster_name) : []
+        cluster_names: clusteredAreas.clusters ? clusteredAreas.clusters.map(c => c.cluster_name) : []
+
       }
     };
 
