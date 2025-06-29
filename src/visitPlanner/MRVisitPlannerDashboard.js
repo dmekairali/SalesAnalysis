@@ -338,49 +338,68 @@ const generateVisitPlan = async () => {
 };
 
 
-  // Add this complete function inside your MRVisitPlannerDashboard component
-// Place it after your other functions but before the return statement
+  
+// that uses the clustering metadata directly from the visit plan result:
 
 const extractClusterInfoFromVisitPlan = (planResult) => {
+  // Use the clustering_info metadata if available
+  if (planResult.clustering_info) {
+    const { source, total_clusters, cluster_names } = planResult.clustering_info;
+    
+    const clusters = cluster_names.map((name, index) => ({
+      cluster_name: name,
+      areas: [name], // Simplified
+      customer_count: 0 // Will be calculated if needed
+    }));
+
+    console.log('✅ Using clustering metadata:', {
+      source,
+      total_clusters,
+      cluster_names: cluster_names.slice(0, 3)
+    });
+
+    return {
+      clusters: clusters,
+      source: source
+    };
+  }
+
+  // Fallback: Try to extract from daily plans (with better error handling)
   if (!planResult.dailyPlans || !Array.isArray(planResult.dailyPlans)) {
     return { clusters: [], source: 'None' };
   }
 
-  const clusterMap = new Map();
-  let detectedSource = 'Fallback'; // Default assumption
+  try {
+    const areaSet = new Set();
+    
+    planResult.dailyPlans.forEach(day => {
+      if (day.clusters && Array.isArray(day.clusters)) {
+        day.clusters.forEach(cluster => {
+          if (cluster.area_name) {
+            areaSet.add(cluster.area_name);
+          }
+        });
+      }
+    });
 
-  // Extract unique clusters from daily plans
-  planResult.dailyPlans.forEach(day => {
-    if (day.clusters && Array.isArray(day.clusters)) {
-      day.clusters.forEach(cluster => {
-        if (cluster.area_name && !clusterMap.has(cluster.area_name)) {
-          clusterMap.set(cluster.area_name, {
-            cluster_name: cluster.area_name,
-            areas: [cluster.area_name],
-            customer_count: cluster.customers ? cluster.customers.length : 0
-          });
-        }
-      });
-    }
-  });
+    const clusters = Array.from(areaSet).map(areaName => ({
+      cluster_name: areaName,
+      areas: [areaName],
+      customer_count: 0
+    }));
 
-  // Try to detect the source based on cluster characteristics
-  // You might want to add a clustering_source field to the plan result for accuracy
-  const clusterNames = Array.from(clusterMap.keys());
-  if (clusterNames.some(name => 
-    name.includes('Route') || 
-    name.includes('Cluster') || 
-    name.includes('North') || 
-    name.includes('South') || 
-    name.includes('Central')
-  )) {
-    detectedSource = 'Gemini AI'; // AI-generated cluster names are usually more descriptive
+    return {
+      clusters: clusters,
+      source: 'Detected'
+    };
+
+  } catch (error) {
+    console.error('Error extracting cluster info:', error);
+    return { 
+      clusters: [], 
+      source: 'Error'
+    };
   }
-
-  return {
-    clusters: Array.from(clusterMap.values()),
-    source: detectedSource
-  };
 };
 
   // Add this helper function to transform daily plans to weekly breakdown
