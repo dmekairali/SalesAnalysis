@@ -381,6 +381,24 @@ const extractClusterInfoFromPlan = (planResult) => {
   };
 };
 
+  // Try to detect the source based on cluster characteristics
+  // You might want to add a clustering_source field to the plan result for accuracy
+  const clusterNames = Array.from(clusterMap.keys());
+  if (clusterNames.some(name => 
+    name.includes('Route') || 
+    name.includes('Cluster') || 
+    name.includes('North') || 
+    name.includes('South') || 
+    name.includes('Central')
+  )) {
+    detectedSource = 'Gemini AI'; // AI-generated cluster names are usually more descriptive
+  }
+
+  return {
+    clusters: Array.from(clusterMap.values()),
+    source: detectedSource
+  };
+};
   // Add this helper function to transform daily plans to weekly breakdown
   const transformDailyPlansToWeekly = (dailyPlans) => {
     if (!dailyPlans || !Array.isArray(dailyPlans)) return [];
