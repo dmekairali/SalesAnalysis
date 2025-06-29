@@ -841,7 +841,6 @@ const extractClusterInfoFromPlan = (planResult) => {
             )}
 
             {/* Cluster Status */}
-          // Updated cluster display component
 {selectedMR && canAccessMRData(selectedMR) && (
   <div className="mt-2 text-xs md:text-sm">
     <div className="flex items-center">
