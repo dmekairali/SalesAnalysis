@@ -20,67 +20,73 @@ export class ReactVisitPlannerML {
    * Generate visit plan for MR with cluster-based rotation
    */
   async generateVisitPlan(mrName, month, year, minVisitsPerDay = 10) {
-    const cacheKey = `visitPlan_${mrName}_${month}_${year}`;
-    const cachedPlan = getCache(cacheKey);
+  const cacheKey = `visitPlan_${mrName}_${month}_${year}`;
+  const cachedPlan = getCache(cacheKey);
 
-    if (cachedPlan) {
-      console.log(`[Cache] Returning cached visit plan for key: ${cacheKey}`);
-      return cachedPlan; // Return a deep copy if plan objects can be mutated
-    }
-
-    console.log(`[Cache] No valid cached visit plan found for key: ${cacheKey}. Generating new plan.`);
-
-    try {
-      console.log(`Generating visit plan for ${mrName} - ${month}/${year}`);
-      
-      // 1. Get customer data (from your existing data)
-      const customers = await this.fetchCustomerDataForMR(mrName);
-      if (!customers || customers.length === 0) {
-        throw new Error('No customers found for this MR');
-      }
-
-      // 2. Prepare area data
-      const areaData = await this.prepareAreaData(customers);
-      // console.log(areaData); // Keep console.log commented or remove for production
-      // 3. Create clusters (simplified version for React)
-      const clusteredAreas = await this.createOptimizedClusters(areaData);
-      // console.log(clusteredAreas); // Keep console.log commented or remove for production
-      // 4. Generate calendar
-      const calendar = await this.generateWorkingDaysCalendar(month, year);
-      // console.log(calendar); // Keep console.log commented or remove for production
-      // 5. Create visit plan with rotation logic
-      const visitPlan = await this.createVisitPlanWithRotation(
-        customers, 
-        clusteredAreas, 
-        calendar, 
-        minVisitsPerDay
-      );
-
-      const result = {
-        success: true,
-        mrName,
-        month,
-        year,
-        summary: this.calculatePlanSummary(visitPlan),
-        dailyPlans: visitPlan,
-        insights: this.generatePlanInsights(visitPlan, customers.length)
-      };
-
-      setCache(cacheKey, result); // Cache the successful result
-      return result;
-
-    } catch (error) {
-      console.error('Error generating visit plan:', error);
-      // Do not cache errors, or cache them differently if needed
-      return {
-        success: false,
-        error: error.message,
-        mrName,
-        month,
-        year
-      };
-    }
+  if (cachedPlan) {
+    console.log(`[Cache] Returning cached visit plan for key: ${cacheKey}`);
+    return cachedPlan;
   }
+
+  console.log(`[Cache] No valid cached visit plan found for key: ${cacheKey}. Generating new plan.`);
+
+  try {
+    console.log(`Generating visit plan for ${mrName} - ${month}/${year}`);
+    
+    // 1. Get customer data
+    const customers = await this.fetchCustomerDataForMR(mrName);
+    if (!customers || customers.length === 0) {
+      throw new Error('No customers found for this MR');
+    }
+
+    // 2. Prepare area data
+    const areaData = await this.prepareAreaData(customers);
+    
+    // 3. Create clusters (with source tracking)
+    const clusteredAreas = await this.createOptimizedClusters(areaData);
+    
+    // 4. Generate calendar
+    const calendar = await this.generateWorkingDaysCalendar(month, year);
+    
+    // 5. Create visit plan with rotation logic
+    const visitPlan = await this.createVisitPlanWithRotation(
+      customers, 
+      clusteredAreas, 
+      calendar, 
+      minVisitsPerDay
+    );
+
+    const result = {
+      success: true,
+      mrName,
+      month,
+      year,
+      summary: this.calculatePlanSummary(visitPlan),
+      dailyPlans: visitPlan,
+      insights: this.generatePlanInsights(visitPlan, customers.length),
+      // Add clustering metadata
+      clustering_info: {
+        source: clusteredAreas.clustering_source || 'Unknown',
+        method: clusteredAreas.clustering_method || 'Unknown',
+        total_clusters: clusteredAreas.clusters ? clusteredAreas.clusters.length : 0,
+        cluster_names: clusteredAreas.clusters ? clusteredAreas.clusters.slice(0, 5).map(c => c.cluster_name) : []
+      }
+    };
+
+    setCache(cacheKey, result);
+    return result;
+
+  } catch (error) {
+    console.error('Error generating visit plan:', error);
+    return {
+      success: false,
+      error: error.message,
+      mrName,
+      month,
+      year
+    };
+  }
+}
 
   /**
    * Fetch customer data for specific MR (uses your existing data structure)
@@ -184,15 +190,24 @@ async fetchCustomerDataForMR(mrName) {
  /**
  * Create optimized clusters using AI (Gemini first, OpenAI fallback, then manual fallback)
  */
+
 async createOptimizedClusters(areaData) {
   let lastError = null;
+  let clusteringSource = 'Unknown';
   
   // 1. Try Gemini AI first
   try {
     console.log('🤖 Attempting clustering with Gemini AI...');
     const geminiResult = await this.getGeminiClusters(areaData);
     console.log('✅ Gemini clustering successful');
-    return geminiResult;
+    clusteringSource = 'Gemini AI';
+    
+    // Add source metadata to result
+    return {
+      ...geminiResult,
+      clustering_source: clusteringSource,
+      clustering_method: 'AI'
+    };
   } catch (error) {
     console.warn('❌ Gemini clustering failed:', error.message);
     lastError = error;
@@ -203,7 +218,14 @@ async createOptimizedClusters(areaData) {
     console.log('🔄 Attempting clustering with OpenAI (fallback)...');
     const openaiResult = await this.getOpenAIClusters(areaData);
     console.log('✅ OpenAI clustering successful');
-    return openaiResult;
+    clusteringSource = 'OpenAI';
+    
+    // Add source metadata to result
+    return {
+      ...openaiResult,
+      clustering_source: clusteringSource,
+      clustering_method: 'AI'
+    };
   } catch (error) {
     console.warn('❌ OpenAI clustering failed:', error.message);
     lastError = error;
@@ -212,9 +234,17 @@ async createOptimizedClusters(areaData) {
   // 3. Use manual fallback as last resort
   console.warn('⚠️ Both AI clustering methods failed, using manual fallback');
   console.warn('Last error:', lastError?.message);
-  return this.createComprehensiveFallbackClusters(areaData);
+  clusteringSource = 'Fallback';
+  
+  const fallbackResult = this.createComprehensiveFallbackClusters(areaData);
+  
+  // Add source metadata to result
+  return {
+    ...fallbackResult,
+    clustering_source: clusteringSource,
+    clustering_method: 'Manual'
+  };
 }
-
 
 /**
  * Get optimized clusters from Gemini AI
