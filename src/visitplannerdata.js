@@ -628,27 +628,25 @@ createComprehensiveFallbackClusters(areaData) {
 generateWorkingDaysCalendar(month, year) {
   const calendar = [];
   
-  // CORRECTED: For target month, use month-1 in the constructor
-  // This gets the last day of the target month correctly
-  const daysInMonth = new Date(year, month - 1 + 1, 0).getDate();
-  // OR more clearly: new Date(year, month, 0).getDate() when month is 1-based
+  // Get the first and last day of the target month
+  const startDate = new Date(Date.UTC(year, month - 1, 1)); // First day of month
+  const endDate = new Date(Date.UTC(year, month, 0));        // Last day of month
   
-  // But the cleanest approach is explicit date range:
-  const startDate = new Date(year, month - 1, 1); // First day of target month
-  const endDate = new Date(year, month, 0);       // Last day of target month
+  //console.log(`Generating calendar for ${month}/${year}`);
+  //console.log(`Month range: ${startDate.toISOString().slice(0,10)} to ${endDate.toISOString().slice(0,10)}`);
   
-  console.log(`Generating calendar for ${month}/${year}`);
-  console.log(`Month range: ${startDate.toDateString()} to ${endDate.toDateString()}`);
-  
-  const currentDate = new Date(startDate);
+  // Create a new date object for iteration (UTC to avoid timezone issues)
+  let currentDate = new Date(Date.UTC(year, month - 1, 1));
   
   while (currentDate <= endDate) {
-    const dayOfWeek = currentDate.getDay();
+    const dayOfWeek = currentDate.getUTCDay();
     
     // Skip Sundays (0)
     if (dayOfWeek !== 0) {
+      // Create a completely new date object using ISO string
+      const dateStr = currentDate.toISOString().slice(0, 10);
       calendar.push({
-        date: currentDate.toISOString().slice(0, 10),
+        date: dateStr,
         dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
         clusters: [],
         totalVisits: 0,
@@ -656,16 +654,21 @@ generateWorkingDaysCalendar(month, year) {
       });
     }
     
-    // Move to next day
-    currentDate.setDate(currentDate.getDate() + 1);
+    // Move to next day in UTC to avoid DST issues
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
   }
   
-  console.log(`Generated ${calendar.length} working days for ${month}/${year}`);
-  console.log(`Date range: ${calendar[0]?.date} to ${calendar[calendar.length - 1]?.date}`);
+  if (calendar.length > 0) {
+    //console.log(`Generated ${calendar.length} working days for ${month}/${year}`);
+    //console.log(`First working day: ${calendar[0].date}`);
+    //console.log(`Last working day: ${calendar[calendar.length - 1].date}`);
+  } else {
+    //console.log(`No working days found for ${month}/${year}`);
+  }
   
+  //Logger.log(calendar)
   return calendar;
 }
-
 
   
   /**
