@@ -628,30 +628,36 @@ createComprehensiveFallbackClusters(areaData) {
 generateWorkingDaysCalendar(month, year) {
   const calendar = [];
   
-  // FIXED: Get the actual number of days in the target month
-  const daysInMonth = new Date(year, month, 0).getDate();
+  // CORRECTED: For target month, use month-1 in the constructor
+  // This gets the last day of the target month correctly
+  const daysInMonth = new Date(year, month - 1 + 1, 0).getDate();
+  // OR more clearly: new Date(year, month, 0).getDate() when month is 1-based
   
-  console.log(`Generating calendar for ${month}/${year} - Days in month: ${daysInMonth}`);
+  // But the cleanest approach is explicit date range:
+  const startDate = new Date(year, month - 1, 1); // First day of target month
+  const endDate = new Date(year, month, 0);       // Last day of target month
   
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month - 1, day);
-    const dayOfWeek = date.getDay();
+  console.log(`Generating calendar for ${month}/${year}`);
+  console.log(`Month range: ${startDate.toDateString()} to ${endDate.toDateString()}`);
+  
+  const currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
     
     // Skip Sundays (0)
-    if (dayOfWeek === 0) {
-      console.log(`Skipping Sunday: ${date.toISOString().slice(0, 10)}`);
-      continue;
+    if (dayOfWeek !== 0) {
+      calendar.push({
+        date: currentDate.toISOString().slice(0, 10),
+        dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
+        clusters: [],
+        totalVisits: 0,
+        isSunday: false
+      });
     }
     
-    const dateString = date.toISOString().slice(0, 10);
-    
-    calendar.push({
-      date: dateString,
-      dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
-      clusters: [],
-      totalVisits: 0,
-      isSunday: false
-    });
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
   }
   
   console.log(`Generated ${calendar.length} working days for ${month}/${year}`);
@@ -659,6 +665,7 @@ generateWorkingDaysCalendar(month, year) {
   
   return calendar;
 }
+
 
   
   /**
