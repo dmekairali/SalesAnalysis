@@ -623,31 +623,44 @@ createComprehensiveFallbackClusters(areaData) {
 }
 
   /**
-   * Generate working days calendar
-   */
-  generateWorkingDaysCalendar(month, year) {
-    const calendar = [];
-    const daysInMonth = new Date(year, month, 0).getDate();
+ * Generate working days calendar - FIXED VERSION
+ */
+generateWorkingDaysCalendar(month, year) {
+  const calendar = [];
+  
+  // FIXED: Get the actual number of days in the target month
+  const daysInMonth = new Date(year, month, 0).getDate();
+  
+  console.log(`Generating calendar for ${month}/${year} - Days in month: ${daysInMonth}`);
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month - 1, day);
+    const dayOfWeek = date.getDay();
     
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month - 1, day);
-      const dayOfWeek = date.getDay();
-      
-      // Skip Sundays (0)
-      if (dayOfWeek === 0) continue;
-      
-      calendar.push({
-        date: date.toISOString().slice(0, 10),
-        dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
-        clusters: [],
-        totalVisits: 0,
-        isSunday: false
-      });
+    // Skip Sundays (0)
+    if (dayOfWeek === 0) {
+      console.log(`Skipping Sunday: ${date.toISOString().slice(0, 10)}`);
+      continue;
     }
     
-    return calendar;
+    const dateString = date.toISOString().slice(0, 10);
+    
+    calendar.push({
+      date: dateString,
+      dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
+      clusters: [],
+      totalVisits: 0,
+      isSunday: false
+    });
   }
+  
+  console.log(`Generated ${calendar.length} working days for ${month}/${year}`);
+  console.log(`Date range: ${calendar[0]?.date} to ${calendar[calendar.length - 1]?.date}`);
+  
+  return calendar;
+}
 
+  
   /**
    * Create visit plan with cluster-based rotation logic
    */
